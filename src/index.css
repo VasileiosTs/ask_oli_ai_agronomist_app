@@ -9,11 +9,9 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-foreground: var(--foreground);
-
   --radius-bubble: var(--radius-bubble);
   --radius-card: var(--radius-card);
   --radius-input: var(--radius-input);
-
   --font-sans: "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -27,7 +25,6 @@
     --muted: #8B949E;
     --border: #21262D;
     --foreground: #F0F6FC;
-
     --radius-bubble: 18px;
     --radius-card: 12px;
     --radius-input: 22px;
@@ -43,14 +40,22 @@
   }
 
   @media (max-width: 640px) {
-    body {
-      font-size: 12px;
-    }
+    body { font-size: 12px; }
   }
 }
 
 @layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }

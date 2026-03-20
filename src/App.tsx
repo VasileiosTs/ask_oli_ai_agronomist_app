@@ -1,41 +1,47 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LanguageProvider, useLanguage } from './lib/LanguageContext';
 import AppLayout from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import LoadingSpinner from './components/LoadingSpinner';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
 import Chat from './pages/Chat';
-import Fields from './pages/Fields';
 import Profile from './pages/Profile';
 import SharedDiagnosis from './pages/SharedDiagnosis';
 
-const Privacy = () => (
-  <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground">
-    <h1 className="mb-4 text-2xl font-bold">Politiki Aporritoy</h1>
-    <div className="space-y-4 text-sm text-muted leading-relaxed">
-      <p><strong className="text-foreground">Dedomena pou sylegoume:</strong> onoma, topothe sia, dedomena kalliergion, minymata chat, fotografies.</p>
-      <p><strong className="text-foreground">Xrisi:</strong> Paragwgi agronomikas symboulis kai veltiosi tis ypiresias.</p>
-      <p><strong className="text-foreground">Apothikeusi:</strong> Supabase EU (Frankfurt) — GDPR compliant.</p>
-      <p><strong className="text-foreground">Triti meri:</strong> Gemini (Google) gia AI epeksergasia — ta dedomena den apothikeyontai apo tin Google.</p>
-      <p><strong className="text-foreground">Dikaioma eksaleipsis:</strong> Profile → Diagrafi logariasou gia na diagrafeis ola ta dedomena sou.</p>
-      <p><strong className="text-foreground">Cookies:</strong> Kanena advertising cookie. Mono apothikeusi session.</p>
+const Privacy = () => {
+  const { t } = useLanguage();
+  return (
+    <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground max-w-2xl mx-auto">
+      <h1 className="mb-6 text-2xl font-bold">{t.privacyPolicy}</h1>
+      <div className="space-y-4 text-sm text-muted leading-relaxed">
+        <p><strong className="text-foreground">Δεδομένα που συλλέγουμε:</strong> όνομα, τοποθεσία, δεδομένα καλλιεργιών, μηνύματα chat, φωτογραφίες.</p>
+        <p><strong className="text-foreground">Χρήση:</strong> Παροχή αγρονομικής συμβουλής και βελτίωση της υπηρεσίας.</p>
+        <p><strong className="text-foreground">Αποθήκευση:</strong> Supabase EU (Frankfurt) — GDPR compliant.</p>
+        <p><strong className="text-foreground">Τρίτα μέρη:</strong> Gemini (Google) για AI επεξεργασία — τα δεδομένα δεν αποθηκεύονται από την Google.</p>
+        <p><strong className="text-foreground">Δικαίωμα εξάλειψης:</strong> Profile → Διαγραφή λογαριασμού για να διαγράψεις όλα τα δεδομένα σου.</p>
+        <p><strong className="text-foreground">Cookies:</strong> Κανένα advertising cookie. Μόνο αποθήκευση session.</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
-const Terms = () => (
-  <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground">
-    <h1 className="mb-4 text-2xl font-bold">Oroi Xrhshs</h1>
-    <div className="space-y-4 text-sm text-muted leading-relaxed">
-      <p>To Oli parechei AI symvoules gia enimerwsi monon. Den antikathistai o epistimonikas agronomikas symboylos.</p>
-      <p>Panta symvoyleyesteite enan pistopoiimeno agronomo prin tin efarmogi ximilkon.</p>
-      <p>To Oli den efthinetai gia apolyies sti sygkomidi poy prokyptoun apo ti chrisimi symvoylon AI.</p>
-      <p>Oi chrisites prepei na einai ano ton 18 eton i na echoyn epotropeia.</p>
-      <p>Apagoreyetai i katahrisi, ypesyla dedomenon, i antistroph michanologisi tis ypiresias.</p>
+const Terms = () => {
+  const { t } = useLanguage();
+  return (
+    <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground max-w-2xl mx-auto">
+      <h1 className="mb-6 text-2xl font-bold">{t.termsOfService}</h1>
+      <div className="space-y-4 text-sm text-muted leading-relaxed">
+        <p>Το Oli παρέχει AI συμβουλές για ενημέρωση μόνο. Δεν αντικαθιστά τον επιστημονικό αγρονομικό σύμβουλο.</p>
+        <p>Πάντα συμβουλευτείτε έναν πιστοποιημένο αγρονόμο πριν την εφαρμογή χημικών.</p>
+        <p>Το Oli δεν ευθύνεται για απώλειες στη σοδειά που προκύπτουν από τη χρήση AI συμβουλών.</p>
+        <p>Οι χρήστες πρέπει να είναι άνω των 18 ετών ή να έχουν επιτροπεία.</p>
+        <p>Απαγορεύεται η κατάχρηση, υπεξαίρεση δεδομένων, ή αντίστροφη μηχανολόγηση της υπηρεσίας.</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 1000 * 60 * 5 } },
@@ -49,7 +55,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function App() {
+function AppRoutes() {
   const { user, profile, loading, isGuest } = useAuth();
 
   if (loading) {
@@ -60,31 +66,34 @@ export default function App() {
     );
   }
 
+  const authed = (user && profile) || isGuest;
+
+  return (
+    <Routes>
+      <Route path="/auth" element={authed ? <Navigate to="/chat" replace /> : <Auth />} />
+      <Route path="/onboarding" element={user && profile ? <Navigate to="/chat" replace /> : (!user && !isGuest ? <Navigate to="/auth" replace /> : <Onboarding />)} />
+      <Route path="/d/:shareId" element={<SharedDiagnosis />} />
+      <Route path="/legal/privacy" element={<Privacy />} />
+      <Route path="/legal/terms" element={<Terms />} />
+      <Route path="/" element={<Navigate to={authed ? "/chat" : "/auth"} replace />} />
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/profile" element={<Profile />} />
+        {/* /fields hidden from nav but kept for data layer */}
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/auth" element={(user && profile) || isGuest ? <Navigate to="/chat" replace /> : (user && !profile ? <Navigate to="/onboarding" replace /> : <Auth />)} />
-        <Route path="/onboarding" element={user && profile ? <Navigate to="/chat" replace /> : (!user && !isGuest ? <Navigate to="/auth" replace /> : <Onboarding />)} />
-        <Route path="/d/:shareId" element={<SharedDiagnosis />} />
-        <Route path="/legal/privacy" element={<Privacy />} />
-        <Route path="/legal/terms" element={<Terms />} />
-
-        {/* Root Redirect */}
-        <Route path="/" element={<Navigate to={(user && profile) || isGuest ? "/chat" : (user && !profile ? "/onboarding" : "/auth")} replace />} />
-
-        {/* Protected Routes with Bottom Nav */}
-        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/fields" element={<Fields />} />
-          <Route path="/profile" element={<Profile />} />
-        </Route>
-        
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+      <LanguageProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

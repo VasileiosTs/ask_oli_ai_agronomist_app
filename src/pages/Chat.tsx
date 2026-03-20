@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2 } from 'lucide-react';
+import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2, Menu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
+import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { extractAndApply } from '../lib/extractAndApply';
 import { generateValidatedResponse } from '../lib/validateAi';
+import { useLanguage } from '../lib/LanguageContext';
 import clsx from 'clsx';
 
 const FREE_LIMIT = 20;
@@ -40,16 +42,11 @@ interface Message {
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 
-const SUGGESTIONS = [
-  'Τα φύλλα μου κιτρινίζουν, τι φταίει;',
-  'Πότε να ψεκάσω τα ελαιόδεντρα;',
-  'Ανέβασε φωτογραφία για διάγνωση',
-  'Τι να κάνω αυτή την εβδομάδα;',
-];
-
 export default function Chat() {
   const { user, profile, appUserId, isGuest } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -114,7 +111,7 @@ export default function Chat() {
       return;
     }
 
-    showToast(newStarred ? "Saved to starred messages" : "Removed from starred messages");
+    showToast(newStarred ? t.savedMessage : t.removedMessage);
   };
 
   const handleLogIntervention = (msg: Message) => {
@@ -188,7 +185,7 @@ export default function Chat() {
     const shareUrl = `${window.location.origin}/d/${publicShareId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      showToast("Link copied! Share with anyone.");
+      showToast(t.linkCopied);
     } catch (error) {
       console.error('Clipboard write failed:', error);
       showToast('Share link created, but clipboard access was blocked.');
@@ -369,7 +366,7 @@ export default function Chat() {
             msg.id === assistantMsgId
               ? {
                   ...msg,
-                  content: 'Gia na xrisimopoiiseis ton Oli, parakalo syndesou i dimiourgo enan logariasmo. Einai dorean!',
+                  content: t.guestPrompt,
                 }
               : msg
           )
@@ -450,7 +447,7 @@ export default function Chat() {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.role === 'assistant' && !msg.content
-            ? { ...msg, content: "Syggnomi, ypirxe ena provlima me ti syndesi. Parakalw dokimaste xana argotera." }
+            ? { ...msg, content: t.connectionError }
             : msg
         )
       );
@@ -693,12 +690,41 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-48px)] flex-col bg-background">
+    <div className="flex h-[100dvh] flex-col bg-background">
+      {/* Conversation Sidebar */}
+      <ConversationSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeId={activeConversationId}
+        onSelect={async (id) => {
+          clearChat();
+          setActiveConversationId(id);
+          const { data } = await supabase
+            .from('chat_messages')
+            .select('id, role, content, metadata, starred, image_urls, created_at')
+            .eq('conversation_id', id)
+            .order('created_at', { ascending: true })
+            .limit(50);
+          if (data) {
+            setMessages(data.map((m: any) => ({
+              id: m.id, db_id: m.id, role: m.role, content: m.content,
+              metadata: m.metadata, starred: m.starred, created_at: m.created_at,
+            })));
+          }
+        }}
+        onNewChat={clearChat}
+      />
+
       {/* Header */}
       <header className="fixed left-0 right-0 top-0 z-40 flex h-12 items-center justify-between border-b border-border/50 bg-surface px-4">
-        <div className="flex items-center gap-2">
-          <Leaf className="h-[18px] w-[18px] text-primary" />
-          <span className="text-[16px] font-medium text-primary">Oli</span>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="text-muted hover:text-foreground transition-colors">
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Leaf className="h-[18px] w-[18px] text-primary" />
+            <span className="text-[16px] font-medium text-primary">Oli</span>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={clearChat} className="text-muted hover:text-foreground transition-colors">
@@ -719,10 +745,10 @@ export default function Chat() {
           <div className="flex h-full flex-col items-center justify-center text-center animate-fade-in">
             <Leaf className="mb-4 h-12 w-12 text-primary" />
             <h1 className="mb-2 text-[28px] font-semibold text-primary">Oli</h1>
-            <p className="text-sm text-muted">O AI gewponos sou</p>
+            <p className="text-sm text-muted">{t.chatSubtitle}</p>
             
             <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3">
-              {SUGGESTIONS.map((sugg, i) => (
+              {t.suggestions.map((sugg, i) => (
                 <button
                   key={i}
                   onClick={() => handleSend(sugg)}
@@ -735,12 +761,12 @@ export default function Chat() {
             
             <div className="mt-8 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               {isGuest
-                ? 'Guest Mode'
+                ? t.guestMode
                 : activeField?.growing_medium
-                  ? `Medium: ${activeField.growing_medium}`
+                  ? `${activeField.growing_medium}`
                   : fields.length > 1
                     ? 'All Fields'
-                    : 'No Field Context'}
+                    : 'Oli'}
             </div>
           </div>
         ) : (
@@ -834,21 +860,21 @@ export default function Chat() {
                           )}
                         >
                           <Star className={clsx("h-3.5 w-3.5", msg.starred && "fill-current")} />
-                          Save
+                          {t.savedMessage}
                         </button>
                         <button
                           onClick={() => handleLogIntervention(msg)}
                           className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground"
                         >
                           <ClipboardList className="h-3.5 w-3.5" />
-                          Log
+                          {t.logIntervention}
                         </button>
                         <button
                           onClick={() => handleShare(msg)}
                           className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground"
                         >
                           <Share2 className="h-3.5 w-3.5" />
-                          Share
+                          {t.shareLabel}
                         </button>
                       </div>
                     )}
@@ -877,10 +903,10 @@ export default function Chat() {
       </div>
 
       {/* Input Bar */}
-      <div className="fixed bottom-12 left-0 right-0 z-40 border-t border-border/50 bg-surface/95 pb-safe backdrop-blur-sm">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/50 bg-surface/95 pb-safe backdrop-blur-sm">
         {!isGuest && messageCount >= FREE_LIMIT - 3 && (
           <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
-            {FREE_LIMIT - messageCount} minimata apomenoun
+            {FREE_LIMIT - messageCount} {t.messagesLeft}
           </div>
         )}
         
@@ -991,7 +1017,7 @@ export default function Chat() {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={isListening ? "Listening..." : "Rwthste ton Oli..."}
+              placeholder={isListening ? t.listening : t.inputPlaceholder}
               className="max-h-[120px] min-h-[40px] w-full resize-none rounded-[22px] border border-border/50 bg-background px-4 py-2.5 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               rows={1}
             />
