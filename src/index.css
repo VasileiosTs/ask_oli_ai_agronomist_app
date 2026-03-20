@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+
+  --radius-bubble: var(--radius-bubble);
+  --radius-card: var(--radius-card);
+  --radius-input: var(--radius-input);
+
+  --font-sans: "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: #0D1117;
+    --surface: #161C23;
+    --primary: #2EA043;
+    --brand: #2D6A4F;
+    --accent: #4ADE80;
+    --muted: #8B949E;
+    --border: #21262D;
+    --foreground: #F0F6FC;
+
+    --radius-bubble: 18px;
+    --radius-card: 12px;
+    --radius-input: 22px;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (max-width: 640px) {
+    body {
+      font-size: 12px;
+    }
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
