@@ -363,40 +363,13 @@ export default function Chat() {
       const latestAttachmentPaths = attachmentPaths ?? latestUserMessage?.attachmentPaths ?? [];
 
       if (isGuest) {
-        const formattedMessages = recentMessages.map((message) => {
-          const formattedMessage: any = { role: message.role, content: message.content };
-          if (message.role === 'user' && message.id === latestUserMessageId && latestInlineAttachments.length > 0) {
-            formattedMessage.images = latestInlineAttachments;
-          }
-          return formattedMessage;
-        });
-
-        const aiResponse = await generateValidatedResponse(
-          formattedMessages,
-          fieldContext,
-          !!currentActiveFieldId
-        );
-
-        if (!aiResponse) {
-          throw new Error('Failed to generate response');
-        }
-
-        const metadata: any = {};
-        if (aiResponse.diagnosis_data) {
-          metadata.diagnosis_data = aiResponse.diagnosis_data;
-        }
-        if (aiResponse.crop_mentioned) {
-          metadata.crop_mentioned = aiResponse.crop_mentioned;
-        }
-
         setIsTyping(false);
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMsgId
               ? {
                   ...msg,
-                  content: aiResponse.response_text,
-                  metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+                  content: 'Gia na xrisimopoiiseis ton Oli, parakalo syndesou i dimiourgo enan logariasmo. Einai dorean!',
                 }
               : msg
           )
