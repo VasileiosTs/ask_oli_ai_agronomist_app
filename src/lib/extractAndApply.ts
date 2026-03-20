@@ -1,4 +1,4 @@
-import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
+import { supabase, supabasePublicKey, supabaseUrl } from './supabase';
 
 export interface ExtractionResult {
   crop_type: string | null;
@@ -44,7 +44,7 @@ async function readErrorMessage(response: Response): Promise<string> {
 }
 
 export async function extractAndApply(message: string, _userId: string, messageId: string) {
-  if (!supabaseUrl || !supabaseAnonKey || !messageId) {
+  if (!supabaseUrl || !supabasePublicKey || !messageId) {
     return emptyResult();
   }
 
@@ -52,34 +52,34 @@ export async function extractAndApply(message: string, _userId: string, messageI
     data: { session },
   } = await supabase.auth.getSession();
 
-  const accessToken = session?.access_token;
-  if (!accessToken) {
+  if (!session?.access_token) {
     return emptyResult();
   }
 
-  const endpoint = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/chat`;
-
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: supabaseAnonKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const { data, error, response } = await supabase.functions.invoke('chat', {
+      body: {
         mode: 'extract',
         message,
         messageId,
-      }),
+      },
     });
 
-    if (!response.ok) {
+    if (error || !data) {
+      if (response) {
+        console.error('Extraction request failed:', await readErrorMessage(response));
+      } else {
+        console.error('Extraction request failed:', error?.message || 'Unknown function error');
+      }
+      return emptyResult();
+    }
+
+    if (response && !response.ok) {
       console.error('Extraction request failed:', await readErrorMessage(response));
       return emptyResult();
     }
 
-    const payload = await response.json();
+    const payload = data as Record<string, unknown>;
     return {
       action: payload.action === 'auto_set' || payload.action === 'disambiguate' ? payload.action : 'none',
       targetFieldId: typeof payload.targetFieldId === 'string' ? payload.targetFieldId : undefined,

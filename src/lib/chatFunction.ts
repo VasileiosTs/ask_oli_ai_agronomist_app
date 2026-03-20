@@ -1,4 +1,4 @@
-import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
+import { supabase, supabasePublicKey, supabaseUrl } from './supabase';
 
 export interface InlineAttachment {
   mimeType: string;
@@ -95,7 +95,7 @@ export async function streamChatCompletion(
   request: ChatFunctionRequest,
   callbacks: StreamCallbacks = {}
 ): Promise<ChatFunctionDonePayload> {
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabasePublicKey) {
     throw createStreamError('Supabase environment variables are missing.');
   }
 
@@ -103,110 +103,105 @@ export async function streamChatCompletion(
     data: { session },
   } = await supabase.auth.getSession();
 
-  const accessToken = session?.access_token;
-  if (!accessToken) {
+  if (!session?.access_token) {
     throw createStreamError('You need to sign in to use chat.', 401);
   }
 
-  const endpoint = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/chat`;
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 70000);
-  let response: Response;
-
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: supabaseAnonKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-      signal: controller.signal,
+    const { data, error, response } = await supabase.functions.invoke('chat', {
+      body: request,
+      timeout: 70000,
     });
+
+    if (error) {
+      if (response) {
+        const errorMessage = await readErrorMessage(response);
+        throw createStreamError(errorMessage, response.status);
+      }
+
+      throw createStreamError(error.message);
+    }
+
+    const streamResponse = data instanceof Response ? data : response;
+    if (!streamResponse) {
+      throw createStreamError('Chat function did not return a response.');
+    }
+
+    if (!streamResponse.body) {
+      throw createStreamError('Chat function did not return a readable stream.');
+    }
+
+    const reader = streamResponse.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let donePayload: ChatFunctionDonePayload | null = null;
+
+    const handleEvent = (rawEvent: string) => {
+      const parsed = parseSseEvent(rawEvent);
+      if (!parsed) {
+        return;
+      }
+
+      const payload = JSON.parse(parsed.data) as Record<string, unknown>;
+
+      if (parsed.event === 'token') {
+        const token = typeof payload.text === 'string' ? payload.text : '';
+        if (token) {
+          callbacks.onToken?.(token);
+        }
+        return;
+      }
+
+      if (parsed.event === 'error') {
+        const message = typeof payload.message === 'string' ? payload.message : 'Unknown chat streaming error';
+        throw createStreamError(message);
+      }
+
+      if (parsed.event === 'done') {
+        donePayload = {
+          assistantMessageId: typeof payload.assistantMessageId === 'string' ? payload.assistantMessageId : null,
+          assistantText: typeof payload.assistantText === 'string' ? payload.assistantText : '',
+          messageCountMonth: typeof payload.messageCountMonth === 'number' ? payload.messageCountMonth : null,
+          metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
+          userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : null,
+        };
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+      let separatorIndex = buffer.indexOf('\n\n');
+      while (separatorIndex !== -1) {
+        const rawEvent = buffer.slice(0, separatorIndex).trim();
+        buffer = buffer.slice(separatorIndex + 2);
+
+        if (rawEvent) {
+          handleEvent(rawEvent);
+        }
+
+        separatorIndex = buffer.indexOf('\n\n');
+      }
+
+      if (done) {
+        const remaining = buffer.trim();
+        if (remaining) {
+          handleEvent(remaining);
+        }
+        break;
+      }
+    }
+
+    if (!donePayload) {
+      throw createStreamError('Chat stream ended before a completion payload was received.');
+    }
+
+    return donePayload;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw createStreamError('Chat request timed out.');
     }
     throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    const errorMessage = await readErrorMessage(response);
-    throw createStreamError(errorMessage, response.status);
-  }
-
-  if (!response.body) {
-    throw createStreamError('Chat function did not return a readable stream.');
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let donePayload: ChatFunctionDonePayload | null = null;
-
-  const handleEvent = (rawEvent: string) => {
-    const parsed = parseSseEvent(rawEvent);
-    if (!parsed) {
-      return;
-    }
-
-    const payload = JSON.parse(parsed.data) as Record<string, unknown>;
-
-    if (parsed.event === 'token') {
-      const token = typeof payload.text === 'string' ? payload.text : '';
-      if (token) {
-        callbacks.onToken?.(token);
-      }
-      return;
-    }
-
-    if (parsed.event === 'error') {
-      const message = typeof payload.message === 'string' ? payload.message : 'Unknown chat streaming error';
-      throw createStreamError(message);
-    }
-
-    if (parsed.event === 'done') {
-      donePayload = {
-        assistantMessageId: typeof payload.assistantMessageId === 'string' ? payload.assistantMessageId : null,
-        assistantText: typeof payload.assistantText === 'string' ? payload.assistantText : '',
-        messageCountMonth: typeof payload.messageCountMonth === 'number' ? payload.messageCountMonth : null,
-        metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
-        userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : null,
-      };
-    }
-  };
-
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-
-    let separatorIndex = buffer.indexOf('\n\n');
-    while (separatorIndex !== -1) {
-      const rawEvent = buffer.slice(0, separatorIndex).trim();
-      buffer = buffer.slice(separatorIndex + 2);
-
-      if (rawEvent) {
-        handleEvent(rawEvent);
-      }
-
-      separatorIndex = buffer.indexOf('\n\n');
-    }
-
-    if (done) {
-      const remaining = buffer.trim();
-      if (remaining) {
-        handleEvent(remaining);
-      }
-      break;
-    }
-  }
-
-  if (!donePayload) {
-    throw createStreamError('Chat stream ended before a completion payload was received.');
-  }
-
-  return donePayload;
 }

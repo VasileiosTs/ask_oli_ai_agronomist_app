@@ -44,4 +44,4 @@ enabled = true
 policy = "per_worker"
 
 [functions.chat]
-verify_jwt = true
+verify_jwt = false

@@ -549,7 +549,6 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = requiredEnv('SUPABASE_URL');
-    const supabaseAnonKey = requiredEnv('SUPABASE_ANON_KEY');
     const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const geminiApiKey = requiredEnv('GEMINI_API_KEY');
 
@@ -558,18 +557,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Missing Authorization header' }, 401);
     }
 
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -577,10 +564,15 @@ Deno.serve(async (req) => {
       },
     });
 
+    const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!accessToken) {
+      return jsonResponse({ error: 'Invalid Authorization header' }, 401);
+    }
+
     const {
       data: { user },
       error: userError,
-    } = await supabaseUser.auth.getUser();
+    } = await supabaseAdmin.auth.getUser(accessToken);
 
     if (userError || !user) {
       return jsonResponse({ error: 'Unauthorized' }, 401);
