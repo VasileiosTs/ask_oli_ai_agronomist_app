@@ -106,9 +106,10 @@ export default function Profile() {
 
   const toggleNotif = async (field: 'notification_followup' | 'notification_weekly_plan') => {
     if (!profile) return;
-    const newVal = !profile[field];
+    const current = profile[field as keyof UserProfile];
+    const newVal = !current;
     await supabase.from('users').update({ [field]: newVal }).eq('id', profile.id);
-    setProfile({ ...profile, [field]: newVal });
+    setProfile({ ...profile, [field]: newVal } as UserProfile);
     if (newVal && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }

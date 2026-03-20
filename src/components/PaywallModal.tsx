@@ -52,14 +52,14 @@ export default function PaywallModal({ isOpen, onClose }: PaywallModalProps) {
             className="group relative flex w-full items-center justify-between rounded-xl border-2 border-primary bg-primary/5 p-4 transition-all hover:bg-primary/10"
           >
             <div className="absolute -top-3 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-              -17% Ekptwsi
+              -18% Oikonomia
             </div>
             <div className="flex flex-col items-start">
               <span className="font-semibold text-foreground">Etisio Plano</span>
               <span className="text-sm text-muted">Aperiorista minimata</span>
             </div>
             <div className="text-right">
-              <span className="text-lg font-bold text-foreground">€50.00</span>
+              <span className="text-lg font-bold text-foreground">€49</span>
               <span className="block text-xs text-muted">/ etos</span>
             </div>
           </button>

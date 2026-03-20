@@ -77,7 +77,8 @@ export default function Fields() {
       const { data, error } = await supabase
         .from('field_context_view')
         .select('*')
-        .eq('user_id', appUserId!);
+        .eq('user_id', appUserId!)
+        .eq('is_active', true);
       if (error) throw error;
       return (data ?? []) as Field[];
     },
@@ -96,6 +97,7 @@ export default function Fields() {
         irrigation_type: form.irrigation_type || null,
         growing_medium: form.growing_medium || null,
         is_active: true,
+        source: 'manual' as const,
       };
       if (editingField) {
         const { error } = await supabase.from('fields').update(payload).eq('id', editingField.id);
