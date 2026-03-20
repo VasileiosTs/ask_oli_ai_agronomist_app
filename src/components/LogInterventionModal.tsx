@@ -33,7 +33,7 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
         field_id: fieldId,
         crop_type: cropType,
         problem: problem,
-        product: product,
+        product_applied: product,
         dosage: dosage,
         application_method: method,
         notes: notes,

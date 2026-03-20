@@ -41,10 +41,10 @@ interface Message {
 import { LogInterventionModal } from '../components/LogInterventionModal';
 
 const SUGGESTIONS = [
-  'Ta fylla mou kitrinizoyn, ti ftaiei;',
-  'Pote na peksasw ta elaiodentro;',
-  'Anevase fotografia gia diagnosi',
-  'Ti na kanw ayti tin evdomada;'
+  'Τα φύλλα μου κιτρινίζουν, τι φταίει;',
+  'Πότε να ψεκάσω τα ελαιόδεντρα;',
+  'Ανέβασε φωτογραφία για διάγνωση',
+  'Τι να κάνω αυτή την εβδομάδα;',
 ];
 
 export default function Chat() {

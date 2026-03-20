@@ -245,37 +245,34 @@ async function callGemini(
   systemPrompt: string,
   extraInstruction?: string,
 ): Promise<AiResponseJson> {
-  const contents = [
-    {
-      role: 'user',
-      parts: [{ text: `SYSTEM INSTRUCTIONS:\n${systemPrompt}` }],
-    },
-    ...messages.map((message, index) => {
-      const parts: Array<{ text?: string; inlineData?: InlineAttachment }> = [{ text: message.content }];
+  const contents = messages.map((message, index) => {
+    const parts: Array<{ text?: string; inlineData?: InlineAttachment }> = [{ text: message.content }];
 
-      if (Array.isArray(message.attachments)) {
-        for (const attachment of message.attachments) {
-          parts.push({
-            inlineData: {
-              mimeType: attachment.mimeType,
-              data: attachment.data,
-            },
-          });
-        }
+    if (Array.isArray(message.attachments)) {
+      for (const attachment of message.attachments) {
+        parts.push({
+          inlineData: {
+            mimeType: attachment.mimeType,
+            data: attachment.data,
+          },
+        });
       }
+    }
 
-      if (extraInstruction && index === messages.length - 1 && parts[0]?.text) {
-        parts[0].text = `${parts[0].text}\n\n[SYSTEM REPAIR INSTRUCTION: ${extraInstruction}]`;
-      }
+    if (extraInstruction && index === messages.length - 1 && parts[0]?.text) {
+      parts[0].text = `${parts[0].text}\n\n[SYSTEM REPAIR INSTRUCTION: ${extraInstruction}]`;
+    }
 
-      return {
-        role: message.role === 'assistant' ? 'model' : 'user',
-        parts,
-      };
-    }),
-  ];
+    return {
+      role: message.role === 'assistant' ? 'model' : 'user',
+      parts,
+    };
+  });
 
   const payload = {
+    systemInstruction: {
+      parts: [{ text: systemPrompt }],
+    },
     contents,
     generationConfig: {
       responseMimeType: 'application/json',
