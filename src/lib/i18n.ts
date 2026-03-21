@@ -55,6 +55,8 @@ export interface T {
   deleteAccount: string; signOut: string;
   deleteConfirmText: string; deleteConfirmWord: string;
   deleting: string; noProfile: string;
+  signInToUse: string;
+  signInToUseBody: string;
   guestMode: string; signInToManage: string; signInBtn: string;
   // Log intervention modal
   logIt: string; logging: string;
@@ -141,6 +143,8 @@ const el: T = {
   deleteConfirmText: 'Αυτή η ενέργεια είναι μόνιμη. Γράψε ΔΙΑΓΡΑΦΗ για επιβεβαίωση.',
   deleteConfirmWord: 'ΔΙΑΓΡΑΦΗ',
   deleting: 'Διαγραφή...', noProfile: 'Δεν βρέθηκε προφίλ.',
+  signInToUse: 'Σύνδεση στο Oli',
+  signInToUseBody: 'Δημιούργησε δωρεάν λογαριασμό για να χρησιμοποιήσεις τον AI γεωπόνο σου.',
   guestMode: 'Λειτουργία επισκέπτη', signInToManage: 'Συνδέσου για να διαχειριστείς το προφίλ σου.',
   signInBtn: 'Σύνδεση / Εγγραφή',
   logIt: 'Καταχώρηση', logging: 'Καταχώρηση...',
@@ -227,6 +231,8 @@ const en: T = {
   deleteConfirmText: 'This action is permanent. Type DELETE to confirm.',
   deleteConfirmWord: 'DELETE',
   deleting: 'Deleting...', noProfile: 'Profile not found.',
+  signInToUse: 'Sign in to Oli',
+  signInToUseBody: 'Create a free account to use your AI agronomist.',
   guestMode: 'Guest mode', signInToManage: 'Sign in to manage your profile.',
   signInBtn: 'Sign in / Register',
   logIt: 'Log it', logging: 'Logging...',

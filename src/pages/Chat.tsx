@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
+import SignInModal from '../components/SignInModal';
 import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
@@ -53,6 +54,7 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
@@ -361,16 +363,9 @@ export default function Chat() {
 
       if (isGuest) {
         setIsTyping(false);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMsgId
-              ? {
-                  ...msg,
-                  content: t.guestPrompt,
-                }
-              : msg
-          )
-        );
+        // Remove the placeholder assistant message and show sign-in modal
+        setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
+        setShowSignIn(true);
         return;
       }
 
@@ -1022,6 +1017,7 @@ export default function Chat() {
       </div>
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
+      <SignInModal isOpen={showSignIn} onClose={() => setShowSignIn(false)} />
 
       {logModalData && user && (
         <LogInterventionModal
