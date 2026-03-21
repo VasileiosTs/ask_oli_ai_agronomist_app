@@ -20,8 +20,8 @@ const Privacy = () => {
         <p><strong className="text-foreground">Χρήση:</strong> Παροχή αγρονομικής συμβουλής και βελτίωση της υπηρεσίας.</p>
         <p><strong className="text-foreground">Αποθήκευση:</strong> Supabase EU (Frankfurt) — GDPR compliant.</p>
         <p><strong className="text-foreground">Τρίτα μέρη:</strong> Gemini (Google) για AI επεξεργασία — τα δεδομένα δεν αποθηκεύονται από την Google.</p>
-        <p><strong className="text-foreground">Δικαίωμα εξάλειψης:</strong> Profile → Διαγραφή λογαριασμού για να διαγράψεις όλα τα δεδομένα σου.</p>
-        <p><strong className="text-foreground">Cookies:</strong> Κανένα advertising cookie. Μόνο αποθήκευση session.</p>
+        <p><strong className="text-foreground">Δικαίωμα εξάλειψης:</strong> Profile → Διαγραφή λογαριασμού.</p>
+        <p><strong className="text-foreground">Cookies:</strong> Κανένα advertising cookie.</p>
       </div>
     </div>
   );
@@ -37,7 +37,7 @@ const Terms = () => {
         <p>Πάντα συμβουλευτείτε έναν πιστοποιημένο αγρονόμο πριν την εφαρμογή χημικών.</p>
         <p>Το Oli δεν ευθύνεται για απώλειες στη σοδειά που προκύπτουν από τη χρήση AI συμβουλών.</p>
         <p>Οι χρήστες πρέπει να είναι άνω των 18 ετών ή να έχουν επιτροπεία.</p>
-        <p>Απαγορεύεται η κατάχρηση, υπεξαίρεση δεδομένων, ή αντίστροφη μηχανολόγηση της υπηρεσίας.</p>
+        <p>Απαγορεύεται η κατάχρηση, υπεξαίρεση δεδομένων ή αντίστροφη μηχανολόγηση.</p>
       </div>
     </div>
   );
@@ -46,14 +46,6 @@ const Terms = () => {
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 1000 * 60 * 5 } },
 });
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading, isGuest } = useAuth();
-  if (loading) return <LoadingSpinner />;
-  if (!user && !isGuest) return <Navigate to="/auth" replace />;
-  if (user && !profile && !isGuest) return <Navigate to="/onboarding" replace />;
-  return <>{children}</>;
-}
 
 function AppRoutes() {
   const { user, profile, loading, isGuest } = useAuth();
@@ -66,21 +58,50 @@ function AppRoutes() {
     );
   }
 
-  const authed = (user && profile) || isGuest;
+  // Determine access levels
+  const hasSession = !!(user && profile);  // fully authenticated
+  const canAccessApp = hasSession || isGuest; // authenticated OR guest
 
   return (
     <Routes>
-      <Route path="/auth" element={authed ? <Navigate to="/chat" replace /> : <Auth />} />
-      <Route path="/onboarding" element={user && profile ? <Navigate to="/chat" replace /> : (!user && !isGuest ? <Navigate to="/auth" replace /> : <Onboarding />)} />
+      {/* Public — always accessible */}
       <Route path="/d/:shareId" element={<SharedDiagnosis />} />
       <Route path="/legal/privacy" element={<Privacy />} />
       <Route path="/legal/terms" element={<Terms />} />
-      <Route path="/" element={<Navigate to={authed ? "/chat" : "/auth"} replace />} />
-      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+
+      {/* Auth — only for unauthenticated non-guest users */}
+      <Route
+        path="/auth"
+        element={hasSession ? <Navigate to="/chat" replace /> : <Auth />}
+      />
+
+      {/* Onboarding — only for authenticated users without a profile */}
+      <Route
+        path="/onboarding"
+        element={
+          hasSession ? <Navigate to="/chat" replace />
+          : user && !profile ? <Onboarding />
+          : <Navigate to="/auth" replace />
+        }
+      />
+
+      {/* Root redirect */}
+      <Route
+        path="/"
+        element={<Navigate to={canAccessApp ? '/chat' : '/auth'} replace />}
+      />
+
+      {/* Protected app routes — require session OR guest */}
+      <Route element={
+        canAccessApp
+          ? <AppLayout />
+          : <Navigate to="/auth" replace />
+      }>
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile" element={<Profile />} />
-        {/* /fields hidden from nav but kept for data layer */}
       </Route>
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

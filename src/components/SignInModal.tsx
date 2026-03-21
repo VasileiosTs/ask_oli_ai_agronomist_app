@@ -1,14 +1,22 @@
 import { Leaf, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
+import { useAuth } from '../hooks/useAuth';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
 export default function SignInModal({ isOpen, onClose }: Props) {
   const { t } = useLanguage();
+  const { exitGuest } = useAuth();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
+
+  const handleSignIn = () => {
+    onClose();
+    exitGuest();           // clears localStorage + sets isGuest=false in context
+    navigate('/auth');     // now /auth will render properly (no redirect loop)
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -27,13 +35,7 @@ export default function SignInModal({ isOpen, onClose }: Props) {
         </div>
 
         <div className="space-y-3">
-          <button
-            onClick={() => {
-              // Clear guest mode so /auth route doesn't redirect back to /chat
-              localStorage.removeItem('oli_guest');
-              onClose();
-              navigate('/auth');
-            }}
+          <button onClick={handleSignIn}
             className="w-full rounded-[22px] bg-primary px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90">
             {t.signInBtn}
           </button>
