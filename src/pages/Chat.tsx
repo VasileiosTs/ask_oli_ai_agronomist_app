@@ -7,7 +7,6 @@ import ReactMarkdown from 'react-markdown';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
-import SignInModal from '../components/SignInModal';
 import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
@@ -45,7 +44,7 @@ interface Message {
 import { LogInterventionModal } from '../components/LogInterventionModal';
 
 export default function Chat() {
-  const { user, profile, appUserId, isGuest } = useAuth();
+  const { user, profile, appUserId } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -55,7 +54,6 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [showSignIn, setShowSignIn] = useState(false);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
@@ -232,7 +230,7 @@ export default function Chat() {
   }, [profile]);
 
   useEffect(() => {
-    if (appUserId && !isGuest) {
+    if (appUserId) {
       supabase.from('field_context_view').select('*').eq('user_id', appUserId).then(({ data }) => {
         if (data) setFields(data as Field[]);
       });
@@ -263,7 +261,7 @@ export default function Chat() {
       return;
     }
     setFields([]);
-  }, [appUserId, isGuest]);
+  }, [appUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -403,7 +401,7 @@ export default function Chat() {
       ]);
 
       let fieldContext = '';
-      if (!isGuest && appUserId) {
+      if (appUserId) {
         fieldContext = await assembleFieldContext(appUserId, currentActiveFieldId);
       }
 
@@ -413,13 +411,7 @@ export default function Chat() {
       const latestInlineAttachments = base64Images ?? latestUserMessage?.inlineAttachments ?? [];
       const latestAttachmentPaths = attachmentPaths ?? latestUserMessage?.attachmentPaths ?? [];
 
-      if (isGuest) {
-        setIsTyping(false);
-        setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
-        return;
-      }
-
-      let streamedContent = '';
+let streamedContent = '';
       const completion = await streamChatCompletion(
         {
           messages: recentMessages.map((message) => ({
@@ -514,12 +506,6 @@ export default function Chat() {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
 
-    // Guest: show modal immediately, touch nothing else
-    if (isGuest) {
-      setShowSignIn(true);
-      return;
-    }
-
     if (!appUserId) {
       showToast(t.profileSyncing);
       return;
@@ -570,7 +556,7 @@ export default function Chat() {
 
           base64Images.push({ mimeType, data: base64 });
 
-          if (!isGuest && user) {
+          if (user) {
             const fileExt = mimeType === 'image/jpeg' ? 'jpg' : att.file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `${user.id}/${fileName}`;
@@ -614,7 +600,7 @@ export default function Chat() {
     if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
 
     let currentConversationId = activeConversationId;
-    if (!isGuest && appUserId && !currentConversationId) {
+    if (appUserId && !currentConversationId) {
       const { data: conversationData, error: conversationError } = await supabase
         .from('conversations')
         .insert({
@@ -634,7 +620,7 @@ export default function Chat() {
     }
 
     let dbMessageId: string | null = null;
-    if (!isGuest && appUserId) {
+    if (appUserId) {
       const { data } = await supabase.from('chat_messages').insert({
         conversation_id: currentConversationId || null,
         user_id: appUserId,
@@ -662,7 +648,7 @@ export default function Chat() {
 
     let currentActiveFieldId = activeFieldId;
 
-    if (dbMessageId && !isGuest && appUserId) {
+    if (dbMessageId && appUserId) {
       const result = await extractAndApply(finalMessageText, appUserId, dbMessageId);
       if (result?.action === 'auto_set' && result.targetFieldId) {
         setActiveFieldId(result.targetFieldId);
@@ -690,7 +676,7 @@ export default function Chat() {
       }
     }
 
-    if (!isGuest && fields.length > 1 && !currentActiveFieldId) {
+    if (fields.length > 1 && !currentActiveFieldId) {
       const disambiguationMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -720,11 +706,11 @@ export default function Chat() {
   const handleDisambiguation = async (fieldId: string, originalText: string, msgId: string, originalDbId?: string) => {
     setActiveFieldId(fieldId);
     
-    if (originalDbId && !isGuest) {
+    if (originalDbId) {
       await supabase.from('chat_messages').update({ field_id: fieldId }).eq('id', originalDbId);
     }
 
-    if (activeConversationId && !isGuest) {
+    if (activeConversationId) {
       await supabase.from('conversations').update({ field_id: fieldId }).eq('id', activeConversationId);
     }
 
@@ -911,12 +897,12 @@ export default function Chat() {
 
   const inputBarJsx = (
     <div className="border-t border-border/50 bg-surface/95 pb-safe backdrop-blur-sm">
-      {!isGuest && messageCount >= FREE_LIMIT - 3 && (
+      {messageCount >= FREE_LIMIT - 3 && (
         <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
           {FREE_LIMIT - messageCount} {t.messagesLeft}
         </div>
       )}
-      {!isGuest && fields.length > 0 && (
+      {fields.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1 scrollbar-hide">
           <button onClick={() => setActiveFieldId(undefined)}
             className={clsx("whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
@@ -1106,7 +1092,7 @@ export default function Chat() {
                 ))}
               </div>
               <div className="mt-6 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                {isGuest ? t.guestMode : activeField?.growing_medium ?? 'Oli'}
+                {activeField?.growing_medium ?? 'Oli'}
               </div>
             </div>
             {inputBarJsx}
@@ -1132,7 +1118,6 @@ export default function Chat() {
       </div>
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
-      <SignInModal isOpen={showSignIn} onClose={() => setShowSignIn(false)} />
 
       {logModalData && user && (
         <LogInterventionModal

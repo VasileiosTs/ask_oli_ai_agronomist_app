@@ -10,7 +10,7 @@ import clsx from 'clsx';
 const FREE_LIMIT = 20;
 
 export default function Profile() {
-  const { user, logout, isGuest } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { t, lang, setLang } = useLanguage();
 
@@ -89,17 +89,6 @@ export default function Profile() {
     await logout();
     navigate('/auth');
   };
-
-  if (isGuest) {
-    return (
-      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 px-6 text-center">
-        <Leaf className="h-12 w-12 text-primary/40" />
-        <h2 className="text-lg font-semibold text-foreground">{t.guestMode}</h2>
-        <p className="text-sm text-muted">{t.signInToManage}</p>
-        <button onClick={() => navigate('/auth')} className="rounded-full bg-primary px-6 py-3 font-medium text-white">{t.signInBtn}</button>
-      </div>
-    );
-  }
 
   if (loading) return <div className="flex h-[100dvh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!profile) return <div className="flex h-[100dvh] items-center justify-center"><p className="text-muted">{t.noProfile}</p></div>;

@@ -30,7 +30,7 @@ function getFieldStatus(field: Field): 'healthy' | 'warning' | 'critical' {
 }
 
 export default function Fields() {
-  const { appUserId, isGuest } = useAuth();
+  const { appUserId } = useAuth();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -53,7 +53,7 @@ export default function Fields() {
       if (error) throw error;
       return (data ?? []) as Field[];
     },
-    enabled: !!appUserId && !isGuest,
+    enabled: !!appUserId,
   });
 
   const saveMutation = useMutation({
@@ -100,15 +100,6 @@ export default function Fields() {
 
   const closeSheet = () => { setSheetOpen(false); setEditingField(null); };
 
-  if (isGuest) {
-    return (
-      <div className="flex h-[calc(100dvh-48px)] flex-col items-center justify-center gap-4 px-6 text-center">
-        <Sprout className="h-12 w-12 text-primary/40" />
-        <h2 className="text-lg font-semibold text-foreground">{t.guestFieldsTitle}</h2>
-        <p className="text-sm text-muted">{t.guestFieldsBody}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-[calc(100dvh-48px)] flex-col bg-background">

@@ -19,7 +19,7 @@ const Privacy = () => {
         <p><strong className="text-foreground">Δεδομένα που συλλέγουμε:</strong> όνομα, τοποθεσία, δεδομένα καλλιεργιών, μηνύματα chat, φωτογραφίες.</p>
         <p><strong className="text-foreground">Χρήση:</strong> Παροχή αγρονομικής συμβουλής και βελτίωση της υπηρεσίας.</p>
         <p><strong className="text-foreground">Αποθήκευση:</strong> Supabase EU (Frankfurt) — GDPR compliant.</p>
-        <p><strong className="text-foreground">Τρίτα μέρη:</strong> Gemini (Google) για AI επεξεργασία — τα δεδομένα δεν αποθηκεύονται από την Google.</p>
+        <p><strong className="text-foreground">Τρίτα μέρη:</strong> Gemini (Google) για AI επεξεργασία.</p>
         <p><strong className="text-foreground">Δικαίωμα εξάλειψης:</strong> Profile → Διαγραφή λογαριασμού.</p>
         <p><strong className="text-foreground">Cookies:</strong> Κανένα advertising cookie.</p>
       </div>
@@ -35,9 +35,9 @@ const Terms = () => {
       <div className="space-y-4 text-sm text-muted leading-relaxed">
         <p>Το Oli παρέχει AI συμβουλές για ενημέρωση μόνο. Δεν αντικαθιστά τον επιστημονικό αγρονομικό σύμβουλο.</p>
         <p>Πάντα συμβουλευτείτε έναν πιστοποιημένο αγρονόμο πριν την εφαρμογή χημικών.</p>
-        <p>Το Oli δεν ευθύνεται για απώλειες στη σοδειά που προκύπτουν από τη χρήση AI συμβουλών.</p>
-        <p>Οι χρήστες πρέπει να είναι άνω των 18 ετών ή να έχουν επιτροπεία.</p>
-        <p>Απαγορεύεται η κατάχρηση, υπεξαίρεση δεδομένων ή αντίστροφη μηχανολόγηση.</p>
+        <p>Το Oli δεν ευθύνεται για απώλειες στη σοδειά.</p>
+        <p>Οι χρήστες πρέπει να είναι άνω των 18 ετών.</p>
+        <p>Απαγορεύεται η κατάχρηση ή αντίστροφη μηχανολόγηση.</p>
       </div>
     </div>
   );
@@ -48,8 +48,9 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { user, profile, loading, isGuest } = useAuth();
+  const { user, profile, loading } = useAuth();
 
+  // Show spinner while auth state is being determined
   if (loading) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-background">
@@ -58,50 +59,58 @@ function AppRoutes() {
     );
   }
 
-  // Determine access levels
-  const hasSession = !!(user && profile);  // fully authenticated
-  const canAccessApp = hasSession || isGuest; // authenticated OR guest
+  const authenticated = !!(user && profile);          // signed in + profile complete
+  const needsOnboarding = !!(user && !profile);       // signed in + no profile yet
 
   return (
     <Routes>
-      {/* Public — always accessible */}
+      {/* Always public */}
       <Route path="/d/:shareId" element={<SharedDiagnosis />} />
       <Route path="/legal/privacy" element={<Privacy />} />
       <Route path="/legal/terms" element={<Terms />} />
 
-      {/* Auth — only for unauthenticated non-guest users */}
+      {/* Auth — only for unauthenticated users */}
       <Route
         path="/auth"
-        element={hasSession ? <Navigate to="/chat" replace /> : <Auth />}
-      />
-
-      {/* Onboarding — only for authenticated users without a profile */}
-      <Route
-        path="/onboarding"
         element={
-          hasSession ? <Navigate to="/chat" replace />
-          : user && !profile ? <Onboarding />
-          : <Navigate to="/auth" replace />
+          authenticated ? <Navigate to="/chat" replace /> :
+          needsOnboarding ? <Navigate to="/onboarding" replace /> :
+          <Auth />
         }
       />
 
-      {/* Root redirect */}
+      {/* Onboarding — only for users who need to complete their profile */}
       <Route
-        path="/"
-        element={<Navigate to={canAccessApp ? '/chat' : '/auth'} replace />}
+        path="/onboarding"
+        element={
+          authenticated ? <Navigate to="/chat" replace /> :
+          needsOnboarding ? <Onboarding /> :
+          <Navigate to="/auth" replace />
+        }
       />
 
-      {/* Protected app routes — require session OR guest */}
-      <Route element={
-        canAccessApp
-          ? <AppLayout />
-          : <Navigate to="/auth" replace />
-      }>
+      {/* Root — smart redirect */}
+      <Route
+        path="/"
+        element={
+          authenticated ? <Navigate to="/chat" replace /> :
+          needsOnboarding ? <Navigate to="/onboarding" replace /> :
+          <Navigate to="/auth" replace />
+        }
+      />
+
+      {/* Protected routes — require completed profile */}
+      <Route
+        element={
+          authenticated ? <AppLayout /> :
+          needsOnboarding ? <Navigate to="/onboarding" replace /> :
+          <Navigate to="/auth" replace />
+        }
+      >
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
