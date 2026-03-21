@@ -58,6 +58,9 @@ export interface T {
   signInToUse: string;
   signInToUseBody: string;
   guestMode: string; signInToManage: string; signInBtn: string;
+  outcomeBetter: string; outcomeSame: string; outcomeWorse: string;
+  outcomeRecorded: string;
+  organicTreatments: string; chemicalTreatments: string;
   // Log intervention modal
   logIt: string; logging: string;
   cropType: string; problem: string; product: string;
@@ -147,6 +150,13 @@ const el: T = {
   signInToUseBody: 'Δημιούργησε δωρεάν λογαριασμό για να χρησιμοποιήσεις τον AI γεωπόνο σου.',
   guestMode: 'Λειτουργία επισκέπτη', signInToManage: 'Συνδέσου για να διαχειριστείς το προφίλ σου.',
   signInBtn: 'Σύνδεση / Εγγραφή',
+  outcomeBetter: '✅ Βελτιώθηκε',
+  outcomeSame: '➡️ Δεν άλλαξε',
+  outcomeWorse: '⚠️ Χειροτέρεψε',
+  outcomeRecorded: 'Αποτέλεσμα καταχωρήθηκε',
+  organicTreatments: '🌿 Οργανικά',
+  chemicalTreatments: '⚗️ Χημικά',
+  signInBtn: 'Σύνδεση / Εγγραφή',
   logIt: 'Καταχώρηση', logging: 'Καταχώρηση...',
   cropType: 'Καλλιέργεια', problem: 'Πρόβλημα / Διάγνωση', product: 'Προϊόν',
   dosage: 'Δοσολογία', appMethod: 'Μέθοδος Εφαρμογής', notes: 'Σημειώσεις',
@@ -234,6 +244,13 @@ const en: T = {
   signInToUse: 'Sign in to Oli',
   signInToUseBody: 'Create a free account to use your AI agronomist.',
   guestMode: 'Guest mode', signInToManage: 'Sign in to manage your profile.',
+  signInBtn: 'Sign in / Register',
+  outcomeBetter: '✅ Improved',
+  outcomeSame: '➡️ No change',
+  outcomeWorse: '⚠️ Got worse',
+  outcomeRecorded: 'Outcome recorded',
+  organicTreatments: '🌿 Organic',
+  chemicalTreatments: '⚗️ Chemical',
   signInBtn: 'Sign in / Register',
   logIt: 'Log it', logging: 'Logging...',
   cropType: 'Crop', problem: 'Problem / Diagnosis', product: 'Product',

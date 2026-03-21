@@ -14,6 +14,7 @@ import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { extractAndApply } from '../lib/extractAndApply';
 import { generateValidatedResponse } from '../lib/validateAi';
 import { useLanguage } from '../lib/LanguageContext';
+import { compressImage, cacheImage } from '../lib/imageCache';
 import clsx from 'clsx';
 
 const FREE_LIMIT = 20;
@@ -116,6 +117,33 @@ export default function Chat() {
     showToast(newStarred ? t.savedMessage : t.removedMessage);
   };
 
+  const handleOutcome = async (interventionId: string, outcome: 'better' | 'same' | 'worse', msgId: string) => {
+    if (!appUserId) return;
+    await supabase.from('interventions').update({
+      outcome,
+      followed_up_at: new Date().toISOString(),
+      outcome_recorded_at: new Date().toISOString(),
+    }).eq('id', interventionId);
+
+    // Update crop status based on outcome
+    const { data: interv } = await supabase.from('interventions').select('field_id, crop_type').eq('id', interventionId).single();
+    if (interv?.field_id) {
+      const cropStatus = outcome === 'worse' ? 'critical' : outcome === 'same' ? 'warning' : 'healthy';
+      await supabase.from('crops').update({ status: cropStatus }).eq('field_id', interv.field_id);
+    }
+
+    // Replace the follow-up message with a confirmation
+    const outcomeLabels = { better: t.outcomeBetter, same: t.outcomeSame, worse: t.outcomeWorse };
+    const confirmMsg: Message = {
+      id: `outcome-confirm-${Date.now()}`,
+      role: 'assistant',
+      content: `${outcomeLabels[outcome]} — ευχαριστώ για την ενημέρωση. Έχω καταχωρήσει το αποτέλεσμα.`,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
+    showToast(t.outcomeRecorded);
+  };
+
   const handleLogIntervention = (msg: Message) => {
     if (!msg.metadata?.diagnosis_data) return;
     setLogModalData({
@@ -207,6 +235,30 @@ export default function Chat() {
       supabase.from('field_context_view').select('*').eq('user_id', appUserId).then(({ data }) => {
         if (data) setFields(data as Field[]);
       });
+
+      // Check for pending follow-ups — VIO loop
+      supabase
+        .from('interventions')
+        .select('id, crop_type, diagnosis, follow_up_at, field_id')
+        .eq('user_id', appUserId)
+        .lte('follow_up_at', new Date().toISOString())
+        .is('outcome', null)
+        .not('follow_up_at', 'is', null)
+        .order('follow_up_at', { ascending: true })
+        .limit(1)
+        .then(({ data: due }) => {
+          if (!due || due.length === 0) return;
+          const item = due[0];
+          const cropLabel = item.crop_type || item.diagnosis || 'τη φυτεία σου';
+          const followUpMsg = {
+            id: `followup-${item.id}`,
+            role: 'assistant' as const,
+            content: `Πριν από 13 μέρες κάναμε παρέμβαση για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Πώς πάει τώρα;`,
+            created_at: new Date().toISOString(),
+            metadata: { follow_up_intervention_id: item.id, is_follow_up: true },
+          };
+          setMessages(prev => prev.length === 0 ? [followUpMsg] : prev);
+        });
       return;
     }
     setFields([]);
@@ -494,25 +546,45 @@ export default function Chat() {
       
       for (const att of attachments) {
         try {
-          const buffer = await att.file.arrayBuffer();
-          const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-          base64Images.push({ mimeType: att.file.type, data: base64 });
+          let base64: string;
+          let mimeType: string;
+          let uploadBlob: Blob;
+
+          if (att.file.type.startsWith('image/')) {
+            // Compress images before sending (max 1000×1000, JPEG 80%)
+            const compressed = await compressImage(att.file);
+            base64 = compressed.base64;
+            mimeType = compressed.mimeType;
+            uploadBlob = compressed.blob;
+          } else {
+            // PDFs: send as-is
+            const buffer = await att.file.arrayBuffer();
+            base64 = btoa(new Uint8Array(buffer).reduce((d, b) => d + String.fromCharCode(b), ''));
+            mimeType = att.file.type;
+            uploadBlob = att.file;
+          }
+
+          base64Images.push({ mimeType, data: base64 });
 
           if (!isGuest && user) {
-            const fileExt = att.file.name.split('.').pop();
+            const fileExt = mimeType === 'image/jpeg' ? 'jpg' : att.file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `${user.id}/${fileName}`;
-            
+
             const { error: uploadError } = await supabase.storage
               .from('chat_uploads')
-              .upload(filePath, att.file);
-              
+              .upload(filePath, uploadBlob);
+
             if (!uploadError) {
               uploadedPaths.push(filePath);
+              // Cache compressed image locally for instant re-display
+              if (mimeType.startsWith('image/')) {
+                await cacheImage(filePath, uploadBlob);
+              }
             }
           }
         } catch (e) {
-          console.error("Error processing attachment", e);
+          console.error('Error processing attachment', e);
         }
       }
     }
@@ -748,15 +820,52 @@ export default function Chat() {
                     </div>
                   </div>
                 ) : (
-                  <div className="prose prose-sm prose-invert max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <div>
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+
+                    {/* Treatment cards — organic vs chemical split */}
+                    {msg.metadata?.diagnosis_data?.organic_treatments?.length > 0 || msg.metadata?.diagnosis_data?.chemical_treatments?.length > 0 ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-3">
+                        {msg.metadata.diagnosis_data.organic_treatments?.length > 0 && (
+                          <div className="rounded-xl bg-green-500/5 border border-green-500/20 p-3">
+                            <p className="text-[11px] font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
+                            {(msg.metadata.diagnosis_data.organic_treatments as string[]).map((tx: string, i: number) => (
+                              <p key={i} className="text-[12px] text-foreground/80 leading-snug">• {tx}</p>
+                            ))}
+                          </div>
+                        )}
+                        {msg.metadata?.diagnosis_data?.chemical_treatments?.length > 0 && (
+                          <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 p-3">
+                            <p className="text-[11px] font-semibold text-blue-400 mb-1.5">{t.chemicalTreatments}</p>
+                            {(msg.metadata.diagnosis_data.chemical_treatments as string[]).map((tx: string, i: number) => (
+                              <p key={i} className="text-[12px] text-foreground/80 leading-snug">• {tx}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {/* Outcome chips — follow-up messages */}
+                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && (
+                      <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
+                        {(['better', 'same', 'worse'] as const).map(outcome => (
+                          <button key={outcome}
+                            onClick={() => handleOutcome(msg.metadata!.follow_up_intervention_id as string, outcome, msg.id)}
+                            className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 active:scale-[0.97]">
+                            {outcome === 'better' ? t.outcomeBetter : outcome === 'same' ? t.outcomeSame : t.outcomeWorse}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
               <span className={clsx("text-[11px] text-muted opacity-0 transition-opacity group-hover:opacity-100", isUser ? "text-right" : "text-left")}>
                 {formatTime(msg.created_at)}
               </span>
-              {!isUser && msg.metadata?.diagnosis_data && (
+              {!isUser && msg.metadata?.diagnosis_data && !msg.metadata?.is_follow_up && (
                 <div className="mt-1 flex flex-wrap gap-2">
                   <button onClick={() => handleStarMessage(msg)}
                     className={clsx("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",

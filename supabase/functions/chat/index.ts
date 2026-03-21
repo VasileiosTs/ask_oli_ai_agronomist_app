@@ -20,6 +20,8 @@ interface DiagnosisData {
   product_category: string | null;
   dosage: string | null;
   application_method: string | null;
+  organic_treatments: string[] | null;
+  chemical_treatments: string[] | null;
 }
 
 interface AiResponseJson {
@@ -89,6 +91,7 @@ BEHAVIOUR RULES (follow strictly):
 8. Be warm but professional. You are a trusted advisor, not a chatbot.
 9. If you don't know something, say so clearly and suggest they consult a local expert.
 10. Never give advice that could cause crop damage or regulatory violations.
+11. When diagnosing diseases, pests or deficiencies, always populate both organic_treatments AND chemical_treatments as separate arrays.
 FIELD CONTEXT:
 ${fieldContext || 'No field data on record yet. Ask the user about their crop if relevant.'}
 ${growerContext ? `GROWER CONTEXT:\n${growerContext}` : ''}
@@ -191,6 +194,8 @@ function buildResponseSchema() {
           product_category: { type: 'STRING', nullable: true },
           dosage: { type: 'STRING', nullable: true },
           application_method: { type: 'STRING', nullable: true },
+          organic_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
+          chemical_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
         },
       },
     },
