@@ -415,9 +415,7 @@ export default function Chat() {
 
       if (isGuest) {
         setIsTyping(false);
-        // Remove the placeholder assistant message and show sign-in modal
         setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
-        setShowSignIn(true);
         return;
       }
 
@@ -516,12 +514,18 @@ export default function Chat() {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
 
-    if (!isGuest && !appUserId) {
+    // Guest: show modal immediately, touch nothing else
+    if (isGuest) {
+      setShowSignIn(true);
+      return;
+    }
+
+    if (!appUserId) {
       showToast(t.profileSyncing);
       return;
     }
 
-    if (!isGuest && messageCount >= FREE_LIMIT) {
+    if (messageCount >= FREE_LIMIT) {
       setShowPaywall(true);
       return;
     }
@@ -776,7 +780,7 @@ export default function Chat() {
     }
   };
 
-  const MessagesList = () => (
+  const messagesListJsx = (
     <div className="space-y-6">
       {messages.map((msg, index) => {
         const isUser = msg.role === 'user';
@@ -905,7 +909,7 @@ export default function Chat() {
     </div>
   );
 
-  const InputBar = () => (
+  const inputBarJsx = (
     <div className="border-t border-border/50 bg-surface/95 pb-safe backdrop-blur-sm">
       {!isGuest && messageCount >= FREE_LIMIT - 3 && (
         <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
@@ -1105,7 +1109,7 @@ export default function Chat() {
                 {isGuest ? t.guestMode : activeField?.growing_medium ?? 'Oli'}
               </div>
             </div>
-            <InputBar />
+            {inputBarJsx}
           </div>
         )}
 
@@ -1114,12 +1118,12 @@ export default function Chat() {
           <div className="flex flex-1 flex-col min-h-0">
             <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
               <div className="mx-auto max-w-2xl">
-                <MessagesList />
+                {messagesListJsx}
               </div>
             </div>
             <div className="flex-shrink-0">
               <div className="mx-auto max-w-2xl md:px-2 md:pb-4">
-                <InputBar />
+                {inputBarJsx}
               </div>
             </div>
           </div>

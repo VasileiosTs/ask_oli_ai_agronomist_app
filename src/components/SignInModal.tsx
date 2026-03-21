@@ -28,7 +28,12 @@ export default function SignInModal({ isOpen, onClose }: Props) {
 
         <div className="space-y-3">
           <button
-            onClick={() => { onClose(); navigate('/auth'); }}
+            onClick={() => {
+              // Clear guest mode so /auth route doesn't redirect back to /chat
+              localStorage.removeItem('oli_guest');
+              onClose();
+              navigate('/auth');
+            }}
             className="w-full rounded-[22px] bg-primary px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90">
             {t.signInBtn}
           </button>
