@@ -5,6 +5,7 @@ import AppLayout from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import LoadingSpinner from './components/LoadingSpinner';
 import Auth from './pages/Auth';
+import AuthCallback from './pages/AuthCallback';
 import Onboarding from './pages/Onboarding';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
@@ -65,6 +66,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Always public */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/d/:shareId" element={<SharedDiagnosis />} />
       <Route path="/legal/privacy" element={<Privacy />} />
       <Route path="/legal/terms" element={<Terms />} />
