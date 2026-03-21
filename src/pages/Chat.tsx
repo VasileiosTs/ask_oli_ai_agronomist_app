@@ -70,6 +70,7 @@ export default function Chat() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -377,10 +378,9 @@ export default function Chat() {
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
-    }
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
   const sendMessageToAI = async (
@@ -607,6 +607,7 @@ export default function Chat() {
     setInput('');
     setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
 
     let currentConversationId = activeConversationId;
     if (!isGuest && appUserId && !currentConversationId) {
@@ -749,6 +750,7 @@ export default function Chat() {
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+      if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
     }
   };
 
@@ -1071,7 +1073,7 @@ export default function Chat() {
                 ))}
               </div>
               <div className="relative">
-                <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
+                <textarea ref={desktopTextareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
                   placeholder={t.inputPlaceholder} rows={1}
                   className="max-h-[120px] min-h-[52px] w-full resize-none rounded-[22px] border border-border/50 bg-surface px-5 py-3.5 pr-14 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                 <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)}
