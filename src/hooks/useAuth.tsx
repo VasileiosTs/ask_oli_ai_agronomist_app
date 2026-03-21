@@ -33,15 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (authUserId: string): Promise<void> => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('users')
         .select('*')
         .eq('auth_id', authUserId)
         .maybeSingle();
-      if (error) console.error('fetchProfile error:', error.message);
       setProfile((data as UserProfile | null) ?? null);
     } catch (e) {
-      console.error('fetchProfile exception:', e);
+      console.error('fetchProfile error:', e);
       setProfile(null);
     }
   };
@@ -54,17 +53,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // onAuthStateChange is the SINGLE source of truth.
-    // It fires on page load (with existing session or null),
-    // AND when a magic link hash is processed (SIGNED_IN).
-    // We do NOT call getSession() separately to avoid race conditions.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
+    let cancelled = false;
 
-        if (newSession?.user) {
-          await fetchProfile(newSession.user.id);
+    // Step 1: getSession() processes the URL hash from magic links
+    // and returns the current session (existing or just-authed).
+    // This is the correct initial load pattern per Supabase docs.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (cancelled) return;
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      }
+      if (!cancelled) setLoading(false);
+    });
+
+    // Step 2: onAuthStateChange handles all future auth events
+    // (sign in, sign out, token refresh) but we skip the initial
+    // INITIAL_SESSION event to avoid double-processing.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (cancelled) return;
+        // Skip the initial session event — getSession() already handled it
+        if (event === 'INITIAL_SESSION') return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);
         } else {
           setProfile(null);
         }
@@ -72,7 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
