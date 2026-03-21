@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2, Menu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -11,7 +11,6 @@ import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { extractAndApply } from '../lib/extractAndApply';
-import { generateValidatedResponse } from '../lib/validateAi';
 import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage } from '../lib/imageCache';
 import clsx from 'clsx';
@@ -46,8 +45,10 @@ import { LogInterventionModal } from '../components/LogInterventionModal';
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -133,10 +134,13 @@ export default function Chat() {
 
     // Replace the follow-up message with a confirmation
     const outcomeLabels = { better: t.outcomeBetter, same: t.outcomeSame, worse: t.outcomeWorse };
+    const confirmContent = lang === 'el'
+      ? `${outcomeLabels[outcome]} — ευχαριστώ για την ενημέρωση. Έχω καταχωρήσει το αποτέλεσμα.`
+      : `${outcomeLabels[outcome]} — thanks for the update. I've recorded the outcome.`;
     const confirmMsg: Message = {
       id: `outcome-confirm-${Date.now()}`,
       role: 'assistant',
-      content: `${outcomeLabels[outcome]} — ευχαριστώ για την ενημέρωση. Έχω καταχωρήσει το αποτέλεσμα.`,
+      content: confirmContent,
       created_at: new Date().toISOString(),
     };
     setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
@@ -248,11 +252,14 @@ export default function Chat() {
         .then(({ data: due }) => {
           if (!due || due.length === 0) return;
           const item = due[0];
-          const cropLabel = item.crop_type || item.diagnosis || 'τη φυτεία σου';
+          const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
+          const followUpContent = lang === 'el'
+            ? `Πριν από 13 μέρες κάναμε παρέμβαση για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Πώς πάει τώρα;`
+            : `13 days ago we treated **${item.diagnosis || 'a problem'}** in **${cropLabel}**. How is it going?`;
           const followUpMsg = {
             id: `followup-${item.id}`,
             role: 'assistant' as const,
-            content: `Πριν από 13 μέρες κάναμε παρέμβαση για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Πώς πάει τώρα;`,
+            content: followUpContent,
             created_at: new Date().toISOString(),
             metadata: { follow_up_intervention_id: item.id, is_follow_up: true },
           };
@@ -277,6 +284,7 @@ export default function Chat() {
 
   useEffect(() => {
     return () => {
+      abortControllerRef.current?.abort();
       attachmentsRef.current.forEach((attachment) => {
         safeRevokeObjectUrl(attachment.previewUrl);
       });
@@ -290,7 +298,7 @@ export default function Chat() {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'el-GR';
+      recognitionRef.current.lang = lang === 'el' ? 'el-GR' : 'en-US';
 
       recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = '';
@@ -390,6 +398,11 @@ export default function Chat() {
     base64Images?: InlineAttachment[],
     attachmentPaths?: string[]
   ) => {
+    // Cancel any in-flight request
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsTyping(true);
 
     try {
@@ -431,6 +444,7 @@ let streamedContent = '';
         },
         {
           onToken: (token) => {
+            if (controller.signal.aborted) return;
             streamedContent += token;
             setIsTyping(false);
             setMessages((prev) =>
@@ -442,6 +456,7 @@ let streamedContent = '';
         }
       );
 
+      if (controller.signal.aborted) return;
       setIsTyping(false);
       setMessages((prev) =>
         prev.map((msg) => {
@@ -648,8 +663,13 @@ let streamedContent = '';
 
     let currentActiveFieldId = activeFieldId;
 
-    if (dbMessageId && appUserId) {
-      const result = await extractAndApply(finalMessageText, appUserId, dbMessageId);
+    const SHORT_MSGS = new Set(['ok', 'yes', 'no', 'ναι', 'όχι', 'εντάξει', 'οκ', 'thanks', 'ευχαριστώ', 'good', 'great', 'ok!', 'yes!']);
+    const shouldExtract = dbMessageId && appUserId &&
+      messageText.length > 10 &&
+      !SHORT_MSGS.has(messageText.toLowerCase().trim());
+
+    if (shouldExtract) {
+      const result = await extractAndApply(finalMessageText, appUserId, dbMessageId!);
       if (result?.action === 'auto_set' && result.targetFieldId) {
         setActiveFieldId(result.targetFieldId);
         currentActiveFieldId = result.targetFieldId;
@@ -664,7 +684,7 @@ let streamedContent = '';
         const disambiguationMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'Vrika kapoia xwrafia pou tairiazoun. Gia poio milame;',
+          content: lang === 'el' ? 'Βρήκα μερικά χωράφια που ταιριάζουν. Για ποιο μιλάμε;' : 'I found some matching fields. Which one do you mean?',
           created_at: new Date().toISOString(),
           isDisambiguation: true,
           originalText: finalMessageText,
@@ -680,7 +700,7 @@ let streamedContent = '';
       const disambiguationMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Gia poio xwrafi milame;',
+        content: lang === 'el' ? 'Για ποιο χωράφι μιλάμε;' : 'Which field are you asking about?',
         created_at: new Date().toISOString(),
         isDisambiguation: true,
         originalText: finalMessageText,
@@ -727,6 +747,8 @@ let streamedContent = '';
   };
 
   const clearChat = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     attachments.forEach((attachment) => {
       safeRevokeObjectUrl(attachment.previewUrl);
     });
@@ -736,6 +758,7 @@ let streamedContent = '';
     setMessages([]);
     setAttachments([]);
     setInput('');
+    setIsTyping(false);
     setActiveConversationId(undefined);
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
@@ -745,12 +768,14 @@ let streamedContent = '';
   };
 
   const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
+    const locale = lang === 'el' ? 'el-GR' : 'en-GB';
+    return new Date(isoString).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   };
 
 
   const handleSidebarSelect = async (id: string) => {
     clearChat();
+    setSidebarLoading(true);
     setActiveConversationId(id);
     const { data } = await supabase
       .from('chat_messages')
@@ -764,6 +789,7 @@ let streamedContent = '';
         metadata: m.metadata, starred: m.starred, created_at: m.created_at,
       })));
     }
+    setSidebarLoading(false);
   };
 
   const messagesListJsx = (
@@ -1104,7 +1130,11 @@ let streamedContent = '';
           <div className="flex flex-1 flex-col min-h-0">
             <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
               <div className="mx-auto max-w-2xl">
-                {messagesListJsx}
+                {sidebarLoading ? (
+                  <div className="flex h-full items-center justify-center py-20">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+                  </div>
+                ) : messagesListJsx}
               </div>
             </div>
             <div className="flex-shrink-0">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, MapPin, Crown, Pencil, Bell, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -10,12 +10,10 @@ import clsx from 'clsx';
 const FREE_LIMIT = 20;
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, profile, appUserId, logout, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { t, lang, setLang } = useLanguage();
 
-  const [profile, setProfile] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editLocation, setEditLocation] = useState('');
@@ -25,77 +23,101 @@ export default function Profile() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [notifState, setNotifState] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('users').select('*').eq('auth_id', user.id).maybeSingle()
-      .then(({ data }) => { if (data) setProfile(data); setLoading(false); });
-  }, [user]);
+  if (!profile) {
+    return (
+      <div className="flex h-[100dvh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const currentProfile = { ...profile, ...notifState };
+  const isPro = currentProfile.tier === 'pro';
+  const msgCount = (currentProfile.message_count_month as number) ?? 0;
+  const msgPercent = Math.min((msgCount / FREE_LIMIT) * 100, 100);
 
   const openEdit = () => {
-    if (!profile) return;
-    setEditName(profile.name ?? '');
-    setEditLocation(profile.location ?? '');
-    setEditCrop(profile.primary_crop ?? '');
+    setEditName((currentProfile.name as string) ?? '');
+    setEditLocation((currentProfile.location as string) ?? '');
+    setEditCrop((currentProfile.primary_crop as string) ?? '');
     setEditOpen(true);
   };
 
   const saveEdit = async () => {
-    if (!profile) return;
+    if (!appUserId) return;
     setSaving(true);
     let lat = null, lon = null;
-    if (editLocation !== profile.location) {
+    if (editLocation !== currentProfile.location) {
       try {
         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(editLocation)}&count=1&language=el&format=json`);
         const data = await res.json();
         if (data.results?.[0]) { lat = data.results[0].latitude; lon = data.results[0].longitude; }
-      } catch { /* optional */ }
+      } catch { /* geocoding optional */ }
     }
-    const updates: any = { name: editName.trim(), location: editLocation.trim(), primary_crop: editCrop.trim() };
+    const updates: Record<string, unknown> = {
+      name: editName.trim(),
+      location: editLocation.trim(),
+      primary_crop: editCrop.trim(),
+    };
     if (lat !== null) { updates.location_lat = lat; updates.location_lon = lon; }
-    await supabase.from('users').update(updates).eq('id', profile.id);
+    await supabase.from('users').update(updates).eq('id', appUserId);
+    await refreshProfile();
     setSaving(false);
     setEditOpen(false);
-    supabase.from('users').select('*').eq('auth_id', user!.id).maybeSingle().then(({ data }) => { if (data) setProfile(data); });
   };
 
   const toggleNotif = async (field: string) => {
-    if (!profile) return;
-    const newVal = !profile[field];
-    await supabase.from('users').update({ [field]: newVal }).eq('id', profile.id);
-    setProfile({ ...profile, [field]: newVal });
+    if (!appUserId) return;
+    const current = (notifState[field] !== undefined ? notifState[field] : currentProfile[field]) as boolean;
+    const newVal = !current;
+    setNotifState(prev => ({ ...prev, [field]: newVal }));
+    await supabase.from('users').update({ [field]: newVal }).eq('id', appUserId);
   };
 
   const exportData = async () => {
-    if (!profile) return;
+    if (!appUserId) return;
     setExporting(true);
     const [msgs, ints] = await Promise.all([
-      supabase.from('chat_messages').select('*').eq('user_id', profile.id).order('created_at'),
-      supabase.from('interventions').select('*').eq('user_id', profile.id).order('created_at'),
+      supabase.from('chat_messages').select('*').eq('user_id', appUserId).order('created_at'),
+      supabase.from('interventions').select('*').eq('user_id', appUserId).order('created_at'),
     ]);
-    const blob = new Blob([JSON.stringify({ profile, messages: msgs.data, interventions: ints.data }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([
+      JSON.stringify({ profile: currentProfile, messages: msgs.data, interventions: ints.data }, null, 2)
+    ], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `oli-data-${new Date().toISOString().split('T')[0]}.json`; a.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `oli-data-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
     URL.revokeObjectURL(url);
     setExporting(false);
   };
 
   const deleteAccount = async () => {
-    if (!profile || deleteConfirm !== t.deleteConfirmWord) return;
+    if (!appUserId || !user || deleteConfirm !== t.deleteConfirmWord) return;
     setDeleting(true);
-    await supabase.from('chat_messages').delete().eq('user_id', profile.id);
-    await supabase.from('interventions').delete().eq('user_id', profile.id);
-    await supabase.from('users').delete().eq('id', profile.id);
+
+    // 1. Delete storage files (GDPR)
+    const { data: files } = await supabase.storage
+      .from('chat_uploads')
+      .list(user.id, { limit: 1000 });
+    if (files && files.length > 0) {
+      await supabase.storage
+        .from('chat_uploads')
+        .remove(files.map(f => `${user.id}/${f.name}`));
+    }
+
+    // 2. Delete DB rows
+    await supabase.from('chat_messages').delete().eq('user_id', appUserId);
+    await supabase.from('interventions').delete().eq('user_id', appUserId);
+    await supabase.from('users').delete().eq('id', appUserId);
+
+    // 3. Sign out
     await logout();
     navigate('/auth');
   };
-
-  if (loading) return <div className="flex h-[100dvh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-  if (!profile) return <div className="flex h-[100dvh] items-center justify-center"><p className="text-muted">{t.noProfile}</p></div>;
-
-  const isPro = profile.tier === 'pro';
-  const msgCount = profile.message_count_month ?? 0;
-  const msgPercent = Math.min((msgCount / FREE_LIMIT) * 100, 100);
 
   return (
     <div className="h-[100dvh] overflow-y-auto bg-background">
@@ -106,10 +128,10 @@ export default function Profile() {
             <Leaf className="h-8 w-8 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="truncate text-xl font-bold text-foreground">{profile.name}</h1>
+            <h1 className="truncate text-xl font-bold text-foreground">{currentProfile.name as string}</h1>
             <div className="flex items-center gap-1 mt-0.5">
               <MapPin className="h-3 w-3 text-muted flex-shrink-0" />
-              <span className="truncate text-sm text-muted">{profile.location}</span>
+              <span className="truncate text-sm text-muted">{currentProfile.location as string}</span>
             </div>
             <span className={clsx('mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
               isPro ? 'bg-primary/15 text-primary' : 'bg-surface text-muted border border-border/50')}>
@@ -118,7 +140,8 @@ export default function Profile() {
             </span>
           </div>
         </div>
-        <button onClick={openEdit} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-surface py-2.5 text-sm text-muted transition-colors hover:text-foreground">
+        <button onClick={openEdit}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-surface py-2.5 text-sm text-muted transition-colors hover:text-foreground">
           <Pencil className="h-4 w-4" />{t.editProfile}
         </button>
       </div>
@@ -140,7 +163,8 @@ export default function Profile() {
               <span className="font-semibold text-foreground">{msgCount}/{FREE_LIMIT}</span>
             </div>
             <div className="h-2 w-full rounded-full bg-background overflow-hidden">
-              <div className={clsx('h-full rounded-full transition-all', msgPercent >= 80 ? 'bg-amber-400' : 'bg-primary')} style={{ width: `${msgPercent}%` }} />
+              <div className={clsx('h-full rounded-full transition-all', msgPercent >= 80 ? 'bg-amber-400' : 'bg-primary')}
+                style={{ width: `${msgPercent}%` }} />
             </div>
             <button className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90">
               {t.upgradeBtn} — {t.monthly}
@@ -156,7 +180,10 @@ export default function Profile() {
         <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t.settings}</h2>
         <div className="space-y-1">
           <div className="flex items-center justify-between rounded-xl p-3">
-            <div className="flex items-center gap-3"><Globe className="h-5 w-5 text-muted" /><span className="text-sm text-foreground">{t.languageLabel}</span></div>
+            <div className="flex items-center gap-3">
+              <Globe className="h-5 w-5 text-muted" />
+              <span className="text-sm text-foreground">{t.languageLabel}</span>
+            </div>
             <div className="flex gap-1">
               {(['el', 'en'] as Lang[]).map(l => (
                 <button key={l} onClick={() => setLang(l)}
@@ -170,15 +197,23 @@ export default function Profile() {
           {[
             { key: 'notification_followup', label: t.followUp },
             { key: 'notification_weekly_plan', label: t.weeklyPlan },
-          ].map(({ key, label }) => (
-            <div key={key} className="flex items-center justify-between rounded-xl p-3">
-              <div className="flex items-center gap-3"><Bell className="h-5 w-5 text-muted" /><span className="text-sm text-foreground">{label}</span></div>
-              <button onClick={() => toggleNotif(key)}
-                className={clsx('relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors', profile[key] ? 'bg-primary' : 'bg-border')}>
-                <span className={clsx('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', profile[key] ? 'translate-x-5' : 'translate-x-0')} />
-              </button>
-            </div>
-          ))}
+          ].map(({ key, label }) => {
+            const isOn = notifState[key] !== undefined
+              ? notifState[key]
+              : !!(currentProfile[key]);
+            return (
+              <div key={key} className="flex items-center justify-between rounded-xl p-3">
+                <div className="flex items-center gap-3">
+                  <Bell className="h-5 w-5 text-muted" />
+                  <span className="text-sm text-foreground">{label}</span>
+                </div>
+                <button onClick={() => toggleNotif(key)}
+                  className={clsx('relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors', isOn ? 'bg-primary' : 'bg-border')}>
+                  <span className={clsx('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', isOn ? 'translate-x-5' : 'translate-x-0')} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -236,7 +271,8 @@ export default function Profile() {
             </div>
             <div className="mt-5 flex gap-3">
               <button onClick={() => setEditOpen(false)} className="flex-1 rounded-xl border border-border bg-surface py-2.5 text-sm text-foreground">{t.cancel}</button>
-              <button onClick={saveEdit} disabled={saving || !editName.trim()} className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+              <button onClick={saveEdit} disabled={saving || !editName.trim()}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50">
                 {saving ? t.saving : t.save}
               </button>
             </div>
@@ -254,7 +290,8 @@ export default function Profile() {
               placeholder={t.deleteConfirmWord}
               className="mb-4 w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-red-400 focus:outline-none" />
             <div className="flex gap-3">
-              <button onClick={() => { setDeleteOpen(false); setDeleteConfirm(''); }} className="flex-1 rounded-xl border border-border bg-surface py-2.5 text-sm text-foreground">{t.cancel}</button>
+              <button onClick={() => { setDeleteOpen(false); setDeleteConfirm(''); }}
+                className="flex-1 rounded-xl border border-border bg-surface py-2.5 text-sm text-foreground">{t.cancel}</button>
               <button onClick={deleteAccount} disabled={deleteConfirm !== t.deleteConfirmWord || deleting}
                 className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
                 {deleting ? t.deleting : t.deleteAccount}

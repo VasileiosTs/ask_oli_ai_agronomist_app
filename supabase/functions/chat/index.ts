@@ -833,6 +833,25 @@ Deno.serve(async (req) => {
             })
             .eq('id', appUser.id);
 
+          // Set conversation title from first user message if not already set
+          if (body.conversationId) {
+            const { data: convo } = await supabaseAdmin
+              .from('conversations')
+              .select('title')
+              .eq('id', body.conversationId)
+              .single();
+            if (convo && (!convo.title || convo.title === 'New conversation')) {
+              const rawText = latestUserMessage.content
+                .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+                .trim();
+              const title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
+              await supabaseAdmin
+                .from('conversations')
+                .update({ title })
+                .eq('id', body.conversationId);
+            }
+          }
+
           sendEvent('done', {
             assistantMessageId: insertedAssistantMessage.id,
             assistantText,
