@@ -784,10 +784,35 @@ let streamedContent = '';
       .order('created_at', { ascending: true })
       .limit(50);
     if (data) {
-      setMessages(data.map((m: any) => ({
-        id: m.id, db_id: m.id, role: m.role, content: m.content,
-        metadata: m.metadata, starred: m.starred, created_at: m.created_at,
-      })));
+      const messages: Message[] = await Promise.all(data.map(async (m: any) => {
+        const base: Message = {
+          id: m.id, db_id: m.id, role: m.role, content: m.content,
+          metadata: m.metadata, starred: m.starred, created_at: m.created_at,
+        };
+        // Resolve stored image paths into displayable URLs
+        if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
+          const attachments: MessageAttachment[] = [];
+          for (const path of m.image_urls) {
+            // 1. Try IndexedDB cache first (instant, no network)
+            const { getCachedImage } = await import('../lib/imageCache');
+            const cached = await getCachedImage(path);
+            if (cached) {
+              attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
+              continue;
+            }
+            // 2. Fall back to Supabase Storage signed URL (60 min expiry)
+            const { data: signed } = await supabase.storage
+              .from('chat_uploads')
+              .createSignedUrl(path, 3600);
+            if (signed?.signedUrl) {
+              attachments.push({ url: signed.signedUrl, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
+            }
+          }
+          if (attachments.length > 0) base.attachments = attachments;
+        }
+        return base;
+      }));
+      setMessages(messages);
     }
     setSidebarLoading(false);
   };
