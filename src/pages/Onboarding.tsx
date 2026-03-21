@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -7,79 +8,190 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [crop, setCrop] = useState('');
+  const [crops, setCrops] = useState<string[]>([]);
+  const [customCrop, setCustomCrop] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
-  const { t } = useLanguage();
+  const { user, refreshProfile } = useAuth();
+  const { t, lang } = useLanguage();
+  const navigate = useNavigate();
 
   const handleNext = () => {
     if (step === 1 && name.trim()) setStep(2);
     else if (step === 2 && location.trim()) setStep(3);
   };
 
+  const toggleCrop = (c: string) => {
+    setCrops(prev =>
+      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+    );
+  };
+
+  const addCustomCrop = () => {
+    const v = customCrop.trim();
+    if (v && !crops.includes(v)) {
+      setCrops(prev => [...prev, v]);
+      setCustomCrop('');
+    }
+  };
+
+  const allCrops = crops.join(', ');
+  const canFinish = crops.length > 0 || customCrop.trim().length > 0;
+
   const handleComplete = async () => {
-    if (!user || !crop.trim()) return;
+    if (!user) return;
+
+    // include any typed but not-added custom crop
+    const finalCrops = customCrop.trim()
+      ? [...new Set([...crops, customCrop.trim()])]
+      : crops;
+
+    if (finalCrops.length === 0) return;
+
     setLoading(true);
     setError(null);
 
     let lat = null, lon = null;
     try {
-      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=el&format=json`);
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=el&format=json`
+      );
       const data = await res.json();
-      if (data.results?.[0]) { lat = data.results[0].latitude; lon = data.results[0].longitude; }
-    } catch { /* geocoding optional */ }
+      if (data.results?.[0]) {
+        lat = data.results[0].latitude;
+        lon = data.results[0].longitude;
+      }
+    } catch { /* geocoding is optional */ }
 
-    const { error: err } = await supabase.from('users').upsert({
-      auth_id: user.id, name, location, location_lat: lat, location_lon: lon,
-      primary_crop: crop, onboarding_complete: true,
-    }, { onConflict: 'auth_id' });
+    const payload = {
+      auth_id: user.id,
+      name: name.trim(),
+      location: location.trim(),
+      location_lat: lat,
+      location_lon: lon,
+      primary_crop: finalCrops.join(', '),
+      onboarding_complete: true,
+    };
 
+    const { error: upsertError } = await supabase
+      .from('users')
+      .upsert(payload, { onConflict: 'auth_id' });
+
+    if (upsertError) {
+      console.error('Onboarding upsert error:', upsertError);
+      setError(`${t.savingError} (${upsertError.message})`);
+      setLoading(false);
+      return;
+    }
+
+    // Refresh auth context so App.tsx routing sees the new profile
+    await refreshProfile();
     setLoading(false);
-    if (!err) { window.location.assign('/chat'); }
-    else { setError(t.savingError); }
+    navigate('/chat', { replace: true });
   };
-
-  const steps = [
-    { q: t.step1Q, p: t.step1P, val: name, set: setName },
-    { q: t.step2Q, p: t.step2P, val: location, set: setLocation },
-    { q: t.step3Q, p: t.step3P, val: crop, set: setCrop },
-  ];
-  const cur = steps[step - 1];
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background p-4">
       <div className="mx-auto w-full max-w-[420px] flex-1 flex flex-col pt-8">
+
+        {/* Progress bar */}
         <div className="mb-8 flex gap-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-primary' : 'bg-border'}`} />
+            <div key={i}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-border'}`}
+            />
           ))}
         </div>
 
         <div className="flex-1 animate-fade-in">
-          <h2 className="mb-6 text-2xl font-bold text-foreground">{cur.q}</h2>
-          <input
-            type="text" value={cur.val}
-            onChange={e => cur.set(e.target.value)}
-            placeholder={cur.p}
-            className="w-full rounded-[22px] border border-border bg-surface px-4 py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            autoFocus
-            onKeyDown={e => e.key === 'Enter' && (step < 3 ? handleNext() : handleComplete())}
-          />
+
+          {/* Step 1 — Name */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-foreground">{t.step1Q}</h2>
+              <input
+                type="text" value={name} autoFocus
+                onChange={e => setName(e.target.value)}
+                placeholder={t.step1P}
+                onKeyDown={e => e.key === 'Enter' && name.trim() && handleNext()}
+                className="w-full rounded-[22px] border border-border bg-surface px-4 py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
+
+          {/* Step 2 — Location */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-foreground">{t.step2Q}</h2>
+              <input
+                type="text" value={location} autoFocus
+                onChange={e => setLocation(e.target.value)}
+                placeholder={t.step2P}
+                onKeyDown={e => e.key === 'Enter' && location.trim() && handleNext()}
+                className="w-full rounded-[22px] border border-border bg-surface px-4 py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
+
+          {/* Step 3 — Crops (multi-select) */}
           {step === 3 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {t.crops.map(c => (
-                <button key={c} onClick={() => setCrop(c)}
-                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${crop === c ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:text-foreground'}`}>
-                  {c}
-                </button>
-              ))}
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">{t.step3Q}</h2>
+                <p className="mt-1 text-sm text-muted">
+                  {lang === 'el' ? 'Επέλεξε μία ή περισσότερες' : 'Select one or more'}
+                </p>
+              </div>
+
+              {/* Preset chips */}
+              <div className="flex flex-wrap gap-2">
+                {t.crops.map(c => (
+                  <button key={c} onClick={() => toggleCrop(c)}
+                    className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                      crops.includes(c)
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-border bg-surface text-muted hover:text-foreground'
+                    }`}>
+                    {crops.includes(c) ? `✓ ${c}` : c}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom crop input */}
+              <div className="flex gap-2">
+                <input
+                  type="text" value={customCrop}
+                  onChange={e => setCustomCrop(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addCustomCrop()}
+                  placeholder={lang === 'el' ? 'Άλλη καλλιέργεια...' : 'Other crop...'}
+                  className="flex-1 rounded-[22px] border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+                />
+                {customCrop.trim() && (
+                  <button onClick={addCustomCrop}
+                    className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white">
+                    +
+                  </button>
+                )}
+              </div>
+
+              {/* Selected summary */}
+              {crops.length > 0 && (
+                <p className="text-sm text-primary font-medium">
+                  {lang === 'el' ? 'Επιλεγμένες:' : 'Selected:'} {allCrops}
+                </p>
+              )}
             </div>
           )}
         </div>
 
-        <div className="mt-8 pb-safe">
-          {error && <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+        {/* Bottom CTA */}
+        <div className="mt-8 pb-safe space-y-3">
+          {error && (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </p>
+          )}
+
           {step < 3 ? (
             <button onClick={handleNext}
               disabled={(step === 1 && !name.trim()) || (step === 2 && !location.trim())}
@@ -87,7 +199,7 @@ export default function Onboarding() {
               {t.next}
             </button>
           ) : (
-            <button onClick={handleComplete} disabled={!crop.trim() || loading}
+            <button onClick={handleComplete} disabled={!canFinish || loading}
               className="w-full rounded-[22px] bg-primary px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
               {loading ? t.saving : t.letsGo}
             </button>

@@ -17,12 +17,14 @@ interface AuthContextValue {
   appUserId: string | null;
   loading: boolean;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   session: null, user: null, profile: null,
   appUserId: null, loading: true,
   logout: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -94,11 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id);
+  };
+
   return (
     <AuthContext.Provider value={{
       session, user, profile, loading,
       appUserId: profile?.id ?? null,
       logout,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
