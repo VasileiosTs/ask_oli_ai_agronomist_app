@@ -4,10 +4,12 @@ ALTER TABLE public.interventions
   ADD COLUMN IF NOT EXISTS organic_treatments text[],
   ADD COLUMN IF NOT EXISTS chemical_treatments text[];
 
--- Rebuild safe_shared_diagnoses view with all useful columns
+-- Rebuild safe_shared_diagnoses with security_invoker=false so anonymous
+-- users (incognito share links) can read shared diagnoses without being
+-- blocked by RLS on the underlying interventions table.
 DROP VIEW IF EXISTS public.safe_shared_diagnoses;
 CREATE VIEW public.safe_shared_diagnoses
-WITH (security_invoker = true)
+WITH (security_invoker = false)
 AS
 SELECT
   i.id            AS legacy_intervention_id,
