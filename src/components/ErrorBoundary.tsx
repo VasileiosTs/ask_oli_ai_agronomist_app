@@ -1,5 +1,6 @@
 import { Component, ReactNode } from 'react';
 import { Leaf } from 'lucide-react';
+import { Sentry } from '../lib/sentry';
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; error?: Error; }
@@ -13,6 +14,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: any) {
     console.error('Oli error boundary caught:', error, info);
+    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
   }
 
   render() {
