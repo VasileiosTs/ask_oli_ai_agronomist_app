@@ -274,17 +274,20 @@ const en: T = {
 export const dict: Record<Lang, T> = { el, en };
 
 export async function detectLang(): Promise<Lang> {
-  const cached = localStorage.getItem('oli_lang') as Lang | null;
-  if (cached === 'el' || cached === 'en') return cached;
+  // User's explicit choice always wins
+  const manual = localStorage.getItem('oli_lang_manual') as Lang | null;
+  if (manual === 'el' || manual === 'en') return manual;
+  // Legacy key from older sessions
+  const legacy = localStorage.getItem('oli_lang') as Lang | null;
+  if (legacy === 'el' || legacy === 'en') return legacy;
+
+  // Auto-detect from IP every time (no caching — stale 'en' was causing issues)
   try {
     const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2000) });
     const data = await res.json();
     const lang: Lang = (data.country_code === 'GR' || data.country_code === 'CY') ? 'el' : 'en';
-    localStorage.setItem('oli_lang', lang);
     return lang;
   } catch {
-    // IP detection failed — default to Greek (our primary audience)
-    localStorage.setItem('oli_lang', 'el');
-    return 'el';
+    return 'el'; // Default Greek for our audience
   }
 }

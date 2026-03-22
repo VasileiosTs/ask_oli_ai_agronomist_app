@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import OliLogo from '../components/OliLogo';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -48,13 +49,13 @@ export default function Landing() {
   return (
     <div className="landing-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Syne:wght@400;500;600;700&family=DM+Mono:wght@300;400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,700;1,6..96,300;1,6..96,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300&family=IBM+Plex+Mono:wght@300;400&display=swap&display=swap');
 
         .landing-root {
           min-height: 100dvh;
           background: #080C10;
           color: #E8EDF2;
-          font-family: 'Syne', sans-serif;
+          font-family: 'IBM Plex Sans', sans-serif;
           overflow-x: hidden;
           position: relative;
         }
@@ -86,8 +87,8 @@ export default function Landing() {
         .above-grain { position: relative; z-index: 2; }
 
         /* Typography */
-        .font-display { font-family: 'Cormorant Garamond', serif; }
-        .font-mono { font-family: 'DM Mono', monospace; }
+        .font-display { font-family: 'Bodoni Moda', serif; }
+        .font-mono { font-family: 'IBM Plex Mono', monospace; }
 
         /* Animations */
         @keyframes heroWord {
@@ -124,7 +125,7 @@ export default function Landing() {
         .fu2 { animation: fadeUp 0.9s 1.0s both; }
         .fu3 { animation: fadeUp 0.9s 1.2s both; }
 
-        .ticker-track { animation: ticker 40s linear infinite; display: flex; width: max-content; }
+        .ticker-track { animation: ticker 160s linear infinite; display: flex; width: max-content; }
         .ticker-track:hover { animation-play-state: paused; }
 
         .phone-float { animation: float 8s ease-in-out infinite; }
@@ -153,7 +154,7 @@ export default function Landing() {
         }
 
         .stat-number {
-          font-family: 'Cormorant Garamond', serif;
+          font-family: 'Bodoni Moda', serif;
           font-size: clamp(3rem, 8vw, 5rem);
           font-weight: 300;
           color: #2EA043;
@@ -173,13 +174,7 @@ export default function Landing() {
         <nav style={{borderBottom:'1px solid rgba(255,255,255,0.06)'}}
           className="flex items-center justify-between px-6 py-5 md:px-12 max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
-            <svg width="24" height="24" viewBox="0 0 32 32">
-              <ellipse cx="16" cy="7"  rx="7" ry="10" fill="#2D6A4F"/>
-              <ellipse cx="16" cy="25" rx="7" ry="10" fill="#2D6A4F"/>
-              <ellipse cx="7"  cy="16" rx="10" ry="7" fill="#2EA043"/>
-              <ellipse cx="25" cy="16" rx="10" ry="7" fill="#2EA043"/>
-              <circle  cx="16" cy="16" r="5"  fill="#080C10"/>
-            </svg>
+            <OliLogo size={24} bg="#080C10" />
             <span className="font-mono text-sm tracking-widest text-white/60 uppercase">Oli</span>
           </div>
           <div className="flex items-center gap-4">
@@ -221,10 +216,10 @@ export default function Landing() {
               </h1>
 
               <p className="fu1 text-base leading-relaxed mb-8 max-w-md"
-                style={{color:'rgba(232,237,242,0.55)', fontFamily:'Syne, sans-serif', fontWeight:400}}>
-                Φωτογράφισε το πρόβλημα. Πάρε διάγνωση σε δευτερόλεπτα.
-                Βιολογικές και χημικές επιλογές, με ακριβή δοσολογία.
-                Για ελαιώνες, εσπεριδοειδή, αμπέλια — ό,τι καλλιεργείς.
+                style={{color:'rgba(232,237,242,0.55)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:400}}>
+                Φωτογράφισε ή περίγραψε τι βλέπεις στο χωράφι.
+                Σε δευτερόλεπτα έχεις αιτία, λύση και δοσολογία.
+                Για ελιές, λεμόνια, αμπέλι — ό,τι καλλιεργείς.
               </p>
 
               <div className="fu2 flex flex-col sm:flex-row gap-4 mb-12">
@@ -284,13 +279,7 @@ export default function Landing() {
                       {/* App header */}
                       <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
                         <div className="flex items-center gap-2">
-                          <svg width="14" height="14" viewBox="0 0 32 32">
-                            <ellipse cx="16" cy="7"  rx="7" ry="10" fill="#2D6A4F"/>
-                            <ellipse cx="16" cy="25" rx="7" ry="10" fill="#2D6A4F"/>
-                            <ellipse cx="7"  cy="16" rx="10" ry="7" fill="#2EA043"/>
-                            <ellipse cx="25" cy="16" rx="10" ry="7" fill="#2EA043"/>
-                            <circle  cx="16" cy="16" r="5"  fill="#080C10"/>
-                          </svg>
+                          <OliLogo size={14} bg="#080C10" />
                           <span className="font-mono text-[11px] text-[#2EA043]">Oli</span>
                         </div>
                         <span className="font-mono text-[10px] text-white/20">9:41</span>
@@ -313,8 +302,8 @@ export default function Landing() {
                           <div className="rounded-2xl rounded-bl-sm px-3 py-2.5"
                             style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)'}}>
                             <p className="font-mono text-[10px] text-white/80 leading-relaxed">
-                              Διαγιγνώσκω <span className="text-[#2EA043] font-medium">Κυκλοκόνιο</span> — Cycloconium oleaginum.
-                              Εμφανίζεται μετά από υγρασία.
+                              Φαίνεται <span className="text-[#2EA043] font-medium">Κυκλοκόνιο</span> (μυκητιακή ασθένεια).
+                              Συνηθίζει να εμφανίζεται μετά από βροχές.
                             </p>
                           </div>
                         </div>
@@ -364,7 +353,7 @@ export default function Landing() {
                 {/* Floating notification badge */}
                 <div className="absolute -right-4 top-1/3 rounded-2xl px-3 py-2 shadow-xl"
                   style={{background:'linear-gradient(135deg,#1a2030,#161c23)', border:'1px solid rgba(46,160,67,0.3)', boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
-                  <p className="font-mono text-[9px] text-[#2EA043]">Follow-up σε</p>
+                  <p className="font-mono text-[9px] text-[#2EA043]">Υπενθύμιση σε</p>
                   <p className="font-display text-xl font-light text-white" style={{letterSpacing:'-0.02em'}}>13<span className="font-mono text-[10px] ml-1 text-white/40">μέρες</span></p>
                 </div>
 
@@ -413,7 +402,7 @@ export default function Landing() {
                 <h3 className="font-mono text-sm font-medium text-white mb-3 tracking-tight">
                   {f.title}
                 </h3>
-                <p className="text-sm leading-relaxed" style={{color:'rgba(232,237,242,0.45)', fontFamily:'Syne,sans-serif', fontWeight:400}}>
+                <p className="text-sm leading-relaxed" style={{color:'rgba(232,237,242,0.45)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:400}}>
                   {f.body}
                 </p>
               </div>
@@ -446,7 +435,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <h3 className="font-mono text-base text-white mb-2 tracking-tight">{s.t}</h3>
-                  <p className="text-sm leading-relaxed" style={{color:'rgba(232,237,242,0.45)', fontFamily:'Syne,sans-serif'}}>
+                  <p className="text-sm leading-relaxed" style={{color:'rgba(232,237,242,0.45)', fontFamily:'Plus Jakarta Sans, sans-serif'}}>
                     {s.b}
                   </p>
                 </div>
@@ -467,7 +456,7 @@ export default function Landing() {
             <span style={{color:'rgba(232,237,242,0.35)', fontWeight:300}}>για τον Μεσογειακό αγρότη.</span>
           </h2>
 
-          <p className="mb-10 text-base leading-relaxed" style={{color:'rgba(232,237,242,0.4)', fontFamily:'Syne,sans-serif'}}>
+          <p className="mb-10 text-base leading-relaxed" style={{color:'rgba(232,237,242,0.4)', fontFamily:'Plus Jakarta Sans, sans-serif'}}>
             Δωρεάν για τις πρώτες 20 ερωτήσεις.<br/>
             Δεν χρειάζεσαι πιστωτική κάρτα.
           </p>

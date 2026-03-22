@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, MessageCircle, User, Search } from 'lucide-react';
+import OliLogo from './OliLogo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -61,9 +62,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
     )}>
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-4 border-b border-border/50">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#2EA043">
-          <path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-13 6 0 0 .93-.98 2-2z"/>
-        </svg>
+        <OliLogo size={20} bg="#161C23" />
         <span className="text-base font-semibold text-primary">Oli</span>
         {!desktop && (
           <button onClick={onClose} className="ml-auto rounded-full p-1 text-muted hover:text-foreground transition-colors">
