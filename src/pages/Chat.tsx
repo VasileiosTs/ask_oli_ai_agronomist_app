@@ -159,7 +159,31 @@ export default function Chat() {
   };
 
   const handleShare = async (msg: Message) => {
-    if (!appUserId || !msg.db_id || !msg.metadata?.diagnosis_data) return;
+    if (!appUserId) { showToast(t.profileSyncing); return; }
+    if (!msg.db_id) { showToast(lang === 'el' ? 'Παρακαλώ περιμένετε...' : 'Please wait...'); return; }
+    if (!msg.metadata?.diagnosis_data) {
+      // Try to re-fetch metadata from DB in case it wasn't set in state
+      const { data: dbMsg } = await supabase
+        .from('chat_messages')
+        .select('metadata')
+        .eq('id', msg.db_id)
+        .single();
+      if (dbMsg?.metadata?.diagnosis_data) {
+        // Update message in state and retry
+        setMessages(prev => prev.map(m =>
+          m.id === msg.id ? { ...m, metadata: dbMsg.metadata } : m
+        ));
+        // Re-run with updated msg
+        await handleShareWithData({ ...msg, metadata: dbMsg.metadata });
+        return;
+      }
+      showToast(lang === 'el' ? 'Δεν βρέθηκε διάγνωση' : 'No diagnosis found');
+      return;
+    }
+    await handleShareWithData(msg);
+  };
+
+  const handleShareWithData = async (msg: Message) => {
 
     let interventionId = msg.metadata.intervention_id;
     let publicShareId = msg.metadata.share_id;

@@ -4,49 +4,74 @@ import { supabase } from '../lib/supabase';
 import { Leaf } from 'lucide-react';
 
 /**
- * AuthCallback — handles Supabase PKCE magic link redirect.
+ * AuthCallback — handles both PKCE magic link AND OAuth (Google/Facebook) redirects.
  *
- * Flow:
- *   1. User clicks magic link in email
- *   2. Supabase redirects to /auth/callback?code=xxxx
- *   3. This page exchanges the code for a session
- *   4. onAuthStateChange fires with SIGNED_IN
- *   5. useAuth sets user + profile → router sends to /chat or /onboarding
+ * Magic link flow:  /auth/callback?code=xxxx  → exchangeCodeForSession
+ * OAuth flow:       /auth/callback#access_token=xxxx  → already handled by
+ *                   supabase client (detectSessionInUrl:true), onAuthStateChange fires
  */
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const exchange = async () => {
-      // exchangeCodeForSession reads the ?code= param from the current URL
-      // and exchanges it with Supabase for a real session.
-      const { error } = await supabase.auth.exchangeCodeForSession(
-        window.location.href
-      );
+    const handle = async () => {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      const hasHashTokens = window.location.hash.includes('access_token');
+      const hasError = url.searchParams.get('error') || window.location.hash.includes('error');
 
-      if (error) {
-        console.error('Auth callback error:', error.message);
-        setError(error.message);
-        // Wait 2s then send back to auth page
-        setTimeout(() => navigate('/auth', { replace: true }), 2000);
+      // Handle error from OAuth provider
+      if (hasError) {
+        const errorDesc = url.searchParams.get('error_description') || 'Authentication failed';
+        console.error('OAuth error:', errorDesc);
+        setError(errorDesc);
+        setTimeout(() => navigate('/auth', { replace: true }), 2500);
         return;
       }
 
-      // Session is now set. onAuthStateChange in useAuth will fire,
-      // update the context, and App.tsx routing will redirect correctly.
-      // We just need to go to root and let the router decide.
-      navigate('/', { replace: true });
+      // OAuth flow: hash fragment (#access_token=...) — Supabase client
+      // already processes this via detectSessionInUrl:true. onAuthStateChange
+      // will fire with SIGNED_IN. Just wait briefly then navigate to root.
+      if (hasHashTokens) {
+        // Give onAuthStateChange time to fire and update context
+        setTimeout(() => navigate('/', { replace: true }), 100);
+        return;
+      }
+
+      // PKCE magic link flow: ?code= param — must exchange manually
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        if (error) {
+          console.error('Auth callback error:', error.message);
+          setError(error.message);
+          setTimeout(() => navigate('/auth', { replace: true }), 2500);
+          return;
+        }
+        navigate('/', { replace: true });
+        return;
+      }
+
+      // No code or hash — might be OAuth with implicit flow already processed
+      // Check if we already have a session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/', { replace: true });
+      } else {
+        navigate('/auth', { replace: true });
+      }
     };
 
-    exchange();
+    handle();
   }, [navigate]);
 
   if (error) {
     return (
       <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <div className="text-red-400 text-sm">
-          Link expired or invalid. Redirecting to login...
+        <div className="text-red-400 text-sm max-w-sm">
+          {error.includes('expired') || error.includes('invalid')
+            ? 'Link expired — please request a new one.'
+            : 'Sign in failed. Redirecting...'}
         </div>
       </div>
     );
