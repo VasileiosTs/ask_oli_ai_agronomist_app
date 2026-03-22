@@ -42,6 +42,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
 
   const userInitial = user?.email?.[0]?.toUpperCase() ?? 'U';
   const userName = profile?.name ?? user?.email ?? '';
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
 
   const content = (
     <div className={clsx(
@@ -95,8 +96,10 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
           onClick={() => { if (!desktop) onClose(); navigate('/profile'); }}
           className="flex w-full items-center gap-3 rounded-xl p-1.5 transition-colors hover:bg-background/60"
         >
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-            {userInitial}
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full overflow-hidden bg-primary/20 text-xs font-semibold text-primary">
+            {avatarUrl
+              ? <img src={avatarUrl} alt={userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              : userInitial}
           </div>
           <span className="flex-1 truncate text-sm text-muted text-left">{userName}</span>
           <User className="h-3.5 w-3.5 text-muted/50 flex-shrink-0" />
