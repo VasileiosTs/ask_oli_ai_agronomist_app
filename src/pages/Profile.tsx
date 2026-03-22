@@ -7,7 +7,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import type { Lang } from '../lib/i18n';
 import clsx from 'clsx';
 
-const FREE_LIMIT = 20;
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
 
 export default function Profile() {
   const { user, profile, appUserId, logout, refreshProfile } = useAuth();

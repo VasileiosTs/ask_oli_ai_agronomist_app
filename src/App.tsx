@@ -60,8 +60,8 @@ function AppRoutes() {
     );
   }
 
-  const authenticated = !!(user && profile);          // signed in + profile complete
-  const needsOnboarding = !!(user && !profile);       // signed in + no profile yet
+  const authenticated = !!(user && profile && profile.onboarding_complete); // signed in + profile complete
+  const needsOnboarding = !!(user && (!profile || !profile.onboarding_complete)); // signed in but onboarding incomplete
 
   return (
     <Routes>

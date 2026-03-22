@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2, Menu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -15,8 +15,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage } from '../lib/imageCache';
 import clsx from 'clsx';
 
-const FREE_LIMIT = 20;
-const MAX_ATTACHMENTS = 3;
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY, FOLLOW_UP_DAYS } from "../lib/constants";
 
 interface MessageAttachment {
   url: string;
@@ -253,7 +252,8 @@ export default function Chat() {
 
   useEffect(() => {
     if (appUserId) {
-      supabase.from('field_context_view').select('*').eq('user_id', appUserId).then(({ data }) => {
+      supabase.from('field_context_view').select('*').eq('user_id', appUserId).then(({ data, error }) => {
+        if (error) console.error('fields load error:', error.message);
         if (data) setFields(data as Field[]);
       });
 
@@ -605,7 +605,7 @@ let streamedContent = '';
 
           if (user) {
             const fileExt = mimeType === 'image/jpeg' ? 'jpg' : att.file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const fileName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
             const filePath = `${user.id}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
@@ -866,7 +866,7 @@ let streamedContent = '';
                 <div className={clsx("flex flex-wrap gap-2 mb-1", isUser ? "justify-end" : "justify-start")}>
                   {msg.attachments.map((attachment, i) => (
                     attachment.mimeType.startsWith('image/') ? (
-                      <img key={i} src={attachment.url} alt={attachment.name} className="h-24 w-24 rounded-xl border border-border/50 object-cover" />
+                      <img key={i} src={attachment.url} alt={attachment.name} loading="lazy" className="h-24 w-24 rounded-xl border border-border/50 object-cover" />
                     ) : (
                       <div key={i} className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border border-border/50 bg-surface px-2 text-center">
                         <FileText className="mb-2 h-6 w-6 text-muted" />
