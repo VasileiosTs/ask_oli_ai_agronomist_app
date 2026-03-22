@@ -1,5 +1,6 @@
+/** @jsxImportSource react */
 import { ImageResponse } from '@vercel/og';
-
+import React from 'react';
 export const config = { runtime: 'edge' };
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
