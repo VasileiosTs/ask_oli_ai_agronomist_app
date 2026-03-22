@@ -65,6 +65,7 @@ export default function Chat() {
   const [isListening, setIsListening] = useState(false);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [logModalData, setLogModalData] = useState<any | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -216,12 +217,30 @@ export default function Chat() {
     }
 
     const shareUrl = `${window.location.origin}/d/${publicShareId}`;
+
+    // Try Web Share API first (native on mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Oli — Διάγνωση',
+          text: msg.metadata?.diagnosis_data?.problem || 'Δες αυτή τη διάγνωση από τον Oli',
+          url: shareUrl,
+        });
+        showToast(t.linkCopied);
+        return;
+      } catch (e) {
+        // User cancelled share sheet — don't show error
+        if ((e as Error).name === 'AbortError') return;
+      }
+    }
+
+    // Try clipboard
     try {
       await navigator.clipboard.writeText(shareUrl);
       showToast(t.linkCopied);
-    } catch (error) {
-      console.error('Clipboard write failed:', error);
-      showToast(t.shareClipboardError);
+    } catch {
+      // Clipboard blocked — show URL in a toast with the link visible
+      setShareModalUrl(shareUrl);
     }
   };
 
@@ -930,7 +949,7 @@ let streamedContent = '';
           </div>
         );
       })}
-      {isTyping && (
+      {isTyping && !messages.some(m => m.role === 'assistant' && m.content === '') && (
         <div className="group flex w-full justify-start animate-fade-in">
           <div className="w-6 flex-shrink-0 pt-3"><div className="h-2 w-2 rounded-full bg-primary/60" /></div>
           <div className="flex max-w-[78%] flex-col gap-1">
@@ -1191,6 +1210,44 @@ let streamedContent = '';
             }
           }}
         />
+      )}
+
+      {shareModalUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setShareModalUrl(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <p className="mb-3 text-sm font-medium text-foreground">
+              {lang === 'el' ? 'Σύνδεσμος κοινοποίησης' : 'Share link'}
+            </p>
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={shareModalUrl}
+                className="flex-1 rounded-xl border border-border/50 bg-background px-3 py-2 text-xs text-muted focus:outline-none"
+                onFocus={e => e.target.select()}
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareModalUrl);
+                    showToast(t.linkCopied);
+                    setShareModalUrl(null);
+                  } catch {
+                    showToast(lang === 'el' ? 'Επέλεξε και αντέγραψε χειροκίνητα' : 'Select and copy manually');
+                  }
+                }}
+                className="rounded-xl bg-primary px-3 py-2 text-xs font-medium text-white"
+              >
+                {lang === 'el' ? 'Αντιγραφή' : 'Copy'}
+              </button>
+            </div>
+            <button onClick={() => setShareModalUrl(null)}
+              className="mt-3 w-full text-center text-xs text-muted hover:text-foreground">
+              {t.cancel}
+            </button>
+          </div>
+        </div>
       )}
 
       {toastMessage && (

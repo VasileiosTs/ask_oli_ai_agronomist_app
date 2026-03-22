@@ -48,6 +48,57 @@
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 }
 
+/* Prose overrides for AI message bubbles */
+.prose.prose-invert {
+  --tw-prose-body: #F0F6FC;
+  --tw-prose-headings: #F0F6FC;
+  --tw-prose-bold: #F0F6FC;
+  --tw-prose-bullets: #8B949E;
+  --tw-prose-counters: #8B949E;
+  color: #F0F6FC;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.prose.prose-invert p {
+  margin-top: 0.6em;
+  margin-bottom: 0.6em;
+}
+
+.prose.prose-invert p:first-child {
+  margin-top: 0;
+}
+
+.prose.prose-invert p:last-child {
+  margin-bottom: 0;
+}
+
+.prose.prose-invert ul,
+.prose.prose-invert ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1.25em;
+}
+
+.prose.prose-invert li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.prose.prose-invert strong {
+  color: #F0F6FC;
+  font-weight: 600;
+}
+
+.prose.prose-invert h1,
+.prose.prose-invert h2,
+.prose.prose-invert h3 {
+  color: #F0F6FC;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+  font-weight: 600;
+}
+
 @keyframes slideInLeft {
   from { transform: translateX(-100%); }
   to   { transform: translateX(0); }
