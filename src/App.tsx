@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth';
 import LoadingSpinner from './components/LoadingSpinner';
 import Auth from './pages/Auth';
 import AuthCallback from './pages/AuthCallback';
+import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
@@ -91,13 +92,13 @@ function AppRoutes() {
         }
       />
 
-      {/* Root — smart redirect */}
+      {/* Root — landing page for visitors, smart redirect for authenticated */}
       <Route
         path="/"
         element={
           authenticated ? <Navigate to="/chat" replace /> :
           needsOnboarding ? <Navigate to="/onboarding" replace /> :
-          <Navigate to="/auth" replace />
+          <Landing />
         }
       />
 
