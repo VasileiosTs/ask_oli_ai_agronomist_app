@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
-import OliLogo from '../components/OliLogo';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../lib/LanguageContext';
 
 const CROPS = [
   'Ελιές','Λεμόνια','Πορτοκάλια','Μανταρίνια','Κλημέντινες',
@@ -13,38 +13,47 @@ const CROPS = [
   'Πεπόνι','Καρύδια','Αμύγδαλα','Φιστίκια','Χαρούπια',
 ];
 
-const STATS = [
-  { n: '20', unit: 'δωρεάν', label: 'ερωτήσεις — χωρίς κάρτα' },
-  { n: '13', unit: 'μέρες', label: 'μετά το ψεκασμό σε ρωτά αν πέτυχε' },
-  { n: '∞', unit: 'καλλιέργειες', label: 'ελιές, αμπέλι, εσπεριδοειδή κι άλλα' },
+const STATS = (lang: string) => [
+  { n: '20', unit: lang === 'el' ? 'δωρεάν' : 'free', label: lang === 'el' ? 'ερωτήσεις — χωρίς κάρτα' : 'questions — no credit card' },
+  { n: '13', unit: lang === 'el' ? 'μέρες' : 'days', label: lang === 'el' ? 'μετά σε ρωτά αν πέτυχε' : 'later it asks if it worked' },
+  { n: '∞', unit: lang === 'el' ? 'καλλιέργειες' : 'crops', label: lang === 'el' ? 'ελιές, αμπέλι κι άλλα' : 'olives, vines and more' },
 ];
 
-const FEATURES = [
+const FEATURES = (lang: string) => [
   {
     n: '01',
-    title: 'Διάγνωση από φωτογραφία',
-    body: 'Τράβα φωτογραφία από το χωράφι. Ο Oli σου λέει τι έχει το φυτό, γιατί το έχει, και τι να κάνεις — σε δευτερόλεπτα.',
+    title: lang === 'el' ? 'Διάγνωση από φωτογραφία' : 'Photo diagnosis',
+    body: lang === 'el'
+      ? 'Τράβα φωτογραφία από το χωράφι. Ο Oli σου λέει τι έχει το φυτό, γιατί το έχει, και τι να κάνεις — σε δευτερόλεπτα.'
+      : 'Take a photo from your field. Oli tells you what is wrong, why, and what to do — in seconds.',
   },
   {
     n: '02',
-    title: 'Βιολογικό & χημικό πλάνο',
-    body: 'Για κάθε πρόβλημα παίρνεις δύο επιλογές: βιολογική και χημική. Με συγκεκριμένο προϊόν, ποσότητα και πότε να το εφαρμόσεις.',
+    title: lang === 'el' ? 'Βιολογικό & χημικό πλάνο' : 'Organic & chemical plan',
+    body: lang === 'el'
+      ? 'Για κάθε πρόβλημα παίρνεις δύο επιλογές: βιολογική και χημική. Με συγκεκριμένο προϊόν, ποσότητα και πότε να το εφαρμόσεις.'
+      : 'Every diagnosis comes with two options: organic and chemical. Exact product, dose, and timing.',
   },
   {
     n: '03',
-    title: 'Μνήμη καλλιέργειας',
-    body: 'Ό,τι κάνεις στο χωράφι μένει καταγραμμένο. Ο Oli θυμάται και 13 μέρες μετά σε ρωτά αν το πρόβλημα πέρασε.',
+    title: lang === 'el' ? 'Μνήμη καλλιέργειας' : 'Field memory',
+    body: lang === 'el'
+      ? 'Ό,τι κάνεις στο χωράφι μένει καταγραμμένο. Ο Oli θυμάται και 13 μέρες μετά σε ρωτά αν το πρόβλημα πέρασε.'
+      : 'Everything you do is recorded. Oli remembers and asks 13 days later if the problem is gone.',
   },
   {
     n: '04',
-    title: 'Εβδομαδιαίο πλάνο',
-    body: 'Κάθε Δευτέρα πρωί, ο Oli σου στέλνει τι να προσέξεις αυτή την εβδομάδα — ανάλογα με την εποχή και τη σοδειά σου.',
+    title: lang === 'el' ? 'Εβδομαδιαίο πλάνο' : 'Weekly plan',
+    body: lang === 'el'
+      ? 'Κάθε Δευτέρα πρωί, ο Oli σου στέλνει τι να προσέξεις αυτή την εβδομάδα — ανάλογα με την εποχή και τη σοδειά σου.'
+      : 'Every Monday morning, Oli sends you what to watch for this week — based on the season and your crops.',
   },
 ];
 
 export default function Landing() {
   const { user, profile } = useAuth();
   const isLoggedIn = !!(user && profile);
+  const { lang, setLang } = useLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -185,13 +194,18 @@ export default function Landing() {
             {!isLoggedIn && (
               <Link to="/auth"
                 className="hidden md:block font-mono text-xs tracking-wider text-white/40 hover:text-white/80 transition-colors uppercase">
-                Σύνδεση
+                (lang === 'el' ? 'Σύνδεση' : 'Sign in')
               </Link>
             )}
             <Link to={isLoggedIn ? "/chat" : "/auth"}
               className="cta-glow font-mono text-xs tracking-widest uppercase rounded-full bg-[#2EA043] px-6 py-2.5 text-white transition-all hover:bg-[#35b84d]">
-              {isLoggedIn ? 'Άνοιξε →' : 'Ξεκίνα δωρεάν'}
+              {isLoggedIn ? 'Άνοιξε →' : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}
             </Link>
+            <button
+              onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
+              className="font-mono text-xs tracking-wider text-white/30 hover:text-white/70 transition-colors uppercase border border-white/10 rounded-full px-3 py-1.5">
+              {lang === 'el' ? 'EN' : 'ΕΛ'}
+            </button>
           </div>
         </nav>
 
@@ -205,25 +219,25 @@ export default function Landing() {
               <div className="fu1 flex items-center gap-3 mb-8">
                 <div className="h-px w-8" style={{background:'rgba(46,160,67,0.6)'}} />
                 <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">
-                  AI Γεωπόνος · Μεσόγειος
+                  {lang === 'el' ? 'AI Γεωπόνος · Μεσόγειος' : 'AI Agronomist · Mediterranean'}
                 </span>
               </div>
 
               {/* Hero headline — editorial layout */}
               <h1 className="font-display mb-8" style={{fontSize:'clamp(3.2rem,7vw,5.5rem)', lineHeight:1.05, letterSpacing:'-0.02em'}}>
                 <span className="hw1 block text-white/30" style={{fontSize:'0.45em', fontStyle:'italic', fontWeight:300, letterSpacing:'0.05em', marginBottom:'0.3em'}}>
-                  Ο γεωπόνος σου
+                  {lang === 'el' ? 'Ο γεωπόνος σου' : 'Your agronomist'}
                 </span>
-                <span className="hw2 block text-white">είναι</span>
-                <span className="hw3 block" style={{color:'#2EA043', fontStyle:'italic'}}>πάντα</span>
-                <span className="hw4 block text-white">διαθέσιμος.</span>
+                <span className="hw2 block text-white">{lang === 'el' ? 'είναι' : 'is always'}</span>
+                <span className="hw3 block" style={{color:'#2EA043', fontStyle:'italic'}}>{lang === 'el' ? 'πάντα' : 'available'}</span>
+                {lang === 'el' && <span className="hw4 block text-white">διαθέσιμος.</span>}
               </h1>
 
               <p className="fu1 text-base leading-relaxed mb-8 max-w-md"
                 style={{color:'rgba(232,237,242,0.55)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:400}}>
-                Φωτογράφισε ή γράψε τι βλέπεις στο χωράφι.
-                Σε δευτερόλεπτα ξέρεις τι έχει, γιατί και τι να κάνεις.
-                Για ελιές, λεμόνια, αμπέλι — ό,τι και να φυτεύεις.
+                {lang === 'el'
+                  ? 'Φωτογράφισε ή γράψε τι βλέπεις στο χωράφι. Σε δευτερόλεπτα ξέρεις τι έχει, γιατί και τι να κάνεις. Για ελιές, λεμόνια, αμπέλι — ό,τι και να φυτεύεις.'
+                  : 'Photo or text — describe what you see in your field. In seconds you know what it is, why, and what to do. For olives, citrus, vines — whatever you grow.'}
               </p>
 
               <div className="fu2 flex flex-col sm:flex-row gap-4 mb-12">
@@ -241,13 +255,13 @@ export default function Landing() {
                       </div>
                     ))}
                   </div>
-                  <span className="font-mono text-xs text-white/30">+112 αγρότες</span>
+                  <span className="font-mono text-xs text-white/30">lang === 'el' ? '+112 αγρότες' : '+112 farmers'</span>
                 </div>
               </div>
 
               {/* Stats row */}
               <div className="fu3 grid grid-cols-3 gap-4">
-                {STATS.map((s,i) => (
+                {STATS(lang).map((s,i) => (
                   <div key={i} className="border-l-2 border-[#2EA043]/30 pl-4">
                     <div className="font-display text-3xl font-light text-[#2EA043]" style={{letterSpacing:'-0.02em'}}>
                       {s.n}
@@ -341,7 +355,7 @@ export default function Landing() {
                       <div className="px-4 pb-4 pt-2 border-t border-white/5">
                         <div className="flex items-center gap-2 rounded-full px-3 py-2"
                           style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)'}}>
-                          <span className="flex-1 font-mono text-[10px] text-white/20">Ρώτησε τον Oli...</span>
+                          <span className="flex-1 font-mono text-[10px] text-white/20">{lang === 'el' ? 'Ρώτησε τον Oli...' : 'Ask Oli...'}</span>
                           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2EA043]">
                             <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
                               <path d="M2 5h6M5 2l3 3-3 3"/>
@@ -389,11 +403,11 @@ export default function Landing() {
         <section className="max-w-7xl mx-auto px-6 md:px-12 py-24">
           <div className="flex items-end justify-between mb-16">
             <div>
-              <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">Δυνατότητες</span>
+              <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">{lang === 'el' ? 'Δυνατότητες' : 'Features'}</span>
               <h2 className="font-display mt-2"
                 style={{fontSize:'clamp(2rem,4vw,3rem)', lineHeight:1.1, letterSpacing:'-0.02em', color:'white'}}>
-                Ό,τι χρειάζεται<br/>
-                <em style={{color:'rgba(232,237,242,0.4)', fontWeight:300}}>ένας σύγχρονος αγρότης</em>
+                {lang === 'el' ? 'Ό,τι χρειάζεται' : 'Everything a'}<br/>
+                <em style={{color:'rgba(232,237,242,0.4)', fontWeight:300}}>{lang === 'el' ? 'ένας σύγχρονος αγρότης' : 'a modern farmer'}</em>
               </h2>
             </div>
             <Link to={isLoggedIn ? "/chat" : "/auth"}
@@ -403,7 +417,7 @@ export default function Landing() {
           </div>
 
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f,i)=>(
+            {FEATURES(lang).map((f,i)=>(
               <div key={i} className="feature-card rounded-2xl p-6">
                 <div className="font-display mb-4" style={{fontSize:'3.5rem', lineHeight:1, color:'rgba(46,160,67,0.2)', fontWeight:300, letterSpacing:'-0.04em'}}>
                   {f.n}
@@ -424,18 +438,18 @@ export default function Landing() {
         {/* ── HOW IT WORKS ── */}
         <section className="max-w-5xl mx-auto px-6 md:px-12 py-24">
           <div className="text-center mb-16">
-            <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">Διαδικασία</span>
+            <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">{lang === 'el' ? 'Διαδικασία' : 'How it works'}</span>
             <h2 className="font-display mt-2"
               style={{fontSize:'clamp(2rem,4vw,3rem)', lineHeight:1.1, letterSpacing:'-0.02em', color:'white'}}>
-              Τρία βήματα
+              {lang === 'el' ? 'Τρία βήματα' : 'Three steps'}
             </h2>
           </div>
 
           <div className="space-y-3">
             {[
-              { n:'01', t:'Φωτογράφισε ή περίγραψε', b:'Στείλε φωτογραφία ή γράψε τι βλέπεις. Ο Oli καταλαβαίνει ελληνικά και αγγλικά — και ξέρει πότε να ζητήσει περισσότερες λεπτομέρειες.' },
-              { n:'02', t:'Πάρε διάγνωση και πλάνο', b:'Μαθαίνεις τι έχει, πόσο σοβαρό είναι, και τι να κάνεις — βιολογικά ή χημικά, με συγκεκριμένο προϊόν και ποσότητα.' },
-              { n:'03', t:'Κατέγραψε. Παρακολούθησε.', b:'Ό,τι κάνεις μένει στο ιστορικό. Ο Oli σε ρωτά 13 μέρες μετά αν πέτυχε — και έτσι γίνεται όλο και πιο έξυπνος.' },
+              { n:'01', t:lang==='el'?'Φωτογράφισε ή περίγραψε':'Photo or describe', b:lang==='el'?'Στείλε φωτογραφία ή γράψε τι βλέπεις. Ο Oli καταλαβαίνει ελληνικά και αγγλικά.':'Send a photo or describe what you see. Oli understands Greek and English.' },
+              { n:'02', t:lang==='el'?'Πάρε διάγνωση και πλάνο':'Get a diagnosis and plan', b:lang==='el'?'Μαθαίνεις τι έχει, πόσο σοβαρό είναι, και τι να κάνεις — βιολογικά ή χημικά.':'You learn what it is, how serious, and what to do — organic or chemical, with exact dose.' },
+              { n:'03', t:lang==='el'?'Κατέγραψε. Παρακολούθησε.':'Record. Follow up.', b:lang==='el'?'Ό,τι κάνεις μένει στο ιστορικό. Ο Oli σε ρωτά 13 μέρες μετά αν πέτυχε.':'Everything is recorded. Oli asks 13 days later if it worked.' },
             ].map((s,i)=>(
               <div key={i} className="feature-card rounded-2xl p-6 md:flex md:items-start md:gap-8">
                 <div className="font-display flex-shrink-0 mb-3 md:mb-0"
@@ -457,29 +471,29 @@ export default function Landing() {
 
         {/* ── CTA ── */}
         <section className="max-w-3xl mx-auto px-6 md:px-12 py-28 text-center">
-          <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">Ξεκίνα σήμερα</span>
+          <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">{lang === 'el' ? 'Ξεκίνα σήμερα' : 'Start today'}</span>
           <h2 className="font-display mt-4 mb-4"
             style={{fontSize:'clamp(2.5rem,6vw,4.5rem)', lineHeight:1.05, letterSpacing:'-0.03em', color:'white'}}>
-            Ο πρώτος<br/>
-            <em style={{color:'#2EA043'}}>AI γεωπόνος</em><br/>
-            <span style={{color:'rgba(232,237,242,0.35)', fontWeight:300}}>για τον Μεσογειακό αγρότη.</span>
+            {lang === 'el' ? 'Ο πρώτος' : 'The first'}<br/>
+            <em style={{color:'#2EA043'}}>{lang === 'el' ? 'AI γεωπόνος' : 'AI agronomist'}</em><br/>
+            <span style={{color:'rgba(232,237,242,0.35)', fontWeight:300}}>{lang === 'el' ? 'για τον Μεσογειακό αγρότη.' : 'for the Mediterranean farmer.'}</span>
           </h2>
 
           <p className="mb-10 text-base leading-relaxed" style={{color:'rgba(232,237,242,0.4)', fontFamily:'Plus Jakarta Sans, sans-serif'}}>
-            Δωρεάν για τις πρώτες 20 ερωτήσεις.<br/>
-            Δεν χρειάζεσαι πιστωτική κάρτα.
+            {lang === 'el' ? 'Δωρεάν για τις πρώτες 20 ερωτήσεις.' : 'Free for the first 20 questions.'}<br/>
+            {lang === 'el' ? 'Δεν χρειάζεσαι πιστωτική κάρτα.' : 'No credit card needed.'}
           </p>
 
           <Link to={isLoggedIn ? "/chat" : "/auth"}
             className="cta-glow inline-flex items-center gap-4 rounded-full bg-[#2EA043] px-10 py-5 font-mono text-sm tracking-widest text-white uppercase transition-all hover:bg-[#35b84d]">
-            {isLoggedIn ? 'Συνέχισε στο Oli' : 'Ξεκίνα δωρεάν — χωρίς κάρτα'}
+            {isLoggedIn ? (lang === 'el' ? 'Συνέχισε στο Oli' : 'Continue to Oli') : (lang === 'el' ? 'Ξεκίνα δωρεάν — χωρίς κάρτα' : 'Start free — no card')}
             <span className="text-white/50">→</span>
           </Link>
 
           {!isLoggedIn && (
             <p className="mt-6 font-mono text-xs text-white/20">
-              Έχεις ήδη λογαριασμό;{' '}
-              <Link to="/auth" className="text-[#2EA043] hover:underline">Σύνδεση</Link>
+              {lang === 'el' ? 'Έχεις ήδη λογαριασμό;' : 'Already have an account?'}{' '}
+              <Link to="/auth" className="text-[#2EA043] hover:underline">{lang === 'el' ? 'Σύνδεση' : 'Sign in'}</Link>
             </p>
           )}
         </section>
@@ -498,8 +512,8 @@ export default function Landing() {
               <span className="font-mono text-xs text-white/20">Oli © 2026</span>
             </div>
             <div className="flex gap-6 font-mono text-xs text-white/20">
-              <Link to="/legal/privacy" className="hover:text-white/60 transition-colors">Απόρρητο</Link>
-              <Link to="/legal/terms"   className="hover:text-white/60 transition-colors">Όροι</Link>
+              <Link to="/legal/privacy" className="hover:text-white/60 transition-colors">{lang === 'el' ? 'Απόρρητο' : 'Privacy'}</Link>
+              <Link to="/legal/terms"   className="hover:text-white/60 transition-colors">{lang === 'el' ? 'Όροι' : 'Terms'}</Link>
             </div>
           </div>
         </footer>

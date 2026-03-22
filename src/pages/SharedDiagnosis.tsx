@@ -32,7 +32,7 @@ export default function SharedDiagnosis() {
   useEffect(() => {
     if (!data || !shareId) return;
     const origin = window.location.origin;
-    const ogImageUrl = `${origin}/api/og/${shareId}`;
+    const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image?id=${shareId}`;
     const title = `${data.problem || data.diagnosis || 'Διάγνωση'} — ${data.crop_type || 'Καλλιέργεια'} | Oli`;
     const description = data.cause
       ? `Αιτία: ${data.cause}. Διαγνώστηκε με Oli — AI γεωπόνος.`
