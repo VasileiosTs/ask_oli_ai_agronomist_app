@@ -1,50 +1,59 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import OliLogo from '../components/OliLogo';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const CROPS = [
-  'Ελιές','Λεμόνια','Πορτοκάλια','Μανταρίνια','Αμπέλι','Τομάτες',
-  'Ροδάκινα','Βερίκοκα','Κεράσια','Σύκα','Ρόδια','Αβοκάντο',
-  'Πιπεριές','Μελιτζάνες','Αγγούρια','Κολοκύθια','Πατάτες',
-  'Σιτάρι','Κριθάρι','Αραβόσιτος','Ηλίανθος','Βαμβάκι',
-  'Αρακάς','Φασόλια','Σκόρδο','Κρεμμύδια','Μήλα','Αχλάδια',
-  'Μανιτάρια','Σπανάκι','Μαρούλι','Φράουλες',
+  'Ελιές','Λεμόνια','Πορτοκάλια','Μανταρίνια','Κλημέντινες',
+  'Αμπέλι','Τομάτες','Ροδάκινα','Βερίκοκα','Κεράσια',
+  'Σύκα','Ρόδια','Δαμάσκηνα','Πιπεριές','Μελιτζάνες',
+  'Αγγούρια','Κολοκύθια','Πατάτες','Σιτάρι','Κριθάρι',
+  'Αραβόσιτος','Ηλίανθος','Βαμβάκι','Φασόλια','Σκόρδο',
+  'Κρεμμύδια','Μήλα','Αχλάδια','Φράουλες','Καρπούζι',
+  'Πεπόνι','Καρύδια','Αμύγδαλα','Φιστίκια','Χαρούπια',
 ];
 
 const STATS = [
-  { n: '20', unit: 'δωρεάν', label: 'ερωτήσεις για νέους χρήστες' },
-  { n: '13', unit: 'μέρες', label: 'follow-up μετά κάθε παρέμβαση' },
-  { n: '2', unit: 'γλώσσες', label: 'Ελληνικά & Αγγλικά' },
+  { n: '20', unit: 'δωρεάν', label: 'ερωτήσεις — χωρίς κάρτα' },
+  { n: '13', unit: 'μέρες', label: 'μετά το ψεκασμό σε ρωτά αν πέτυχε' },
+  { n: '∞', unit: 'καλλιέργειες', label: 'ελιές, αμπέλι, εσπεριδοειδή κι άλλα' },
 ];
 
 const FEATURES = [
   {
     n: '01',
     title: 'Διάγνωση από φωτογραφία',
-    body: 'Τράβα φωτογραφία από το χωράφι. Ο Oli αναγνωρίζει ασθένειες, ελλείψεις θρεπτικών και εχθρούς — σε δευτερόλεπτα, με ακριβείς συστάσεις.',
+    body: 'Τράβα φωτογραφία από το χωράφι. Ο Oli σου λέει τι έχει το φυτό, γιατί το έχει, και τι να κάνεις — σε δευτερόλεπτα.',
   },
   {
     n: '02',
     title: 'Βιολογικό & χημικό πλάνο',
-    body: 'Κάθε διάγνωση συνοδεύεται από δύο πλάνα αντιμετώπισης — βιολογικό και χημικό — με ακριβή δοσολογία και μέθοδο εφαρμογής.',
+    body: 'Για κάθε πρόβλημα παίρνεις δύο επιλογές: βιολογική και χημική. Με συγκεκριμένο προϊόν, ποσότητα και πότε να το εφαρμόσεις.',
   },
   {
     n: '03',
     title: 'Μνήμη καλλιέργειας',
-    body: 'Κάθε παρέμβαση αποθηκεύεται. Ο Oli θυμάται το ιστορικό κάθε χωραφιού και σε ρωτά αν λειτούργησε — 13 μέρες μετά.',
+    body: 'Ό,τι κάνεις στο χωράφι μένει καταγραμμένο. Ο Oli θυμάται και 13 μέρες μετά σε ρωτά αν το πρόβλημα πέρασε.',
   },
   {
     n: '04',
     title: 'Εβδομαδιαίο πλάνο',
-    body: 'Κάθε Δευτέρα πρωί, ένα προσωποποιημένο αγρονομικό πλάνο — βασισμένο στην εποχή, την τοποθεσία και τις καλλιέργειές σου.',
+    body: 'Κάθε Δευτέρα πρωί, ο Oli σου στέλνει τι να προσέξεις αυτή την εβδομάδα — ανάλογα με την εποχή και τη σοδειά σου.',
   },
 ];
 
 export default function Landing() {
   const { user, profile } = useAuth();
   const isLoggedIn = !!(user && profile);
-  const tickerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const total = 35; // CROPS.length
+    const interval = setInterval(() => {
+      setActiveIndex(i => (i + 1) % total);
+    }, 1200);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="landing-root">
@@ -99,10 +108,7 @@ export default function Landing() {
           from { opacity: 0; transform: translateY(32px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes ticker {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
+
         @keyframes pulse-glow {
           0%, 100% { opacity: 0.6; }
           50%       { opacity: 1; }
@@ -125,8 +131,6 @@ export default function Landing() {
         .fu2 { animation: fadeUp 0.9s 1.0s both; }
         .fu3 { animation: fadeUp 0.9s 1.2s both; }
 
-        .ticker-track { animation: ticker 160s linear infinite; display: flex; width: max-content; }
-        .ticker-track:hover { animation-play-state: paused; }
 
         .phone-float { animation: float 8s ease-in-out infinite; }
 
@@ -217,15 +221,15 @@ export default function Landing() {
 
               <p className="fu1 text-base leading-relaxed mb-8 max-w-md"
                 style={{color:'rgba(232,237,242,0.55)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:400}}>
-                Φωτογράφισε ή περίγραψε τι βλέπεις στο χωράφι.
-                Σε δευτερόλεπτα έχεις αιτία, λύση και δοσολογία.
-                Για ελιές, λεμόνια, αμπέλι — ό,τι καλλιεργείς.
+                Φωτογράφισε ή γράψε τι βλέπεις στο χωράφι.
+                Σε δευτερόλεπτα ξέρεις τι έχει, γιατί και τι να κάνεις.
+                Για ελιές, λεμόνια, αμπέλι — ό,τι και να φυτεύεις.
               </p>
 
               <div className="fu2 flex flex-col sm:flex-row gap-4 mb-12">
                 <Link to={isLoggedIn ? "/chat" : "/auth"}
                   className="cta-glow inline-flex items-center justify-center gap-3 rounded-full bg-[#2EA043] px-8 py-4 font-mono text-sm tracking-wider text-white uppercase transition-all hover:bg-[#35b84d]">
-                  <span>{isLoggedIn ? 'Συνέχισε' : 'Δημιούργησε λογαριασμό'}</span>
+                  <span>{isLoggedIn ? 'Συνέχισε' : 'Ξεκίνα δωρεάν'}</span>
                   <span className="text-white/60">→</span>
                 </Link>
                 <div className="flex items-center gap-2">
@@ -363,11 +367,16 @@ export default function Landing() {
         </section>
 
         {/* ── TICKER ── */}
-        <div className="py-4 overflow-hidden" style={{borderTop:'1px solid rgba(255,255,255,0.04)', borderBottom:'1px solid rgba(255,255,255,0.04)', background:'rgba(46,160,67,0.02)'}}>
-          <div className="ticker-track">
-            {[...CROPS,...CROPS,...CROPS,...CROPS].map((c,i)=>(
-              <span key={i} className="font-mono text-xs tracking-wider mx-6 whitespace-nowrap"
-                style={{color: i % 7 === 0 ? '#2EA043' : 'rgba(232,237,242,0.2)'}}>
+        <div className="py-5 overflow-hidden" style={{borderTop:'1px solid rgba(255,255,255,0.04)', borderBottom:'1px solid rgba(255,255,255,0.04)', background:'rgba(46,160,67,0.02)'}}>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 px-6 max-w-5xl mx-auto">
+            {CROPS.map((c, i) => (
+              <span key={i}
+                className="font-mono text-xs tracking-wider transition-all duration-500 whitespace-nowrap"
+                style={{
+                  color: activeIndex === i ? '#2EA043' : 'rgba(232,237,242,0.18)',
+                  transform: activeIndex === i ? 'scale(1.12)' : 'scale(1)',
+                  textShadow: activeIndex === i ? '0 0 16px rgba(46,160,67,0.6)' : 'none',
+                }}>
                 {c}
               </span>
             ))}
@@ -425,8 +434,8 @@ export default function Landing() {
           <div className="space-y-3">
             {[
               { n:'01', t:'Φωτογράφισε ή περίγραψε', b:'Στείλε φωτογραφία ή γράψε τι βλέπεις. Ο Oli καταλαβαίνει ελληνικά και αγγλικά — και ξέρει πότε να ζητήσει περισσότερες λεπτομέρειες.' },
-              { n:'02', t:'Πάρε διάγνωση και πλάνο', b:'Αιτία, σοβαρότητα, βιολογική και χημική αντιμετώπιση — με ακριβή δοσολογία, μέθοδο εφαρμογής και χρονισμό.' },
-              { n:'03', t:'Κατέγραψε. Παρακολούθησε.', b:'Κάθε παρέμβαση αποθηκεύεται αυτόματα. Ο Oli σε ρωτά 13 μέρες μετά αν λειτούργησε — και μαθαίνει από την απάντησή σου.' },
+              { n:'02', t:'Πάρε διάγνωση και πλάνο', b:'Μαθαίνεις τι έχει, πόσο σοβαρό είναι, και τι να κάνεις — βιολογικά ή χημικά, με συγκεκριμένο προϊόν και ποσότητα.' },
+              { n:'03', t:'Κατέγραψε. Παρακολούθησε.', b:'Ό,τι κάνεις μένει στο ιστορικό. Ο Oli σε ρωτά 13 μέρες μετά αν πέτυχε — και έτσι γίνεται όλο και πιο έξυπνος.' },
             ].map((s,i)=>(
               <div key={i} className="feature-card rounded-2xl p-6 md:flex md:items-start md:gap-8">
                 <div className="font-display flex-shrink-0 mb-3 md:mb-0"
@@ -463,7 +472,7 @@ export default function Landing() {
 
           <Link to={isLoggedIn ? "/chat" : "/auth"}
             className="cta-glow inline-flex items-center gap-4 rounded-full bg-[#2EA043] px-10 py-5 font-mono text-sm tracking-widest text-white uppercase transition-all hover:bg-[#35b84d]">
-            {isLoggedIn ? 'Συνέχισε στο Oli' : 'Δημιούργησε δωρεάν λογαριασμό'}
+            {isLoggedIn ? 'Συνέχισε στο Oli' : 'Ξεκίνα δωρεάν — χωρίς κάρτα'}
             <span className="text-white/50">→</span>
           </Link>
 
