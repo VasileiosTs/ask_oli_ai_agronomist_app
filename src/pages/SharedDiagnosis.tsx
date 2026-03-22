@@ -28,6 +28,45 @@ export default function SharedDiagnosis() {
     })();
   }, [shareId]);
 
+  // Inject dynamic OG meta tags so WhatsApp/Telegram show the card image
+  useEffect(() => {
+    if (!data || !shareId) return;
+    const origin = window.location.origin;
+    const ogImageUrl = `${origin}/api/og/${shareId}`;
+    const title = `${data.problem || data.diagnosis || 'Διάγνωση'} — ${data.crop_type || 'Καλλιέργεια'} | Oli`;
+    const description = data.cause
+      ? `Αιτία: ${data.cause}. Διαγνώστηκε με Oli — AI γεωπόνος.`
+      : 'Διαγνώστηκε με Oli — AI γεωπόνος για Μεσογειακούς αγρότες.';
+
+    const setMeta = (property: string, content: string) => {
+      let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('property', property);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    document.title = title;
+    setMeta('og:title', title);
+    setMeta('og:description', description);
+    setMeta('og:image', ogImageUrl);
+    setMeta('og:image:width', '1200');
+    setMeta('og:image:height', '630');
+    setMeta('og:url', `${origin}/d/${shareId}`);
+    setMeta('og:type', 'article');
+
+    // Twitter/X card
+    let twitterCard = document.querySelector('meta[name="twitter:card"]') as HTMLMetaElement;
+    if (!twitterCard) {
+      twitterCard = document.createElement('meta');
+      twitterCard.setAttribute('name', 'twitter:card');
+      document.head.appendChild(twitterCard);
+    }
+    twitterCard.setAttribute('content', 'summary_large_image');
+  }, [data, shareId]);
+
   if (loading) return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-[#0D1117]">
       <LoadingSpinner />
