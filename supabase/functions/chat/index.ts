@@ -219,28 +219,40 @@ function buildExtractionSchema() {
 }
 
 function splitIntoChunks(text: string, targetSize = 64): string[] {
-  if (!text.trim()) {
-    return [];
-  }
+  if (!text.trim()) return [];
 
-  const words = text.split(/\s+/);
+  // Split into lines first to preserve paragraph breaks and markdown structure
+  const lines = text.split('\n');
   const chunks: string[] = [];
   let current = '';
 
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length > targetSize && current) {
-      chunks.push(current);
-      current = word;
-    } else {
-      current = candidate;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isLast = i === lines.length - 1;
+    const lineWithBreak = isLast ? line : line + '\n';
+
+    if (!line.trim()) {
+      // Empty line = paragraph break — flush current and emit the newline
+      if (current) { chunks.push(current); current = ''; }
+      chunks.push('\n');
+      continue;
+    }
+
+    // Split long lines into word chunks, preserving the trailing newline on the last word
+    const words = line.split(' ');
+    for (let wi = 0; wi < words.length; wi++) {
+      const word = wi === words.length - 1 && !isLast ? words[wi] + '\n' : words[wi];
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length > targetSize && current) {
+        chunks.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
     }
   }
 
-  if (current) {
-    chunks.push(current);
-  }
-
+  if (current) chunks.push(current);
   return chunks;
 }
 
