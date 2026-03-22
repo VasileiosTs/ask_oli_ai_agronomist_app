@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Plus, MessageCircle, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -21,6 +22,7 @@ interface Props {
 export default function ConversationSidebar({ isOpen, onClose, activeId, onSelect, onNewChat, desktop }: Props) {
   const { appUserId, user, profile } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [convs, setConvs] = useState<Conversation[]>([]);
 
   useEffect(() => {
@@ -87,14 +89,18 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
         )}
       </div>
 
-      {/* User footer */}
+      {/* User footer — click to go to profile */}
       <div className="border-t border-border/50 p-3">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => { if (!desktop) onClose(); navigate('/profile'); }}
+          className="flex w-full items-center gap-3 rounded-xl p-1.5 transition-colors hover:bg-background/60"
+        >
           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
             {userInitial}
           </div>
-          <span className="truncate text-sm text-muted">{userName}</span>
-        </div>
+          <span className="flex-1 truncate text-sm text-muted text-left">{userName}</span>
+          <User className="h-3.5 w-3.5 text-muted/50 flex-shrink-0" />
+        </button>
       </div>
     </div>
   );

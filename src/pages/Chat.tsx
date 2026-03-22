@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2, Menu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '../lib/supabase';
@@ -43,7 +42,6 @@ import { LogInterventionModal } from '../components/LogInterventionModal';
 
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
-  const navigate = useNavigate();
   const { t, lang } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLoading, setSidebarLoading] = useState(false);
@@ -1124,29 +1122,12 @@ let streamedContent = '';
             <Leaf className="h-[18px] w-[18px] text-primary" />
             <span className="text-[16px] font-medium text-primary">Oli</span>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={clearChat} className="text-muted hover:text-foreground transition-colors">
-              <SquarePen className="h-5 w-5" />
-            </button>
-            <button onClick={() => navigate('/profile')}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-medium text-primary">
-              {user?.email ? user.email[0].toUpperCase() : 'G'}
-            </button>
-          </div>
+          <button onClick={clearChat} className="text-muted hover:text-foreground transition-colors">
+            <SquarePen className="h-5 w-5" />
+          </button>
         </header>
 
-        {/* Desktop header — only when chat active */}
-        {messages.length > 0 && (
-          <header className="hidden md:flex h-12 flex-shrink-0 items-center justify-end border-b border-border/50 bg-surface px-6 gap-3">
-            <button onClick={clearChat} className="text-muted hover:text-foreground transition-colors" title={t.newChat}>
-              <SquarePen className="h-5 w-5" />
-            </button>
-            <button onClick={() => navigate('/profile')}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-sm font-medium text-primary">
-              {user?.email ? user.email[0].toUpperCase() : 'G'}
-            </button>
-          </header>
-        )}
+        {/* Desktop: no top header — sidebar owns all navigation */}
 
         {/* ── DESKTOP WELCOME (no messages) ── */}
         {messages.length === 0 && (
