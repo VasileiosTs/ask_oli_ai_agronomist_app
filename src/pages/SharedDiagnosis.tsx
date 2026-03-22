@@ -109,7 +109,7 @@ export default function SharedDiagnosis() {
         </span>
       </header>
 
-      <main className="mx-auto max-w-lg px-4 pt-6 space-y-4">
+      <main className="mx-auto max-w-2xl px-4 pt-6 space-y-4">
 
         {/* Hero card — the diagnosis */}
         <div className="rounded-2xl border border-white/8 bg-[#161C23] p-5">
@@ -193,7 +193,7 @@ export default function SharedDiagnosis() {
             to="/"
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2EA043] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Ξεκίνα δωρεάν
+            Δοκίμασε το Oli δωρεάν
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
