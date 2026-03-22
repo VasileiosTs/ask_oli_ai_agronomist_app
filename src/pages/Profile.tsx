@@ -116,7 +116,7 @@ export default function Profile() {
 
     // 3. Sign out
     await logout();
-    navigate('/auth');
+    navigate('/');
   };
 
   return (

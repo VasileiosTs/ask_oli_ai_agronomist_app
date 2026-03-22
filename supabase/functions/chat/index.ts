@@ -222,33 +222,41 @@ function buildExtractionSchema() {
 function splitIntoChunks(text: string, targetSize = 64): string[] {
   if (!text.trim()) return [];
 
-  // Split into lines first to preserve paragraph breaks and markdown structure
+  // Attach trailing whitespace to each word so chunk boundaries are lossless.
+  // Concatenating all chunks exactly reconstructs the original text.
   const lines = text.split('\n');
   const chunks: string[] = [];
   let current = '';
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const isLast = i === lines.length - 1;
-    const lineWithBreak = isLast ? line : line + '\n';
+    const isLastLine = i === lines.length - 1;
+    const nextLineEmpty = !isLastLine && lines[i + 1].trim() === '';
 
     if (!line.trim()) {
-      // Empty line = paragraph break — flush current and emit \n\n
+      // Empty line = paragraph break
       if (current) { chunks.push(current); current = ''; }
       chunks.push('\n\n');
       continue;
     }
 
-    // Split long lines into word chunks, preserving the trailing newline on the last word
     const words = line.split(' ');
     for (let wi = 0; wi < words.length; wi++) {
-      const word = wi === words.length - 1 && !isLast ? words[wi] + '\n' : words[wi];
-      const candidate = current ? `${current} ${word}` : word;
-      if (candidate.length > targetSize && current) {
+      const isLastWord = wi === words.length - 1;
+      // Add '\n' after last word only when next line is non-empty (e.g. list items)
+      // Paragraph breaks are handled by the '\n\n' chunk above
+      const suffix = isLastWord
+        ? (isLastLine || nextLineEmpty ? '' : '\n')
+        : ' ';
+      const wordWithSuffix = words[wi] + suffix;
+
+      if (!current) {
+        current = wordWithSuffix;
+      } else if ((current + wordWithSuffix).length > targetSize) {
         chunks.push(current);
-        current = word;
+        current = wordWithSuffix;
       } else {
-        current = candidate;
+        current += wordWithSuffix;
       }
     }
   }
@@ -256,7 +264,6 @@ function splitIntoChunks(text: string, targetSize = 64): string[] {
   if (current) chunks.push(current);
   return chunks;
 }
-
 async function callGemini(
   geminiApiKey: string,
   messages: ChatMessageInput[],

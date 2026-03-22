@@ -3,13 +3,13 @@ import { detectLang, dict, type Lang, type T } from './i18n';
 
 interface LangCtx { lang: Lang; t: T; setLang: (l: Lang) => void; }
 
-const Ctx = createContext<LangCtx>({ lang: 'en', t: dict.en, setLang: () => {} });
+const Ctx = createContext<LangCtx>({ lang: 'el', t: dict.el, setLang: () => {} });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const c = localStorage.getItem('oli_lang') as Lang | null;
     if (c === 'el' || c === 'en') return c;
-    return navigator.language?.toLowerCase().startsWith('el') ? 'el' : 'en';
+    return navigator.language?.toLowerCase().startsWith('el') ? 'el' : 'el'; // default Greek for our audience
   });
 
   useEffect(() => {

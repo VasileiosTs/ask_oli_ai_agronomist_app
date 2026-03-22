@@ -107,7 +107,7 @@ function AppRoutes() {
         element={
           authenticated ? <AppLayout /> :
           needsOnboarding ? <Navigate to="/onboarding" replace /> :
-          <Navigate to="/auth" replace />
+          <Navigate to="/" replace />
         }
       >
         <Route path="/chat" element={<Chat />} />

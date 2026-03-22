@@ -283,8 +283,8 @@ export async function detectLang(): Promise<Lang> {
     localStorage.setItem('oli_lang', lang);
     return lang;
   } catch {
-    const lang: Lang = navigator.language?.toLowerCase().startsWith('el') ? 'el' : 'en';
-    localStorage.setItem('oli_lang', lang);
-    return lang;
+    // IP detection failed — default to Greek (our primary audience)
+    localStorage.setItem('oli_lang', 'el');
+    return 'el';
   }
 }
