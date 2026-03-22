@@ -11,7 +11,7 @@ import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { extractAndApply } from '../lib/extractAndApply';
 import { useLanguage } from '../lib/LanguageContext';
-import { compressImage, cacheImage } from '../lib/imageCache';
+import { compressImage, cacheImage, getCachedImage } from '../lib/imageCache';
 import clsx from 'clsx';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY, FOLLOW_UP_DAYS } from "../lib/constants";
@@ -304,8 +304,8 @@ export default function Chat() {
           const item = due[0];
           const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
           const followUpContent = lang === 'el'
-            ? `Πριν από 13 μέρες κάναμε παρέμβαση για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Πώς πάει τώρα;`
-            : `13 days ago we treated **${item.diagnosis || 'a problem'}** in **${cropLabel}**. How is it going?`;
+            ? `Πριν από ${FOLLOW_UP_DAYS} μέρες κάναμε παρέμβαση για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Πώς πάει τώρα;`
+            : `${FOLLOW_UP_DAYS} days ago we treated **${item.diagnosis || 'a problem'}** in **${cropLabel}**. How is it going?`;
           const followUpMsg = {
             id: `followup-${item.id}`,
             role: 'assistant' as const,
@@ -875,20 +875,27 @@ let streamedContent = '';
         // Resolve stored image paths into displayable URLs
         if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
           const attachments: MessageAttachment[] = [];
+          const uncached: string[] = [];
+          // 1. Check IndexedDB cache for all paths first (instant, no network)
           for (const path of m.image_urls) {
-            // 1. Try IndexedDB cache first (instant, no network)
-            const { getCachedImage } = await import('../lib/imageCache');
             const cached = await getCachedImage(path);
             if (cached) {
               attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
-              continue;
+            } else {
+              uncached.push(path);
             }
-            // 2. Fall back to Supabase Storage signed URL (60 min expiry)
+          }
+          // 2. Batch sign all uncached paths in ONE API call
+          if (uncached.length > 0) {
             const { data: signed } = await supabase.storage
               .from('chat_uploads')
-              .createSignedUrl(path, 3600);
-            if (signed?.signedUrl) {
-              attachments.push({ url: signed.signedUrl, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
+              .createSignedUrls(uncached, SIGNED_URL_EXPIRY);
+            if (signed) {
+              for (const s of signed) {
+                if (s.signedUrl) {
+                  attachments.push({ url: s.signedUrl, mimeType: 'image/jpeg', name: (s.path || '').split('/').pop() ?? 'photo' });
+                }
+              }
             }
           }
           if (attachments.length > 0) base.attachments = attachments;
@@ -931,10 +938,10 @@ let streamedContent = '';
                 isUser ? "rounded-[18px] rounded-br-[4px] bg-primary text-white"
                        : "rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface text-foreground")}>
                 {isUser ? (
-                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap text-base leading-relaxed">{msg.content}</p>
                 ) : msg.isDisambiguation ? (
                   <div className="flex flex-col gap-3">
-                    <p className="text-[15px]">{msg.content}</p>
+                    <p className="text-base">{msg.content}</p>
                     <div className="flex flex-wrap gap-2">
                       {fields.map(f => (
                         <button key={f.id}
@@ -956,7 +963,7 @@ let streamedContent = '';
                       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-3">
                         {msg.metadata.diagnosis_data.organic_treatments?.length > 0 && (
                           <div className="rounded-xl bg-green-500/5 border border-green-500/20 p-3">
-                            <p className="text-[11px] font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
+                            <p className="text-xs font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
                             {(msg.metadata.diagnosis_data.organic_treatments as string[]).map((tx: string, i: number) => (
                               <p key={i} className="text-[12px] text-foreground/80 leading-snug">• {tx}</p>
                             ))}
@@ -964,7 +971,7 @@ let streamedContent = '';
                         )}
                         {msg.metadata?.diagnosis_data?.chemical_treatments?.length > 0 && (
                           <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 p-3">
-                            <p className="text-[11px] font-semibold text-blue-400 mb-1.5">{t.chemicalTreatments}</p>
+                            <p className="text-xs font-semibold text-blue-400 mb-1.5">{t.chemicalTreatments}</p>
                             {(msg.metadata.diagnosis_data.chemical_treatments as string[]).map((tx: string, i: number) => (
                               <p key={i} className="text-[12px] text-foreground/80 leading-snug">• {tx}</p>
                             ))}

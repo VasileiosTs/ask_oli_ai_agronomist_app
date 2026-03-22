@@ -68,7 +68,7 @@ export default function Landing() {
   return (
     <div className="landing-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,700;1,6..96,300;1,6..96,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300&family=IBM+Plex+Mono:wght@300;400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,700;1,6..96,300;1,6..96,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
 
         .landing-root {
           min-height: 100dvh;
@@ -107,7 +107,7 @@ export default function Landing() {
 
         /* Typography */
         .font-display { font-family: 'Bodoni Moda', serif; }
-        .font-mono { font-family: 'IBM Plex Mono', monospace; }
+        .font-mono { font-family: 'IBM Plex Sans', sans-serif; }
 
         /* Animations */
         @keyframes heroWord {
@@ -261,14 +261,14 @@ export default function Landing() {
               </div>
 
               {/* Stats row */}
-              <div className="fu3 grid grid-cols-3 gap-4">
+              <div className="fu3 flex items-start gap-0 mt-2">
                 {STATS(lang).map((s,i) => (
-                  <div key={i} className="border-l-2 border-[#2EA043]/30 pl-4">
-                    <div className="font-display text-3xl font-light text-[#2EA043]" style={{letterSpacing:'-0.02em'}}>
+                  <div key={i} className="flex-1 pr-6" style={{borderRight: i < 2 ? '1px solid rgba(46,160,67,0.15)' : 'none', marginRight: i < 2 ? '24px' : '0'}}>
+                    <div className="font-display text-4xl font-light text-[#2EA043]" style={{letterSpacing:'-0.03em', lineHeight:1}}>
                       {s.n}
-                      <span className="font-mono text-xs ml-1 text-[#2EA043]/60">{s.unit}</span>
                     </div>
-                    <div className="font-mono text-[10px] text-white/30 mt-1 leading-snug">{s.label}</div>
+                    <div className="font-mono text-xs text-[#2EA043]/70 mt-0.5 tracking-wider">{s.unit}</div>
+                    <div className="font-mono text-[11px] text-white/25 mt-1.5 leading-snug">{s.label}</div>
                   </div>
                 ))}
               </div>
