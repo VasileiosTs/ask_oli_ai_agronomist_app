@@ -165,17 +165,27 @@ export default function Chat() {
     let publicShareId = msg.metadata.share_id;
 
     if (!interventionId) {
+      const dd = msg.metadata.diagnosis_data;
+      const shareSummary = dd?.cause
+        ? `${dd.problem || 'Issue detected'}. Cause: ${dd.cause}.`
+        : (dd?.problem || 'Issue detected');
+
       const { data, error } = await supabase.from('interventions').insert({
         user_id: appUserId,
         field_id: activeFieldId || null,
         crop_type: msg.metadata.crop_mentioned || '',
-        problem: msg.metadata.diagnosis_data.problem || '',
-        product: msg.metadata.diagnosis_data.product_applied || '',
-        dosage: msg.metadata.diagnosis_data.dosage || '',
-        application_method: msg.metadata.diagnosis_data.application_method || '',
-        notes: `Diagnosis: ${msg.metadata.diagnosis_data.problem || 'Unknown'}\nCause: ${msg.metadata.diagnosis_data.cause || 'Unknown'}`,
+        problem: dd?.problem || '',
+        cause: dd?.cause || '',
+        severity: dd?.severity || null,
+        product_applied: dd?.product_applied || '',
+        product: dd?.product_applied || '',
+        dosage: dd?.dosage || '',
+        application_method: dd?.application_method || '',
+        organic_treatments: dd?.organic_treatments || [],
+        chemical_treatments: dd?.chemical_treatments || [],
+        share_summary: shareSummary,
         date: new Date().toISOString().split('T')[0],
-        is_shared: true
+        is_shared: true,
       }).select('id, share_id').single();
 
       if (data && !error) {
