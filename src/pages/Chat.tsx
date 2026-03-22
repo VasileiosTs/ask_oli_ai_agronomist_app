@@ -229,17 +229,16 @@ export default function Chat() {
         showToast(t.linkCopied);
         return;
       } catch (e) {
-        // User cancelled share sheet — don't show error
         if ((e as Error).name === 'AbortError') return;
       }
     }
 
-    // Try clipboard
+    // Try clipboard API
     try {
       await navigator.clipboard.writeText(shareUrl);
       showToast(t.linkCopied);
     } catch {
-      // Clipboard blocked — show URL in a toast with the link visible
+      // Clipboard blocked — always show the modal with the URL so user can copy manually
       setShareModalUrl(shareUrl);
     }
   };
@@ -425,12 +424,8 @@ export default function Chat() {
     setIsTyping(true);
 
     try {
-      // Create a placeholder for the assistant message
       const assistantMsgId = (Date.now() + 1).toString();
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantMsgId, role: 'assistant', content: '', created_at: new Date().toISOString() }
-      ]);
+      let messageAdded = false;
 
       let fieldContext = '';
       if (appUserId) {
@@ -466,17 +461,35 @@ let streamedContent = '';
             if (controller.signal.aborted) return;
             streamedContent += token;
             setIsTyping(false);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId ? { ...msg, content: streamedContent } : msg
-              )
-            );
+            if (!messageAdded) {
+              messageAdded = true;
+              setMessages((prev) => [
+                ...prev,
+                { id: assistantMsgId, role: 'assistant', content: streamedContent, created_at: new Date().toISOString() }
+              ]);
+            } else {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMsgId ? { ...msg, content: streamedContent } : msg
+                )
+              );
+            }
           },
         }
       );
 
       if (controller.signal.aborted) return;
       setIsTyping(false);
+
+      const finalContent = streamedContent || completion.assistantText;
+      if (!messageAdded && finalContent) {
+        setMessages((prev) => [
+          ...prev,
+          { id: assistantMsgId, role: 'assistant', content: finalContent, created_at: new Date().toISOString() }
+        ]);
+        messageAdded = true;
+      }
+
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === assistantMsgId) {
@@ -949,7 +962,7 @@ let streamedContent = '';
           </div>
         );
       })}
-      {isTyping && !messages.some(m => m.role === 'assistant' && m.content === '') && (
+      {isTyping && (
         <div className="group flex w-full justify-start animate-fade-in">
           <div className="w-6 flex-shrink-0 pt-3"><div className="h-2 w-2 rounded-full bg-primary/60" /></div>
           <div className="flex max-w-[78%] flex-col gap-1">

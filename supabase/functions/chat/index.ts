@@ -232,9 +232,9 @@ function splitIntoChunks(text: string, targetSize = 64): string[] {
     const lineWithBreak = isLast ? line : line + '\n';
 
     if (!line.trim()) {
-      // Empty line = paragraph break — flush current and emit the newline
+      // Empty line = paragraph break — flush current and emit \n\n
       if (current) { chunks.push(current); current = ''; }
-      chunks.push('\n');
+      chunks.push('\n\n');
       continue;
     }
 
