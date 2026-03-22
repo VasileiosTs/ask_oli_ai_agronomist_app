@@ -315,6 +315,25 @@ export default function Chat() {
           };
           setMessages(prev => prev.length === 0 ? [followUpMsg] : prev);
         });
+
+      // Proactive greeting — once per day, only if no follow-up is pending
+      const todayKey = `oli_greeted_${new Date().toISOString().split('T')[0]}_${appUserId}`;
+      if (!localStorage.getItem(todayKey)) {
+        supabase.functions.invoke('chat', {
+          body: { mode: 'greeting' },
+        }).then(({ data, error }) => {
+          if (error || !data?.greeting) return;
+          const greetMsg = {
+            id: `greeting-${Date.now()}`,
+            role: 'assistant' as const,
+            content: data.greeting,
+            created_at: new Date().toISOString(),
+            metadata: { is_greeting: true },
+          };
+          setMessages(prev => prev.length === 0 ? [greetMsg] : prev);
+          localStorage.setItem(todayKey, '1');
+        });
+      }
       return;
     }
     setFields([]);

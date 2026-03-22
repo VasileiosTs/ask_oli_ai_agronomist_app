@@ -44,7 +44,7 @@ interface ExtractionResult {
 }
 
 interface ChatRequestBody {
-  mode?: 'chat' | 'extract';
+  mode?: 'chat' | 'extract' | 'greeting';
   messages?: ChatMessageInput[];
   message?: string;
   messageId?: string | null;
@@ -92,6 +92,7 @@ BEHAVIOUR RULES (follow strictly):
 9. If you don't know something, say so clearly and suggest they consult a local expert.
 10. Never give advice that could cause crop damage or regulatory violations.
 11. When diagnosing diseases, pests or deficiencies, always populate both organic_treatments AND chemical_treatments as separate arrays.
+12. CRITICAL: Pest, disease and deficiency advice must be agronomically accurate for the specific crop stated. Never suggest a pest or disease that does not affect that crop (e.g. spider mites affect citrus and vegetables, NOT olive trees — olive trees are affected by δάκος, πυρηνοτρήτης, κυκλοκόνιο etc.). If unsure whether a condition affects a crop, say so.
 FIELD CONTEXT:
 ${fieldContext || 'No field data on record yet. Ask the user about their crop if relevant.'}
 ${growerContext ? `GROWER CONTEXT:\n${growerContext}` : ''}
@@ -369,8 +370,9 @@ async function generateValidatedResponse(
   messages: ChatMessageInput[],
   fieldContext: string,
   hasActiveField: boolean,
+  growerContext = '',
 ): Promise<AiResponseJson> {
-  const systemPrompt = buildSystemPrompt(fieldContext);
+  const systemPrompt = buildSystemPrompt(fieldContext, growerContext);
   let json = await callGemini(geminiApiKey, messages, systemPrompt);
   const validation = validateResponse(json, hasActiveField);
 
@@ -593,11 +595,11 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as ChatRequestBody;
-    const mode = body.mode === 'extract' ? 'extract' : 'chat';
+    const mode = body.mode === 'extract' ? 'extract' : body.mode === 'greeting' ? 'greeting' : 'chat';
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, tier, message_count_month, message_reset_date')
+      .select('id, name, location, primary_crop, tier, message_count_month, message_reset_date')
       .eq('auth_id', user.id)
       .single();
 
@@ -614,6 +616,56 @@ Deno.serve(async (req) => {
       const extracted = await callGeminiExtraction(geminiApiKey, message);
       const result = await applyExtractedFieldContext(supabaseAdmin, appUser.id, body.messageId ?? null, extracted);
       return jsonResponse(result);
+    }
+
+    if (mode === 'greeting') {
+      const now = new Date();
+      const month = now.toLocaleString('el-GR', { month: 'long' });
+      const hour = now.getUTCHours() + 2; // rough Greece time
+      const timeOfDay = hour < 12 ? 'πρωί' : hour < 18 ? 'απόγευμα' : 'βράδυ';
+      const crop = appUser.primary_crop || 'καλλιέργεια';
+      const location = appUser.location || '';
+      const name = appUser.name ? appUser.name.split(' ')[0] : '';
+
+      const greetingPrompt = `You are Oli, an expert AI agronomist for Mediterranean smallholder farmers.
+
+Generate a single short greeting message (1-2 sentences max) for a farmer.
+Farmer profile:
+- Name: ${name || 'farmer'}
+- Crop(s): ${crop}
+- Location: ${location || 'Greece'}
+- Current month: ${month}
+- Time of day: ${timeOfDay}
+
+Rules:
+1. Be warm and specific — mention their actual crop and something genuinely relevant to THIS month
+2. Reference a real seasonal concern, task, or observation relevant to their crop in ${month}
+3. NEVER invent problems that don't apply to their crop (e.g. spider mites don't affect olive trees)
+4. Keep it to 1-2 sentences, conversational, no bullet points
+5. Use Greek if the name sounds Greek or location is in Greece, otherwise English
+6. Do not start with "Γεια" or "Hello" — be direct and practical
+7. End with an implicit or explicit invitation to ask a question
+
+Return ONLY the greeting text, nothing else.`;
+
+      const payload = {
+        systemInstruction: { parts: [{ text: 'You are Oli, an AI agronomist.' }] },
+        contents: [{ role: 'user', parts: [{ text: greetingPrompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 150 },
+      };
+
+      const greetingRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+      );
+
+      if (!greetingRes.ok) {
+        return jsonResponse({ error: 'Greeting generation failed' }, 502);
+      }
+
+      const greetingData = await greetingRes.json();
+      const greetingText = greetingData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      return jsonResponse({ greeting: greetingText });
     }
 
     const requestMessages = Array.isArray(body.messages)
@@ -780,11 +832,18 @@ Deno.serve(async (req) => {
       userMessageId = insertedUserMessage.id;
     }
 
+    const growerContext = [
+      appUser.name ? `Grower name: ${appUser.name}` : '',
+      appUser.location ? `Location: ${appUser.location}` : '',
+      appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
+    ].filter(Boolean).join('\n');
+
     const aiResponse = await generateValidatedResponse(
       geminiApiKey,
       requestMessages,
       body.fieldContext ?? '',
       Boolean(body.hasActiveField),
+      growerContext,
     );
     const assistantText = aiResponse.response_text;
     const assistantMetadata = buildAssistantMetadata(aiResponse);
