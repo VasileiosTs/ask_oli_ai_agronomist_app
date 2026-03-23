@@ -158,7 +158,7 @@ export default function Fields() {
       </div>
 
       {fields.length > 0 && (
-        <button onClick={openAdd} className="fixed bottom-20 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform active:scale-95 hover:bg-primary/90">
+        <button onClick={openAdd} aria-label="Add field" className="fixed bottom-20 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform active:scale-95 hover:bg-primary/90">
           <Plus className="h-6 w-6" />
         </button>
       )}

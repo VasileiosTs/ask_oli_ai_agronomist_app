@@ -3,15 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Leaf, AlertTriangle, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useLanguage } from '../lib/LanguageContext';
 
-const SEVERITY_BADGE: Record<string, { label: string; cls: string }> = {
-  low:    { label: 'Χαμηλή σοβαρότητα',  cls: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  medium: { label: 'Μέτρια σοβαρότητα',  cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  high:   { label: 'Υψηλή σοβαρότητα',   cls: 'bg-red-500/10   text-red-400   border-red-500/20'   },
+const SEVERITY_BADGE: Record<string, { el: string; en: string; cls: string }> = {
+  low:    { el: 'Χαμηλή σοβαρότητα', en: 'Low severity',    cls: 'bg-green-500/10 text-green-400 border-green-500/20' },
+  medium: { el: 'Μέτρια σοβαρότητα', en: 'Medium severity',  cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  high:   { el: 'Υψηλή σοβαρότητα',  en: 'High severity',    cls: 'bg-red-500/10   text-red-400   border-red-500/20'   },
 };
 
 export default function SharedDiagnosis() {
   const { shareId } = useParams();
+  const { lang } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -79,15 +81,15 @@ export default function SharedDiagnosis() {
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#2EA043]/10">
         <Leaf className="h-7 w-7 text-[#2EA043]" />
       </div>
-      <h1 className="mb-2 text-lg font-semibold text-white">Δεν βρέθηκε διάγνωση</h1>
-      <p className="mb-6 text-sm text-[#8B949E]">Ο σύνδεσμος δεν είναι έγκυρος ή έχει λήξει.</p>
+      <h1 className="mb-2 text-lg font-semibold text-white">{lang === 'el' ? 'Δεν βρέθηκε διάγνωση' : 'Diagnosis not found'}</h1>
+      <p className="mb-6 text-sm text-[#8B949E]">{lang === 'el' ? 'Ο σύνδεσμος δεν είναι έγκυρος ή έχει λήξει.' : 'The link is invalid or has expired.'}</p>
       <Link to="/" className="rounded-full bg-[#2EA043] px-6 py-2.5 text-sm font-medium text-white">
-        Δοκίμασε το Oli
+        {lang === 'el' ? 'Δοκίμασε το Oli' : 'Try Oli'}
       </Link>
     </div>
   );
 
-  const problem = data.problem || data.diagnosis || 'Άγνωστο πρόβλημα';
+  const problem = data.problem || data.diagnosis || (lang === 'el' ? 'Άγνωστο πρόβλημα' : 'Unknown problem');
   const product = data.product_applied || data.product || '';
   const organic: string[] = Array.isArray(data.organic_treatments) ? data.organic_treatments : [];
   const chemical: string[] = Array.isArray(data.chemical_treatments) ? data.chemical_treatments : [];
@@ -105,48 +107,48 @@ export default function SharedDiagnosis() {
           <span className="text-sm font-semibold">Oli</span>
         </div>
         <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-[#8B949E]">
-          AI Διάγνωση
+          {lang === 'el' ? 'AI Διάγνωση' : 'AI Diagnosis'}
         </span>
       </header>
 
       <main className="mx-auto max-w-2xl px-4 pt-6 space-y-4">
 
         {/* Hero card — the diagnosis */}
-        <div className="rounded-2xl border border-white/8 bg-[#161C23] p-5">
+        <div className="rounded-2xl border border-white/10 bg-[#161C23] p-5">
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-[#2EA043]">
-            {data.crop_type || 'Καλλιέργεια'}
+            {data.crop_type || (lang === 'el' ? 'Καλλιέργεια' : 'Crop')}
           </p>
           <h1 className="text-xl font-semibold leading-snug">{problem}</h1>
           {data.cause && (
-            <p className="mt-2 text-sm text-[#8B949E]">Αιτία: {data.cause}</p>
+            <p className="mt-2 text-sm text-[#8B949E]">{lang === 'el' ? 'Αιτία' : 'Cause'}: {data.cause}</p>
           )}
           {sev && (
             <span className={`mt-3 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${sev.cls}`}>
-              <AlertTriangle className="h-3 w-3" />{sev.label}
+              <AlertTriangle className="h-3 w-3" />{lang === 'el' ? sev.el : sev.en}
             </span>
           )}
         </div>
 
         {/* Treatment */}
         {(product || data.dosage || data.application_method) && (
-          <div className="rounded-2xl border border-white/8 bg-[#161C23] p-5">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#8B949E]">Αντιμετώπιση</p>
+          <div className="rounded-2xl border border-white/10 bg-[#161C23] p-5">
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#8B949E]">{lang === 'el' ? 'Αντιμετώπιση' : 'Treatment'}</p>
             <div className="space-y-3 text-sm">
               {product && (
                 <div className="flex justify-between">
-                  <span className="text-[#8B949E]">Προϊόν</span>
+                  <span className="text-[#8B949E]">{lang === 'el' ? 'Προϊόν' : 'Product'}</span>
                   <span className="font-medium text-right max-w-[60%]">{product}</span>
                 </div>
               )}
               {data.dosage && (
                 <div className="flex justify-between">
-                  <span className="text-[#8B949E]">Δοσολογία</span>
+                  <span className="text-[#8B949E]">{lang === 'el' ? 'Δοσολογία' : 'Dosage'}</span>
                   <span className="font-medium text-right max-w-[60%]">{data.dosage}</span>
                 </div>
               )}
               {data.application_method && (
                 <div className="flex justify-between">
-                  <span className="text-[#8B949E]">Εφαρμογή</span>
+                  <span className="text-[#8B949E]">{lang === 'el' ? 'Εφαρμογή' : 'Application'}</span>
                   <span className="font-medium text-right max-w-[60%]">{data.application_method}</span>
                 </div>
               )}
@@ -157,7 +159,7 @@ export default function SharedDiagnosis() {
         {/* Organic options */}
         {organic.length > 0 && (
           <div className="rounded-2xl border border-[#2EA043]/20 bg-[#2EA043]/5 p-5">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#2EA043]">Βιολογικές επιλογές</p>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#2EA043]">{lang === 'el' ? 'Βιολογικές επιλογές' : 'Organic options'}</p>
             <ul className="space-y-2">
               {organic.map((t, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-white/80">
@@ -171,7 +173,7 @@ export default function SharedDiagnosis() {
         {/* Chemical options */}
         {chemical.length > 0 && (
           <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-blue-400">Χημικές επιλογές</p>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-blue-400">{lang === 'el' ? 'Χημικές επιλογές' : 'Chemical options'}</p>
             <ul className="space-y-2">
               {chemical.map((t, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-white/80">
@@ -184,23 +186,24 @@ export default function SharedDiagnosis() {
 
         {/* Acquisition CTA — the whole point of this page */}
         <div className="rounded-2xl border border-[#2EA043]/30 bg-[#2EA043]/8 p-5">
-          <p className="mb-1 text-base font-semibold">Έχεις το ίδιο πρόβλημα;</p>
+          <p className="mb-1 text-base font-semibold">{lang === 'el' ? 'Έχεις το ίδιο πρόβλημα;' : 'Having the same problem?'}</p>
           <p className="mb-4 text-sm text-[#8B949E]">
-            Ο Oli διαγνώσκει προβλήματα καλλιεργειών από φωτογραφία σε δευτερόλεπτα.
-            Δωρεάν για τους πρώτους 20 ερωτήσεις.
+            {lang === 'el'
+              ? 'Ο Oli διαγνώσκει προβλήματα καλλιεργειών από φωτογραφία σε δευτερόλεπτα. Δωρεάν για τους πρώτους 20 ερωτήσεις.'
+              : 'Oli diagnoses crop problems from a photo in seconds. Free for the first 20 questions.'}
           </p>
           <Link
             to="/"
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2EA043] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Δοκίμασε το Oli δωρεάν
+            {lang === 'el' ? 'Δοκίμασε το Oli δωρεάν' : 'Try Oli for free'}
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
 
         {/* Footer trust signal */}
         <p className="text-center text-xs text-[#8B949E] pb-4">
-          Διαγνώστηκε από Oli · AI Γεωπόνος για Μεσογειακούς αγρότες
+          {lang === 'el' ? 'Διαγνώστηκε από Oli · AI Γεωπόνος για Μεσογειακούς αγρότες' : 'Diagnosed by Oli · AI Agronomist for Mediterranean farmers'}
         </p>
 
       </main>

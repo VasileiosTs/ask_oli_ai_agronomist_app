@@ -417,14 +417,14 @@ export default function Chat() {
       });
 
       if (validFiles.length !== newFiles.length) {
-        alert(t.fileRejected);
+        showToast(t.fileRejected);
       }
 
       const availableSlots = Math.max(MAX_ATTACHMENTS - attachments.length, 0);
       const filesToAdd = validFiles.slice(0, availableSlots);
 
       if (filesToAdd.length < validFiles.length) {
-        alert(t.tooManyFiles);
+        showToast(t.tooManyFiles);
       }
 
       setAttachments(prev => [
@@ -1097,11 +1097,11 @@ let streamedContent = '';
         )}
         <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileSelect} />
         <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" multiple onChange={handleFileSelect} />
-        <button onClick={() => setShowAttachmentSheet(!showAttachmentSheet)}
+        <button onClick={() => setShowAttachmentSheet(!showAttachmentSheet)} aria-label="Attach file"
           className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground transition-colors">
           <Paperclip className="h-5 w-5" />
         </button>
-        <button onClick={toggleListening}
+        <button onClick={toggleListening} aria-label="Voice input"
           className={clsx("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors",
             isListening ? "text-red-500 animate-pulse bg-red-500/10" : "text-muted hover:text-foreground")}>
           <Mic className="h-5 w-5" />
@@ -1112,9 +1112,9 @@ let streamedContent = '';
             className="max-h-[120px] min-h-[40px] w-full resize-none rounded-[22px] border border-border/50 bg-background px-4 py-2.5 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             rows={1} />
         </div>
-        <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)}
+        <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"
           className={clsx("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] transition-colors duration-150",
-            (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted-foreground" : "bg-primary text-white hover:bg-primary/90")}>
+            (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted/70" : "bg-primary text-white hover:bg-primary/90")}>
           <Send className="h-5 w-5" />
         </button>
       </div>
@@ -1142,13 +1142,13 @@ let streamedContent = '';
         {/* Mobile header */}
         <header className="md:hidden flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="text-muted hover:text-foreground transition-colors">
+            <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="text-muted hover:text-foreground transition-colors">
               <Menu className="h-5 w-5" />
             </button>
             <Leaf className="h-[18px] w-[18px] text-primary" />
             <span className="text-[16px] font-medium text-primary">Oli</span>
           </div>
-          <button onClick={clearChat} className="text-muted hover:text-foreground transition-colors">
+          <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
             <SquarePen className="h-5 w-5" />
           </button>
         </header>
@@ -1190,9 +1190,9 @@ let streamedContent = '';
                 <textarea ref={desktopTextareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
                   placeholder={t.inputPlaceholder} rows={1}
                   className="max-h-[120px] min-h-[52px] w-full resize-none rounded-[22px] border border-border/50 bg-surface px-5 py-3.5 pr-14 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)}
+                <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"
                   className={clsx("absolute right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-[14px] transition-colors duration-150",
-                    (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted-foreground" : "bg-primary text-white hover:bg-primary/90")}>
+                    (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted/70" : "bg-primary text-white hover:bg-primary/90")}>
                   <Send className="h-4 w-4" />
                 </button>
               </div>

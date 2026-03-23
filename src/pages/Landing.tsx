@@ -68,7 +68,7 @@ export default function Landing() {
   return (
     <div className="landing-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,700;1,6..96,300;1,6..96,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,700;1,6..96,300;1,6..96,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
 
         .landing-root {
           min-height: 100dvh;
@@ -195,12 +195,12 @@ export default function Landing() {
             {!isLoggedIn && (
               <Link to="/auth"
                 className="hidden md:block font-mono text-xs tracking-wider text-white/40 hover:text-white/80 transition-colors uppercase">
-                (lang === 'el' ? 'Σύνδεση' : 'Sign in')
+                {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
               </Link>
             )}
             <Link to={isLoggedIn ? "/chat" : "/auth"}
               className="cta-glow font-mono text-xs tracking-widest uppercase rounded-full bg-[#2EA043] px-6 py-2.5 text-white transition-all hover:bg-[#35b84d]">
-              {isLoggedIn ? 'Άνοιξε →' : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}
+              {isLoggedIn ? (lang === 'el' ? 'Άνοιξε →' : 'Open →') : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}
             </Link>
             <button
               onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
@@ -244,7 +244,7 @@ export default function Landing() {
               <div className="fu2 flex flex-col sm:flex-row gap-4 mb-12">
                 <Link to={isLoggedIn ? "/chat" : "/auth"}
                   className="cta-glow inline-flex items-center justify-center gap-3 rounded-full bg-[#2EA043] px-8 py-4 font-mono text-sm tracking-wider text-white uppercase transition-all hover:bg-[#35b84d]">
-                  <span>{isLoggedIn ? 'Συνέχισε' : 'Ξεκίνα δωρεάν'}</span>
+                  <span>{isLoggedIn ? (lang === 'el' ? 'Συνέχισε' : 'Continue') : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}</span>
                   <span className="text-white/60">→</span>
                 </Link>
                 <div className="flex items-center gap-2">
@@ -256,7 +256,7 @@ export default function Landing() {
                       </div>
                     ))}
                   </div>
-                  <span className="font-mono text-xs text-white/30">lang === 'el' ? '+112 αγρότες' : '+112 farmers'</span>
+                  <span className="font-mono text-xs text-white/30">{lang === 'el' ? '+112 αγρότες' : '+112 farmers'}</span>
                 </div>
               </div>
 
@@ -413,7 +413,7 @@ export default function Landing() {
             </div>
             <Link to={isLoggedIn ? "/chat" : "/auth"}
               className="hidden md:flex items-center gap-2 font-mono text-xs tracking-wider text-white/30 hover:text-[#2EA043] transition-colors uppercase">
-              Δες πώς λειτουργεί <span>→</span>
+              {lang === 'el' ? 'Δες πώς λειτουργεί' : 'See how it works'} <span>→</span>
             </Link>
           </div>
 

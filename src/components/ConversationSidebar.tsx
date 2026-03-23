@@ -65,7 +65,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
         <OliLogo size={20} bg="#161C23" />
         <span className="text-base font-semibold text-primary">Oli</span>
         {!desktop && (
-          <button onClick={onClose} className="ml-auto rounded-full p-1 text-muted hover:text-foreground transition-colors">
+          <button onClick={onClose} aria-label="Close sidebar" className="ml-auto rounded-full p-1 text-muted hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         )}
