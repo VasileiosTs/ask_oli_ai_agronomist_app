@@ -79,13 +79,14 @@ const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
 ]);
 
 function buildSystemPrompt(fieldContext: string, growerContext = ''): string {
-  return `You are Oli, an expert AI agronomist. You help farmers diagnose crop problems, plan interventions, and optimise yields.
+  return `You are Oli, an expert AI agronomist. You help farmers diagnose crop problems, identify plants, plan interventions, and optimise yields. You also answer general agriculture questions about any plant or topic.
+
 BEHAVIOUR RULES (follow strictly):
 1. Answer the question FIRST. Never ask a clarifying question before giving an answer.
 2. Ask AT MOST ONE question per response, and only if essential.
 3. Be specific. Give exact product names, dosages, and timings when relevant.
 4. Always check for phytotoxicity before recommending any product.
-5. If photos or documents are attached, describe what you see before giving advice.
+5. If photos or documents are attached, carefully analyze EVERYTHING visible in the image — leaf color, spots, texture, shape, soil, pests. Describe what you observe in detail before giving advice.
 6. Never open with: "Great question!", "Certainly!", "Of course!", "Sure!", or any filler.
 7. Use the farmer's language (detect from message). Default to English.
 8. Be warm but professional. You are a trusted advisor, not a chatbot.
@@ -93,12 +94,26 @@ BEHAVIOUR RULES (follow strictly):
 10. Never give advice that could cause crop damage or regulatory violations.
 11. When diagnosing diseases, pests or deficiencies, always populate both organic_treatments AND chemical_treatments as separate arrays.
 12. CRITICAL: Pest, disease and deficiency advice must be agronomically accurate for the specific crop stated. Never suggest a pest or disease that does not affect that crop (e.g. spider mites affect citrus and vegetables, NOT olive trees — olive trees are affected by δάκος, πυρηνοτρήτης, κυκλοκόνιο etc.). If unsure whether a condition affects a crop, say so.
+
+IMAGE ANALYSIS RULES:
+- ALWAYS attempt to identify the plant and any issues visible, even if the image is blurry, partial, or low quality.
+- If you can identify the plant with reasonable confidence, state it. If confidence is low, say so but STILL provide your best assessment rather than rejecting.
+- NEVER refuse to analyze an image of a plant. Even if you are uncertain, provide observations and a "low confidence" note.
+- Treat EVERY image as a genuine plant photo unless it is clearly not a plant at all (e.g. a car, a person).
+- Do NOT assume the plant is the same as a previously discussed plant unless the user says so. Each new image should be analyzed independently.
+
+CONTEXT INDEPENDENCE:
+- Each conversation starts fresh. Do NOT carry assumptions from field context if the user's message or photo clearly shows a different plant.
+- If the user uploads a lemon leaf photo but field context says "olive tree", trust the PHOTO over the field context.
+- Field context is background information, not a constraint.
+
 FIELD CONTEXT:
-${fieldContext || 'No field data on record yet. Ask the user about their crop if relevant.'}
+${fieldContext || 'No field data on record yet.'}
 ${growerContext ? `GROWER CONTEXT:\n${growerContext}` : ''}
+
 RESPONSE FORMAT (internal JSON — extract response_text for display):
 Return valid JSON matching the validator schema. response_text is what the user sees.
-Keep response_text conversational, warm, and under 200 words unless a detailed protocol is needed.`;
+Keep response_text conversational, warm, and thorough. For diagnosis responses, use as many words as needed to fully explain the problem, cause, and treatment — do NOT truncate. For simple questions, keep it concise.`;
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -911,7 +926,7 @@ Return ONLY the greeting text, nothing else.`;
             })
             .eq('id', appUser.id);
 
-          // Set conversation title from first user message if not already set
+          // Set conversation title — use AI-detected crop + problem for meaningful labels
           if (body.conversationId) {
             const { data: convo } = await supabaseAdmin
               .from('conversations')
@@ -919,10 +934,33 @@ Return ONLY the greeting text, nothing else.`;
               .eq('id', body.conversationId)
               .single();
             if (convo && (!convo.title || convo.title === 'New conversation')) {
-              const rawText = latestUserMessage.content
-                .replace(/^\[The user attached[^\]]*\]\n?/i, '')
-                .trim();
-              const title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
+              let title = '';
+
+              // Build a meaningful title from AI response metadata
+              const crop = aiResponse.crop_mentioned || '';
+              const problem = aiResponse.diagnosis_data?.problem || '';
+
+              if (crop && problem) {
+                title = `${crop} — ${problem}`;
+              } else if (crop) {
+                title = crop;
+              } else if (problem) {
+                title = problem;
+              }
+
+              // Fallback to cleaned user message text
+              if (!title) {
+                const rawText = latestUserMessage.content
+                  .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+                  .trim();
+                title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
+              }
+
+              // Add month/year suffix for easy scanning
+              const now = new Date();
+              const monthStr = now.toLocaleString('en', { month: 'short', year: 'numeric' });
+              title = `${title.slice(0, 50)} – ${monthStr}`;
+
               await supabaseAdmin
                 .from('conversations')
                 .update({ title })

@@ -74,11 +74,11 @@ export default function Chat() {
   const attachmentsRef = useRef(attachments);
   const messagesRef = useRef(messages);
 
+  // Only use explicitly selected field — never auto-select.
+  // Field context is inferred per-message via extraction, not forced globally.
   const activeField = activeFieldId
     ? fields.find((field) => field.id === activeFieldId)
-    : fields.length === 1
-      ? fields[0]
-      : undefined;
+    : undefined;
 
   const safeRevokeObjectUrl = (url: string) => {
     if (url.startsWith('blob:')) {
@@ -779,21 +779,8 @@ let streamedContent = '';
       }
     }
 
-    if (fields.length > 1 && !currentActiveFieldId) {
-      const disambiguationMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: lang === 'el' ? 'Για ποιο χωράφι μιλάμε;' : 'Which field are you asking about?',
-        created_at: new Date().toISOString(),
-        isDisambiguation: true,
-        originalText: finalMessageText,
-        originalDbId: dbMessageId || undefined,
-      };
-      
-      setMessages((prev) => [...prev, disambiguationMsg]);
-      setIsTyping(false);
-      return;
-    }
+    // No forced disambiguation — let the AI respond with all-fields context.
+    // Field will be auto-detected from the message via extraction if needed.
 
     await sendMessageToAI(
       [...messages, newUserMsg],
@@ -843,6 +830,7 @@ let streamedContent = '';
     setInput('');
     setIsTyping(false);
     setActiveConversationId(undefined);
+    setActiveFieldId(undefined); // Reset field context — each chat starts fresh
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -860,6 +848,17 @@ let streamedContent = '';
     clearChat();
     setSidebarLoading(true);
     setActiveConversationId(id);
+
+    // Restore field context for this conversation
+    const { data: convData } = await supabase
+      .from('conversations')
+      .select('field_id')
+      .eq('id', id)
+      .single();
+    if (convData?.field_id) {
+      setActiveFieldId(convData.field_id);
+    }
+
     const { data } = await supabase
       .from('chat_messages')
       .select('id, role, content, metadata, starred, image_urls, created_at')
@@ -1043,22 +1042,8 @@ let streamedContent = '';
           {FREE_LIMIT - messageCount} {t.messagesLeft}
         </div>
       )}
-      {fields.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1 scrollbar-hide">
-          <button onClick={() => setActiveFieldId(undefined)}
-            className={clsx("whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
-              !activeFieldId ? "bg-primary text-white" : "bg-background border border-border/50 text-muted hover:text-foreground")}>
-            {t.allFields}
-          </button>
-          {fields.map(f => (
-            <button key={f.id} onClick={() => setActiveFieldId(f.id)}
-              className={clsx("whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                activeFieldId === f.id ? "bg-primary text-white" : "bg-background border border-border/50 text-muted hover:text-foreground")}>
-              {f.name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Field selector removed — field context is auto-detected per message.
+           Fields are still tracked in backend for data/AI improvement. */}
       {attachments.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1">
           {attachments.map((att, i) => (
@@ -1215,9 +1200,7 @@ let streamedContent = '';
                   </button>
                 ))}
               </div>
-              <div className="mt-6 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                {activeField?.growing_medium ?? 'Oli'}
-              </div>
+              {/* Badge removed — was showing confusing field context */}
             </div>
             {inputBarJsx}
           </div>
