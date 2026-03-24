@@ -1,53 +1,69 @@
-import { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import OliLogo from '../components/OliLogo';
 
-const CROPS = [
-  'Ελιές','Λεμόνια','Πορτοκάλια','Μανταρίνια','Κλημέντινες',
-  'Αμπέλι','Τομάτες','Ροδάκινα','Βερίκοκα','Κεράσια',
-  'Σύκα','Ρόδια','Δαμάσκηνα','Πιπεριές','Μελιτζάνες',
-  'Αγγούρια','Κολοκύθια','Πατάτες','Σιτάρι','Κριθάρι',
-  'Αραβόσιτος','Ηλίανθος','Βαμβάκι','Φασόλια','Σκόρδο',
-  'Κρεμμύδια','Μήλα','Αχλάδια','Φράουλες','Καρπούζι',
-  'Πεπόνι','Καρύδια','Αμύγδαλα','Φιστίκια','Χαρούπια',
+const STATS = (lang: string) => [
+  { n: '20', label: lang === 'el' ? 'Δωρεάν ερωτήσεις / μήνα' : 'Free questions / month' },
+  { n: '13', label: lang === 'el' ? 'Ημέρες follow-up' : 'Day follow-up loop' },
+  { n: '450+', label: lang === 'el' ? 'Αναγνωρίσιμες ασθένειες' : 'Identifiable diseases' },
 ];
 
-const STATS = (lang: string) => [
-  { n: '20', unit: lang === 'el' ? 'δωρεάν' : 'free', label: lang === 'el' ? 'ερωτήσεις — χωρίς κάρτα' : 'questions — no credit card' },
-  { n: '13', unit: lang === 'el' ? 'μέρες' : 'days', label: lang === 'el' ? 'μετά σε ρωτά αν πέτυχε' : 'later it asks if it worked' },
-  { n: '∞', unit: lang === 'el' ? 'καλλιέργειες' : 'crops', label: lang === 'el' ? 'ελιές, αμπέλι κι άλλα' : 'olives, vines and more' },
+const PROBLEMS = (lang: string) => [
+  {
+    icon: 'eco',
+    title: lang === 'el' ? 'Κιτρίνισμα Φύλλων' : 'Leaf Yellowing',
+    body: lang === 'el'
+      ? 'Αναγνώρισε αν είναι έλλειψη αζώτου, μυκητολογικό πρόβλημα ή ριζόσηψη — πριν χαθεί η σοδειά.'
+      : 'Instantly distinguish between nitrogen deficiency, fungal disease, or root rot — before yield loss.',
+  },
+  {
+    icon: 'coronavirus',
+    title: lang === 'el' ? 'Μυκητολογικές Κηλίδες' : 'Fungal Spots',
+    body: lang === 'el'
+      ? 'Σταμάτησε τους παθογόνους μύκητες πριν εξαπλωθούν σε ολόκληρο το χωράφι.'
+      : 'Stop pathogens before they colonize the entire field with targeted treatment plans.',
+  },
+  {
+    icon: 'bug_report',
+    title: lang === 'el' ? 'Παράσιτα & Έντομα' : 'Pests & Insects',
+    body: lang === 'el'
+      ? 'Δάκος, πυρηνοτρήτης, αφίδες — αναγνώριση και σχέδιο αντιμετώπισης σε δευτερόλεπτα.'
+      : 'Olive fly, codling moth, aphids — identification and treatment plan in seconds.',
+  },
+  {
+    icon: 'water_drop',
+    title: lang === 'el' ? 'Υδατικό Στρες' : 'Water Stress',
+    body: lang === 'el'
+      ? 'Εντόπισε προβλήματα άρδευσης πριν γίνουν ορατά με γυμνό μάτι.'
+      : 'Identify irrigation issues days before physical wilting becomes visible.',
+  },
 ];
 
 const FEATURES = (lang: string) => [
   {
-    n: '01',
-    title: lang === 'el' ? 'Διάγνωση από φωτογραφία' : 'Photo diagnosis',
+    title: lang === 'el' ? 'Διάγνωση με φωτογραφία' : 'Photo diagnosis',
     body: lang === 'el'
-      ? 'Τράβα φωτογραφία από το χωράφι. Ο Oli σου λέει τι έχει το φυτό, γιατί το έχει, και τι να κάνεις — σε δευτερόλεπτα.'
-      : 'Take a photo from your field. Oli tells you what is wrong, why, and what to do — in seconds.',
+      ? 'Τράβα φωτογραφία. Ο Oli σου λέει τι έχει, γιατί, και τι να κάνεις — σε δευτερόλεπτα.'
+      : 'Snap a photo. Oli tells you what is wrong, why, and what to do — in seconds.',
   },
   {
-    n: '02',
-    title: lang === 'el' ? 'Βιολογικό & χημικό πλάνο' : 'Organic & chemical plan',
+    title: lang === 'el' ? 'Βιολογικό & Χημικό πλάνο' : 'Organic & Chemical plan',
     body: lang === 'el'
-      ? 'Για κάθε πρόβλημα παίρνεις δύο επιλογές: βιολογική και χημική. Με συγκεκριμένο προϊόν, ποσότητα και πότε να το εφαρμόσεις.'
-      : 'Every diagnosis comes with two options: organic and chemical. Exact product, dose, and timing.',
+      ? 'Κάθε διάγνωση με δύο επιλογές: βιολογική και χημική. Συγκεκριμένο προϊόν και δοσολογία.'
+      : 'Every diagnosis with two options: organic and chemical. Exact product and dosage.',
   },
   {
-    n: '03',
-    title: lang === 'el' ? 'Μνήμη καλλιέργειας' : 'Field memory',
+    title: lang === 'el' ? 'Μνήμη & Follow-up' : 'Memory & Follow-up',
     body: lang === 'el'
-      ? 'Ό,τι κάνεις στο χωράφι μένει καταγραμμένο. Ο Oli θυμάται και 13 μέρες μετά σε ρωτά αν το πρόβλημα πέρασε.'
-      : 'Everything you do is recorded. Oli remembers and asks 13 days later if the problem is gone.',
+      ? 'Καταγράφει κάθε παρέμβαση. Σε 13 μέρες σε ρωτά αν πέτυχε η θεραπεία.'
+      : 'Logs every intervention. After 13 days, asks if the treatment worked.',
   },
   {
-    n: '04',
-    title: lang === 'el' ? 'Εβδομαδιαίο πλάνο' : 'Weekly plan',
+    title: lang === 'el' ? 'Φωνητική εισαγωγή' : 'Voice input',
     body: lang === 'el'
-      ? 'Κάθε Δευτέρα πρωί, ο Oli σου στέλνει τι να προσέξεις αυτή την εβδομάδα — ανάλογα με την εποχή και τη σοδειά σου.'
-      : 'Every Monday morning, Oli sends you what to watch for this week — based on the season and your crops.',
+      ? 'Μίλα στον Oli στα Ελληνικά ή Αγγλικά. Ιδανικό όταν έχεις βρώμικα χέρια στο χωράφι.'
+      : 'Talk to Oli in Greek or English. Perfect when your hands are dirty in the field.',
   },
 ];
 
@@ -55,471 +71,452 @@ export default function Landing() {
   const { user, profile } = useAuth();
   const isLoggedIn = !!(user && profile);
   const { lang, setLang } = useLanguage();
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    const total = 35; // CROPS.length
-    const interval = setInterval(() => {
-      setActiveIndex(i => (i + 1) % total);
-    }, 1200);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
-    <div className="landing-root">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,300;0,6..96,400;0,6..96,700;1,6..96,300;1,6..96,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+    <div className="min-h-screen bg-[#faf9f4] text-[#1b1c19] overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 
-        .landing-root {
-          min-height: 100dvh;
-          background: #080C10;
-          color: #E8EDF2;
-          font-family: 'IBM Plex Sans', sans-serif;
-          overflow-x: hidden;
-          position: relative;
-        }
-
-        /* Background ambient glow */
-        .landing-root::before {
-          content: '';
-          position: fixed;
-          top: -20%;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 900px;
-          height: 900px;
-          background: radial-gradient(circle, rgba(46,160,67,0.08) 0%, rgba(45,106,79,0.04) 40%, transparent 70%);
-          pointer-events: none;
-          z-index: 0;
-        }
-
-        /* Grain overlay */
-        .landing-root::after {
-          content: '';
-          position: fixed;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        .above-grain { position: relative; z-index: 2; }
-
-        /* Typography */
-        .font-display { font-family: 'Bodoni Moda', serif; }
-        .font-mono { font-family: 'IBM Plex Sans', sans-serif; }
-
-        /* Animations */
-        @keyframes heroWord {
-          from { opacity: 0; transform: translateY(20px); filter: blur(4px); }
-          to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(32px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes pulse-glow {
-          0%, 100% { opacity: 0.6; }
-          50%       { opacity: 1; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(-1deg); }
-          50%       { transform: translateY(-12px) rotate(1deg); }
-        }
-        @keyframes borderGlow {
-          0%, 100% { border-color: rgba(46,160,67,0.15); }
-          50%       { border-color: rgba(46,160,67,0.45); }
-        }
-
-        .hw1 { animation: heroWord 0.8s 0.1s both; }
-        .hw2 { animation: heroWord 0.8s 0.25s both; }
-        .hw3 { animation: heroWord 0.8s 0.4s both; }
-        .hw4 { animation: heroWord 0.8s 0.55s both; }
-        .hw5 { animation: heroWord 0.8s 0.7s both; }
-        .fu1 { animation: fadeUp 0.9s 0.8s both; }
-        .fu2 { animation: fadeUp 0.9s 1.0s both; }
-        .fu3 { animation: fadeUp 0.9s 1.2s both; }
-
-
-        .phone-float { animation: float 8s ease-in-out infinite; }
-
-        .feature-card {
-          border: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.025);
-          transition: border-color 0.4s, background 0.4s, transform 0.3s;
-        }
-        .feature-card:hover {
-          border-color: rgba(46,160,67,0.3);
-          background: rgba(46,160,67,0.04);
-          transform: translateY(-4px);
-        }
-
-        .cta-glow {
-          box-shadow: 0 0 60px rgba(46,160,67,0.25), 0 0 120px rgba(46,160,67,0.1);
-        }
-        .cta-glow:hover {
-          box-shadow: 0 0 80px rgba(46,160,67,0.4), 0 0 160px rgba(46,160,67,0.15);
-        }
-
-        .line-accent {
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(46,160,67,0.4), transparent);
-        }
-
-        .stat-number {
-          font-family: 'Bodoni Moda', serif;
-          font-size: clamp(3rem, 8vw, 5rem);
-          font-weight: 300;
-          color: #2EA043;
-          line-height: 1;
-          letter-spacing: -0.02em;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #080C10; }
-        ::-webkit-scrollbar-thumb { background: rgba(46,160,67,0.3); border-radius: 2px; }
-      `}</style>
-
-      <div className="above-grain">
-
-        {/* ── NAV ── */}
-        <nav style={{borderBottom:'1px solid rgba(255,255,255,0.06)'}}
-          className="flex items-center justify-between px-6 py-5 md:px-12 max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
-            <OliLogo size={24} bg="#080C10" />
-            <span className="font-mono text-sm tracking-widest text-white/60 uppercase">Oli</span>
+      {/* ── NAV ── */}
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl" style={{ boxShadow: '0 8px 32px 0 rgba(27,28,25,0.04)' }}>
+        <div className="flex justify-between items-center max-w-7xl mx-auto px-6 md:px-8 h-16 md:h-20">
+          <div className="flex items-center gap-2.5">
+            <OliLogo size={28} bg="#faf9f4" />
+            <span className="text-xl font-bold tracking-tight" style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>Oli</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             {!isLoggedIn && (
               <Link to="/auth"
-                className="hidden md:block font-mono text-xs tracking-wider text-white/40 hover:text-white/80 transition-colors uppercase">
+                className="hidden md:block text-sm font-semibold text-[#606659] hover:text-[#194121] transition-colors"
+                style={{ fontFamily: "'Noto Serif', serif" }}>
                 {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
               </Link>
             )}
-            <Link to={isLoggedIn ? "/chat" : "/auth"}
-              className="cta-glow font-mono text-xs tracking-widest uppercase rounded-full bg-[#2EA043] px-6 py-2.5 text-white transition-all hover:bg-[#35b84d]">
-              {isLoggedIn ? (lang === 'el' ? 'Άνοιξε →' : 'Open →') : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}
-            </Link>
             <button
               onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
-              className="font-mono text-xs tracking-wider text-white/30 hover:text-white/70 transition-colors uppercase border border-white/10 rounded-full px-3 py-1.5">
+              className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-3 py-1.5 rounded-full bg-[#e3e3de]/60">
               {lang === 'el' ? 'EN' : 'ΕΛ'}
             </button>
+            <Link to={isLoggedIn ? "/chat" : "/auth"}
+              className="text-white px-5 md:px-6 py-2.5 rounded-full font-semibold text-sm hover:opacity-90 transition-all"
+              style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)', boxShadow: '0 4px 20px rgba(25,65,33,0.2)' }}>
+              {isLoggedIn ? (lang === 'el' ? 'Άνοιξε →' : 'Open →') : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}
+            </Link>
           </div>
-        </nav>
+        </div>
+      </nav>
 
-        {/* ── HERO ── */}
-        <section className="max-w-7xl mx-auto px-6 md:px-12 pt-16 pb-8 md:pt-24">
-          <div className="md:grid md:grid-cols-2 md:gap-20 md:items-start">
+      {/* ── HERO ── */}
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-[#faf9f4] pt-20">
+        <div className="max-w-7xl mx-auto px-6 md:px-8 w-full grid md:grid-cols-2 gap-8 md:gap-12 items-center py-12 md:py-20">
+          <div className="z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-px w-8 bg-[#194121]/40" />
+              <span className="text-xs font-bold tracking-[0.15em] text-[#194121] uppercase">
+                {lang === 'el' ? 'AI Γεωπόνος · Μεσόγειος' : 'AI Agronomist · Mediterranean'}
+              </span>
+            </div>
 
-            {/* Left: text */}
-            <div className="relative">
-              {/* Label */}
-              <div className="fu1 flex items-center gap-3 mb-8">
-                <div className="h-px w-8" style={{background:'rgba(46,160,67,0.6)'}} />
-                <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">
-                  {lang === 'el' ? 'AI Γεωπόνος · Μεσόγειος' : 'AI Agronomist · Mediterranean'}
-                </span>
-              </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.08] mb-6"
+              style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>
+              {lang === 'el'
+                ? <>Εντόπισε προβλήματα νωρίς. Πάρε σωστές αποφάσεις.</>
+                : <>Detect crop problems early. Make better decisions fast.</>}
+            </h1>
 
-              {/* Hero headline — editorial layout */}
-              <h1 className="font-display mb-8" style={{fontSize:'clamp(3.2rem,7vw,5.5rem)', lineHeight:1.05, letterSpacing:'-0.02em'}}>
-                <span className="hw1 block text-white/30" style={{fontSize:'0.45em', fontStyle:'italic', fontWeight:300, letterSpacing:'0.05em', marginBottom:'0.3em'}}>
-                  {lang === 'el' ? 'Ο γεωπόνος σου' : 'Your agronomist'}
-                </span>
-                <span className="hw2 block text-white">{lang === 'el' ? 'είναι' : 'is always'}</span>
-                <span className="hw3 block" style={{color:'#2EA043', fontStyle:'italic'}}>{lang === 'el' ? 'πάντα' : 'available'}</span>
-                {lang === 'el' && <span className="hw4 block text-white">διαθέσιμος.</span>}
-              </h1>
+            <p className="text-base md:text-lg text-[#5a6053] mb-8 max-w-lg leading-relaxed">
+              {lang === 'el'
+                ? 'Φωτογράφισε ή περίγραψε τι βλέπεις στο χωράφι. Σε δευτερόλεπτα μαθαίνεις τι έχει, γιατί, και τι ακριβώς να κάνεις. Για ελιές, αμπέλι, εσπεριδοειδή — ό,τι καλλιεργείς.'
+                : 'AI-powered crop analysis for Mediterranean growers — identify diseases, spot deficiencies, and get clear treatment recommendations in seconds. For olives, citrus, vines, and more.'}
+            </p>
 
-              <p className="fu1 text-base leading-relaxed mb-8 max-w-md"
-                style={{color:'rgba(232,237,242,0.55)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:400}}>
-                {lang === 'el'
-                  ? 'Φωτογράφισε ή γράψε τι βλέπεις στο χωράφι. Σε δευτερόλεπτα ξέρεις τι έχει, γιατί και τι να κάνεις. Για ελιές, λεμόνια, αμπέλι — ό,τι και να φυτεύεις.'
-                  : 'Photo or text — describe what you see in your field. In seconds you know what it is, why, and what to do. For olives, citrus, vines — whatever you grow.'}
-              </p>
+            <div className="flex flex-col sm:flex-row gap-3 mb-10">
+              <Link to={isLoggedIn ? "/chat" : "/auth"}
+                className="text-white px-8 py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all text-sm md:text-base"
+                style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.3)' }}>
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1", fontSize: '20px' }}>photo_camera</span>
+                {isLoggedIn
+                  ? (lang === 'el' ? 'Συνέχισε στο Oli' : 'Continue to Oli')
+                  : (lang === 'el' ? 'Σκανάρισε τη σοδειά σου' : 'Scan your crop')}
+              </Link>
+              <Link to={isLoggedIn ? "/chat" : "/auth"}
+                className="bg-[#e3e3de] text-[#1b1c19] px-8 py-4 rounded-full font-bold hover:bg-[#dbdad5] transition-all text-sm md:text-base text-center">
+                {lang === 'el' ? 'Δοκίμασε δωρεάν' : 'Try it free'}
+              </Link>
+            </div>
 
-              <div className="fu2 flex flex-col sm:flex-row gap-4 mb-12">
-                <Link to={isLoggedIn ? "/chat" : "/auth"}
-                  className="cta-glow inline-flex items-center justify-center gap-3 rounded-full bg-[#2EA043] px-8 py-4 font-mono text-sm tracking-wider text-white uppercase transition-all hover:bg-[#35b84d]">
-                  <span>{isLoggedIn ? (lang === 'el' ? 'Συνέχισε' : 'Continue') : (lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start free')}</span>
-                  <span className="text-white/60">→</span>
-                </Link>
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {['Γ','Ν','Κ','Β','Μ'].map((l,i)=>(
-                      <div key={i} style={{background:`hsl(${140+i*8},40%,${22+i*3}%)`, border:'2px solid #080C10'}}
-                        className="flex h-8 w-8 items-center justify-center rounded-full font-mono text-[10px] text-white/80">
-                        {l}
-                      </div>
-                    ))}
+            {/* Social proof */}
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {['Γ','Ν','Κ','Β','Μ'].map((l, i) => (
+                  <div key={i}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    style={{ background: `hsl(${140 + i * 12}, 35%, ${25 + i * 4}%)`, border: '2px solid #faf9f4' }}>
+                    {l}
                   </div>
-                  <span className="font-mono text-xs text-white/30">{lang === 'el' ? '+112 αγρότες' : '+112 farmers'}</span>
+                ))}
+              </div>
+              <span className="text-sm text-[#606659]">{lang === 'el' ? '+112 αγρότες ήδη χρησιμοποιούν τον Oli' : '+112 farmers already use Oli'}</span>
+            </div>
+          </div>
+
+          {/* Hero image / phone mockup */}
+          <div className="relative">
+            <div className="aspect-[4/5] rounded-[2rem] overflow-hidden relative" style={{ boxShadow: '0 40px 80px rgba(25,65,33,0.15)' }}>
+              <img
+                alt={lang === 'el' ? 'Αγρότης χρησιμοποιεί τον Oli στο χωράφι' : 'Farmer using Oli in the field'}
+                className="w-full h-full object-cover"
+                src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#194121]/50 to-transparent pointer-events-none" />
+
+              {/* Floating diagnosis card */}
+              <div className="absolute bottom-6 left-6 right-6 bg-white/92 backdrop-blur-md p-5 rounded-2xl" style={{ outline: '1px solid rgba(194, 201, 187, 0.15)' }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-[#c0eec0] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[#194121]" style={{ fontSize: '20px' }}>psychology</span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-[#194121] tracking-widest uppercase">{lang === 'el' ? 'Διάγνωση' : 'Diagnosis detected'}</p>
+                    <p className="font-semibold text-[#1b1c19] text-sm" style={{ fontFamily: "'Noto Serif', serif" }}>
+                      {lang === 'el' ? 'Κυκλοκόνιο Ελιάς' : 'Olive Leaf Spot (Cycloconium)'}
+                    </p>
+                  </div>
                 </div>
+                <div className="h-1.5 w-full bg-[#e3e3de] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#194121] rounded-full" style={{ width: '92%' }} />
+                </div>
+                <p className="text-xs text-[#5a6053] mt-2">92% {lang === 'el' ? 'βεβαιότητα · Συνιστάται θεραπεία' : 'confidence · Treatment recommended'}</p>
               </div>
+            </div>
+            <div className="absolute -top-12 -right-12 w-64 h-64 bg-[#d9e9ba]/30 rounded-full blur-3xl -z-10" />
+          </div>
+        </div>
+      </section>
 
-              {/* Stats row */}
-              <div className="fu3 flex items-start gap-0 mt-2">
-                {STATS(lang).map((s,i) => (
-                  <div key={i} className="flex-1 pr-6" style={{borderRight: i < 2 ? '1px solid rgba(46,160,67,0.15)' : 'none', marginRight: i < 2 ? '24px' : '0'}}>
-                    <div className="font-display text-4xl font-light text-[#2EA043]" style={{letterSpacing:'-0.03em', lineHeight:1}}>
-                      {s.n}
+      {/* ── URGENCY HOOK ── */}
+      <section className="bg-[#f5f4ef] py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-6 md:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 md:mb-16 gap-6">
+            <div className="max-w-2xl">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#194121] mb-4"
+                style={{ fontFamily: "'Noto Serif', serif" }}>
+                {lang === 'el' ? 'Κάθε μέρα που περιμένεις, χάνεις σοδειά.' : 'Every day you wait costs yield.'}
+              </h2>
+              <p className="text-base md:text-lg text-[#5a6053]">
+                {lang === 'el'
+                  ? 'Η καθυστερημένη ανίχνευση μετατρέπει μικρά προβλήματα σε καταστροφή ολόκληρου του χωραφιού.'
+                  : 'Late detection turns small patches into field-wide failures. Don\'t leave your harvest to chance.'}
+              </p>
+            </div>
+            <div className="text-[#ba1a1a] font-bold flex items-center gap-2 bg-[#ffdad6]/30 px-4 py-2 rounded-full text-sm shrink-0">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>warning</span>
+              {lang === 'el' ? 'Κρίσιμο παράθυρο απόφασης' : 'Critical decision window'}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {PROBLEMS(lang).map((p, i) => (
+              <div key={i}
+                className="bg-white p-6 md:p-8 rounded-3xl hover:-translate-y-1 transition-all duration-300"
+                style={{ outline: '1px solid rgba(194, 201, 187, 0.15)', boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
+                <div className="w-12 h-12 bg-[#f5f4ef] rounded-2xl flex items-center justify-center mb-5">
+                  <span className="material-symbols-outlined text-[#194121]" style={{ fontSize: '24px' }}>{p.icon}</span>
+                </div>
+                <h3 className="font-bold text-lg text-[#1b1c19] mb-2" style={{ fontFamily: "'Noto Serif', serif" }}>{p.title}</h3>
+                <p className="text-sm text-[#5a6053] leading-relaxed">{p.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BENTO FEATURES ── */}
+      <section className="py-20 md:py-32">
+        <div className="max-w-7xl mx-auto px-6 md:px-8">
+          <div className="text-center mb-12 md:mb-20">
+            <span className="text-xs font-bold tracking-[0.2em] text-[#194121] uppercase mb-4 block">
+              {lang === 'el' ? 'Δυνατότητες' : 'The intelligence edge'}
+            </span>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#194121] max-w-4xl mx-auto leading-tight"
+              style={{ fontFamily: "'Noto Serif', serif" }}>
+              {lang === 'el'
+                ? 'Ξέρε ακριβώς τι συμβαίνει στη σοδειά σου — αμέσως.'
+                : 'Know exactly what\'s happening in your crops — instantly.'}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+            {/* Primary feature — large card */}
+            <div className="md:col-span-8 md:row-span-2 bg-[#f5f4ef] rounded-[2rem] overflow-hidden relative group min-h-[320px] md:min-h-[560px]">
+              <img
+                alt={lang === 'el' ? 'Σκανάρισμα φυτού' : 'Scanning plant'}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 absolute inset-0"
+                src="https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1200&q=80"
+              />
+              <div className="absolute inset-0 p-8 md:p-12 flex flex-col justify-end bg-gradient-to-t from-black/60 via-black/20 to-transparent">
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3" style={{ fontFamily: "'Noto Serif', serif" }}>
+                  {lang === 'el' ? 'Σκανάρισε & εντόπισε ασθένειες' : 'Scan plants & detect diseases'}
+                </h3>
+                <p className="text-white/80 max-w-md text-sm md:text-base">
+                  {lang === 'el'
+                    ? 'Η AI του Oli αναγνωρίζει εκατοντάδες ασθένειες σε ελιές, αμπέλια, εσπεριδοειδή και δεκάδες Μεσογειακές καλλιέργειες.'
+                    : 'Oli\'s AI identifies hundreds of diseases across olives, vines, citrus, and dozens of Mediterranean crops.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Secondary feature */}
+            <div className="md:col-span-4 rounded-[2rem] p-6 md:p-8 flex flex-col justify-between min-h-[180px] md:min-h-0"
+              style={{ background: 'linear-gradient(135deg, #485532, #313e1d)', color: '#d9e9ba' }}>
+              <span className="material-symbols-outlined text-3xl md:text-4xl">science</span>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold mb-2">
+                  {lang === 'el' ? 'Εντοπισμός ελλείψεων' : 'Nutrient deficiency detection'}
+                </h3>
+                <p className="text-sm opacity-80">
+                  {lang === 'el'
+                    ? 'Ανάλυση φύλλων για εντοπισμό ελλείψεων αζώτου, φωσφόρου και καλίου.'
+                    : 'Leaf analysis maps color shifts to specific NPK imbalances.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Small feature */}
+            <div className="md:col-span-4 bg-[#e3e3de] rounded-[2rem] p-6 md:p-8 flex flex-col justify-between min-h-[180px] md:min-h-0">
+              <span className="material-symbols-outlined text-3xl md:text-4xl text-[#194121]">bug_report</span>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-[#194121] mb-2">
+                  {lang === 'el' ? 'Εντοπισμός παρασίτων' : 'Spot pests early'}
+                </h3>
+                <p className="text-sm text-[#5a6053]">
+                  {lang === 'el'
+                    ? 'Πρώιμη ανίχνευση δάκου, αφίδων και ακάρεων πριν τη μαζική προσβολή.'
+                    : 'Early detection of olive fly, aphids, and mites before colony establishment.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom features */}
+            <div className="md:col-span-6 rounded-[2rem] p-8 md:p-10 flex items-center gap-6 overflow-hidden relative min-h-[140px]"
+              style={{ background: '#305936', color: '#c0eec0' }}>
+              <div className="flex-1 relative z-10">
+                <h3 className="text-xl md:text-2xl font-bold mb-2">{lang === 'el' ? 'Βιολογική θεραπεία' : 'Organic treatments'}</h3>
+                <p className="text-sm opacity-80">
+                  {lang === 'el'
+                    ? 'Πάντα δύο επιλογές: βιολογική και χημική, με ακριβή δοσολογία.'
+                    : 'Always two options: organic and chemical, with exact dosage and timing.'}
+                </p>
+              </div>
+              <span className="material-symbols-outlined text-4xl md:text-5xl relative z-10">eco</span>
+            </div>
+
+            <div className="md:col-span-6 bg-[#dfe5d4] rounded-[2rem] p-8 md:p-10 flex items-center gap-6 overflow-hidden relative min-h-[140px]">
+              <div className="flex-1 text-[#42493e]">
+                <h3 className="text-xl md:text-2xl font-bold mb-2">{lang === 'el' ? 'Καταχώρηση & Follow-up' : 'Log & Follow-up'}</h3>
+                <p className="text-sm opacity-80">
+                  {lang === 'el'
+                    ? 'Καταγράφει κάθε παρέμβαση. 13 μέρες μετά σε ρωτά αν πέτυχε.'
+                    : 'Logs every intervention. 13 days later, checks if the treatment worked.'}
+                </p>
+              </div>
+              <span className="material-symbols-outlined text-4xl md:text-5xl text-[#42493e]">assignment_turned_in</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CHAT DEMO ── */}
+      <section className="py-20 md:py-32 overflow-hidden bg-white">
+        <div className="max-w-7xl mx-auto px-6 md:px-8">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#194121] mb-6"
+                style={{ fontFamily: "'Noto Serif', serif" }}>
+                {lang === 'el' ? 'Ο γεωπόνος σου, on demand.' : 'Your expert, on demand.'}
+              </h2>
+              <p className="text-base md:text-lg text-[#5a6053] mb-10">
+                {lang === 'el'
+                  ? 'Λύσε κρίσιμα προβλήματα χωραφιού με φυσική συζήτηση. Χωρίς αναμονή για γεωπόνο.'
+                  : 'Solve critical field issues with natural conversation. No more waiting for consultants.'}
+              </p>
+              <div className="space-y-3">
+                {(lang === 'el'
+                  ? ['Τα φύλλα κιτρινίζουν', 'Ασθένεια εξαπλώνεται', 'Πότε να ψεκάσω;', 'Τι να κάνω αυτή την εβδομάδα;', 'Ανέβασε φωτογραφία']
+                  : ['My leaves are turning yellow', 'Disease spreading fast', 'When should I spray?', 'What to do this week?', 'Upload a photo']
+                ).map((q, i) => (
+                  <Link key={i} to={isLoggedIn ? "/chat" : "/auth"}
+                    className="flex items-center gap-3 group cursor-pointer p-3 md:p-4 rounded-2xl hover:bg-[#f5f4ef] transition-all">
+                    <div className="w-9 h-9 rounded-full bg-[#dfe5d4] flex items-center justify-center text-[#42493e] group-hover:bg-[#194121] group-hover:text-white transition-colors shrink-0">
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chat_bubble</span>
                     </div>
-                    <div className="font-mono text-xs text-[#2EA043]/70 mt-0.5 tracking-wider">{s.unit}</div>
-                    <div className="font-mono text-[11px] text-white/25 mt-1.5 leading-snug">{s.label}</div>
-                  </div>
+                    <p className="text-base font-medium text-[#1b1c19] group-hover:text-[#194121] transition-colors">{q}</p>
+                  </Link>
                 ))}
               </div>
             </div>
 
-            {/* Right: phone mockup */}
-            <div className="mt-16 md:mt-0 flex justify-center md:justify-end md:pt-8">
-              <div className="phone-float relative w-[260px] md:w-[300px]">
-
-                {/* Outer glow ring */}
-                <div className="absolute inset-[-20px] rounded-[60px] opacity-30"
-                  style={{background:'radial-gradient(ellipse, rgba(46,160,67,0.3) 0%, transparent 70%)', animation:'pulse-glow 4s ease-in-out infinite'}} />
-
-                {/* Phone body */}
-                <div className="relative rounded-[40px] overflow-hidden shadow-2xl"
-                  style={{background:'linear-gradient(145deg, #1a2030 0%, #0f1520 100%)', border:'1.5px solid rgba(255,255,255,0.08)', boxShadow:'0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)'}}>
-
-                  {/* Screen bezel */}
-                  <div className="p-[3px] rounded-[40px]">
-                    <div className="rounded-[38px] overflow-hidden bg-[#080C10]">
-
-                      {/* Notch */}
-                      <div className="flex justify-center pt-3 pb-1">
-                        <div className="h-1.5 w-16 rounded-full bg-[#161C23]" />
-                      </div>
-
-                      {/* App header */}
-                      <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                        <div className="flex items-center gap-2">
-                          <OliLogo size={14} bg="#080C10" />
-                          <span className="font-mono text-[11px] text-[#2EA043]">Oli</span>
-                        </div>
-                        <span className="font-mono text-[10px] text-white/20">9:41</span>
-                      </div>
-
-                      {/* Chat messages */}
-                      <div className="space-y-3 p-4 pb-2">
-
-                        {/* User message */}
-                        <div className="flex justify-end">
-                          <div className="rounded-2xl rounded-br-sm bg-[#2EA043] px-3 py-2 max-w-[80%]">
-                            <p className="font-mono text-[10px] text-white leading-relaxed">
-                              Τα φύλλα της ελιάς έχουν καφέ κηλίδες 📸
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* AI response */}
-                        <div className="w-[92%]">
-                          <div className="rounded-2xl rounded-bl-sm px-3 py-2.5"
-                            style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)'}}>
-                            <p className="font-mono text-[10px] text-white/80 leading-relaxed">
-                              Φαίνεται <span className="text-[#2EA043] font-medium">Κυκλοκόνιο</span> (μυκητιακή ασθένεια).
-                              Συνηθίζει να εμφανίζεται μετά από βροχές.
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Treatment cards */}
-                        <div className="grid grid-cols-2 gap-2 mt-1">
-                          <div className="rounded-xl p-2.5"
-                            style={{background:'rgba(46,160,67,0.08)', border:'1px solid rgba(46,160,67,0.2)'}}>
-                            <p className="font-mono text-[9px] text-[#2EA043] mb-1.5 font-medium">🌿 Βιολογικό</p>
-                            <p className="font-mono text-[9px] text-white/60 leading-snug">Βορδ. πολτός 1%</p>
-                          </div>
-                          <div className="rounded-xl p-2.5"
-                            style={{background:'rgba(96,165,250,0.06)', border:'1px solid rgba(96,165,250,0.15)'}}>
-                            <p className="font-mono text-[9px] text-blue-400 mb-1.5 font-medium">⚗️ Χημικό</p>
-                            <p className="font-mono text-[9px] text-white/60 leading-snug">Χαλκούχο μυκ.</p>
-                          </div>
-                        </div>
-
-                        {/* Action pills */}
-                        <div className="flex gap-1.5 flex-wrap">
-                          {['Καταχώρηση','Κοινοποίηση'].map(l=>(
-                            <span key={l} className="font-mono text-[9px] text-white/40 rounded-full px-2 py-1"
-                              style={{border:'1px solid rgba(255,255,255,0.08)'}}>
-                              {l}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Input */}
-                      <div className="px-4 pb-4 pt-2 border-t border-white/5">
-                        <div className="flex items-center gap-2 rounded-full px-3 py-2"
-                          style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)'}}>
-                          <span className="flex-1 font-mono text-[10px] text-white/20">{lang === 'el' ? 'Ρώτησε τον Oli...' : 'Ask Oli...'}</span>
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2EA043]">
-                            <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
-                              <path d="M2 5h6M5 2l3 3-3 3"/>
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-
+            {/* Chat simulation */}
+            <div className="relative">
+              <div className="space-y-4 max-w-lg ml-auto">
+                <div className="bg-[#efeee9] p-4 rounded-2xl rounded-tr-none text-[#1b1c19] ml-12" style={{ boxShadow: '0 2px 8px rgba(27,28,25,0.06)' }}>
+                  <p className="text-sm">
+                    {lang === 'el' ? 'Τα φύλλα της ελιάς έχουν σκούρες κηλίδες. Τι μπορεί να είναι;' : 'My olive tree leaves have dark spots. What could it be?'}
+                  </p>
+                </div>
+                <div className="p-5 md:p-6 rounded-2xl rounded-tl-none mr-12 relative text-white"
+                  style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
+                  <p className="font-bold text-[10px] uppercase tracking-widest opacity-70 mb-2">{lang === 'el' ? 'Ανάλυση Oli' : 'Oli analysis'}</p>
+                  <p className="mb-4 text-sm md:text-base leading-relaxed">
+                    {lang === 'el'
+                      ? <>Αυτό μοιάζει με <strong>Κυκλοκόνιο</strong> (Cycloconium oleaginum). Βλέπω σκούρες, κυκλικές κηλίδες στην πάνω επιφάνεια του φύλλου — χαρακτηριστικό σύμπτωμα.</>
+                      : <>That looks like <strong>Olive Leaf Spot</strong> (Cycloconium oleaginum). I see dark, circular spots on the upper leaf surface — a characteristic symptom.</>}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/10 p-3 rounded-xl text-sm backdrop-blur-sm">
+                      <p className="font-bold text-[10px] uppercase tracking-wider mb-1 text-[#c0eec0]">{lang === 'el' ? 'Βιολογικό' : 'Organic'}</p>
+                      <p className="text-xs opacity-90">{lang === 'el' ? 'Βορδιγάλειος πολτός 1%' : 'Bordeaux mixture 1%'}</p>
+                    </div>
+                    <div className="bg-white/10 p-3 rounded-xl text-sm backdrop-blur-sm">
+                      <p className="font-bold text-[10px] uppercase tracking-wider mb-1 text-[#a4d2a6]">{lang === 'el' ? 'Χημικό' : 'Chemical'}</p>
+                      <p className="text-xs opacity-90">{lang === 'el' ? 'Χαλκούχο σκεύασμα' : 'Copper-based fungicide'}</p>
                     </div>
                   </div>
                 </div>
-
-                {/* Floating notification badge */}
-                <div className="absolute -right-4 top-1/3 rounded-2xl px-3 py-2 shadow-xl"
-                  style={{background:'linear-gradient(135deg,#1a2030,#161c23)', border:'1px solid rgba(46,160,67,0.3)', boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
-                  <p className="font-mono text-[9px] text-[#2EA043]">Υπενθύμιση σε</p>
-                  <p className="font-display text-xl font-light text-white" style={{letterSpacing:'-0.02em'}}>13<span className="font-mono text-[10px] ml-1 text-white/40">μέρες</span></p>
-                </div>
-
               </div>
+              <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-[#f5f4ef] rounded-full blur-3xl opacity-50" />
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ── TICKER ── */}
-        <div className="py-5 overflow-hidden" style={{borderTop:'1px solid rgba(255,255,255,0.04)', borderBottom:'1px solid rgba(255,255,255,0.04)', background:'rgba(46,160,67,0.02)'}}>
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 px-6 max-w-5xl mx-auto">
-            {CROPS.map((c, i) => (
-              <span key={i}
-                className="font-mono text-xs tracking-wider transition-all duration-500 whitespace-nowrap"
-                style={{
-                  color: activeIndex === i ? '#2EA043' : 'rgba(232,237,242,0.18)',
-                  transform: activeIndex === i ? 'scale(1.12)' : 'scale(1)',
-                  textShadow: activeIndex === i ? '0 0 16px rgba(46,160,67,0.6)' : 'none',
-                }}>
-                {c}
-              </span>
+      {/* ── STATS ── */}
+      <section className="bg-[#f5f4ef] py-16 md:py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-8">
+          <div className="grid grid-cols-3 gap-4 md:gap-8 text-center">
+            {STATS(lang).map((s, i) => (
+              <div key={i}>
+                <div className="text-3xl md:text-5xl font-bold text-[#194121] mb-1" style={{ fontFamily: "'Noto Serif', serif", letterSpacing: '-0.03em' }}>
+                  {s.n}
+                </div>
+                <p className="text-xs md:text-sm text-[#606659]">{s.label}</p>
+              </div>
             ))}
           </div>
         </div>
+      </section>
 
-        <div className="line-accent my-0" />
-
-        {/* ── FEATURES ── */}
-        <section className="max-w-7xl mx-auto px-6 md:px-12 py-24">
-          <div className="flex items-end justify-between mb-16">
-            <div>
-              <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">{lang === 'el' ? 'Δυνατότητες' : 'Features'}</span>
-              <h2 className="font-display mt-2"
-                style={{fontSize:'clamp(2rem,4vw,3rem)', lineHeight:1.1, letterSpacing:'-0.02em', color:'white'}}>
-                {lang === 'el' ? 'Ό,τι χρειάζεται' : 'Everything a'}<br/>
-                <em style={{color:'rgba(232,237,242,0.4)', fontWeight:300}}>{lang === 'el' ? 'ένας σύγχρονος αγρότης' : 'a modern farmer'}</em>
-              </h2>
-            </div>
-            <Link to={isLoggedIn ? "/chat" : "/auth"}
-              className="hidden md:flex items-center gap-2 font-mono text-xs tracking-wider text-white/30 hover:text-[#2EA043] transition-colors uppercase">
-              {lang === 'el' ? 'Δες πώς λειτουργεί' : 'See how it works'} <span>→</span>
-            </Link>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {FEATURES(lang).map((f,i)=>(
-              <div key={i} className="feature-card rounded-2xl p-6">
-                <div className="font-display mb-4" style={{fontSize:'3.5rem', lineHeight:1, color:'rgba(46,160,67,0.2)', fontWeight:300, letterSpacing:'-0.04em'}}>
-                  {f.n}
-                </div>
-                <h3 className="font-mono text-sm font-medium text-white mb-3 tracking-tight">
-                  {f.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{color:'rgba(232,237,242,0.45)', fontFamily:'Plus Jakarta Sans, sans-serif', fontWeight:400}}>
-                  {f.body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="line-accent" />
-
-        {/* ── HOW IT WORKS ── */}
-        <section className="max-w-5xl mx-auto px-6 md:px-12 py-24">
-          <div className="text-center mb-16">
-            <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">{lang === 'el' ? 'Διαδικασία' : 'How it works'}</span>
-            <h2 className="font-display mt-2"
-              style={{fontSize:'clamp(2rem,4vw,3rem)', lineHeight:1.1, letterSpacing:'-0.02em', color:'white'}}>
-              {lang === 'el' ? 'Τρία βήματα' : 'Three steps'}
+      {/* ── HOW IT WORKS ── */}
+      <section className="py-20 md:py-32 bg-white">
+        <div className="max-w-5xl mx-auto px-6 md:px-8">
+          <div className="text-center mb-12 md:mb-16">
+            <span className="text-xs font-bold tracking-[0.2em] text-[#194121] uppercase mb-4 block">
+              {lang === 'el' ? 'Πώς λειτουργεί' : 'How it works'}
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>
+              {lang === 'el' ? 'Τρία απλά βήματα' : 'Three simple steps'}
             </h2>
           </div>
 
-          <div className="space-y-3">
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
             {[
-              { n:'01', t:lang==='el'?'Φωτογράφισε ή περίγραψε':'Photo or describe', b:lang==='el'?'Στείλε φωτογραφία ή γράψε τι βλέπεις. Ο Oli καταλαβαίνει ελληνικά και αγγλικά.':'Send a photo or describe what you see. Oli understands Greek and English.' },
-              { n:'02', t:lang==='el'?'Πάρε διάγνωση και πλάνο':'Get a diagnosis and plan', b:lang==='el'?'Μαθαίνεις τι έχει, πόσο σοβαρό είναι, και τι να κάνεις — βιολογικά ή χημικά.':'You learn what it is, how serious, and what to do — organic or chemical, with exact dose.' },
-              { n:'03', t:lang==='el'?'Κατέγραψε. Παρακολούθησε.':'Record. Follow up.', b:lang==='el'?'Ό,τι κάνεις μένει στο ιστορικό. Ο Oli σε ρωτά 13 μέρες μετά αν πέτυχε.':'Everything is recorded. Oli asks 13 days later if it worked.' },
-            ].map((s,i)=>(
-              <div key={i} className="feature-card rounded-2xl p-6 md:flex md:items-start md:gap-8">
-                <div className="font-display flex-shrink-0 mb-3 md:mb-0"
-                  style={{fontSize:'4rem', lineHeight:1, color:'rgba(46,160,67,0.15)', fontWeight:300, letterSpacing:'-0.04em', minWidth:'80px'}}>
-                  {s.n}
+              {
+                n: '01', icon: 'photo_camera',
+                t: lang === 'el' ? 'Φωτογράφισε' : 'Snap a photo',
+                b: lang === 'el' ? 'Τράβα φωτογραφία ή περίγραψε τι βλέπεις στο χωράφι.' : 'Take a photo or describe what you see in your field.',
+              },
+              {
+                n: '02', icon: 'psychology',
+                t: lang === 'el' ? 'Πάρε διάγνωση' : 'Get diagnosis',
+                b: lang === 'el' ? 'Ο Oli σου λέει τι είναι, πόσο σοβαρό, και τι να κάνεις.' : 'Oli tells you what it is, how serious, and what to do.',
+              },
+              {
+                n: '03', icon: 'assignment_turned_in',
+                t: lang === 'el' ? 'Κατέγραψε & Follow-up' : 'Log & Follow-up',
+                b: lang === 'el' ? 'Αποθηκεύεται αυτόματα. 13 μέρες μετά σε ρωτά αν πέτυχε.' : 'Saved automatically. 13 days later, asks if the treatment worked.',
+              },
+            ].map((s, i) => (
+              <div key={i} className="bg-[#faf9f4] rounded-3xl p-6 md:p-8 text-center" style={{ outline: '1px solid rgba(194, 201, 187, 0.15)' }}>
+                <div className="w-14 h-14 bg-[#c0eec0]/30 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                  <span className="material-symbols-outlined text-[#194121]" style={{ fontSize: '28px' }}>{s.icon}</span>
                 </div>
-                <div>
-                  <h3 className="font-mono text-base text-white mb-2 tracking-tight">{s.t}</h3>
-                  <p className="text-sm leading-relaxed" style={{color:'rgba(232,237,242,0.45)', fontFamily:'Plus Jakarta Sans, sans-serif'}}>
-                    {s.b}
-                  </p>
-                </div>
+                <div className="text-4xl font-light text-[#194121]/15 mb-3" style={{ fontFamily: "'Noto Serif', serif" }}>{s.n}</div>
+                <h3 className="font-bold text-lg text-[#1b1c19] mb-2">{s.t}</h3>
+                <p className="text-sm text-[#5a6053] leading-relaxed">{s.b}</p>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <div className="line-accent" />
+      {/* ── FINAL CTA ── */}
+      <section className="py-16 md:py-24 px-6 md:px-8 bg-[#faf9f4]">
+        <div className="max-w-5xl mx-auto rounded-[2rem] md:rounded-[3rem] p-8 sm:p-12 md:p-24 text-center text-white relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)', boxShadow: '0 24px 64px rgba(25,65,33,0.3)' }}>
+          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
 
-        {/* ── CTA ── */}
-        <section className="max-w-3xl mx-auto px-6 md:px-12 py-28 text-center">
-          <span className="font-mono text-xs tracking-[0.2em] text-[#2EA043] uppercase">{lang === 'el' ? 'Ξεκίνα σήμερα' : 'Start today'}</span>
-          <h2 className="font-display mt-4 mb-4"
-            style={{fontSize:'clamp(2.5rem,6vw,4.5rem)', lineHeight:1.05, letterSpacing:'-0.03em', color:'white'}}>
-            {lang === 'el' ? 'Ο πρώτος' : 'The first'}<br/>
-            <em style={{color:'#2EA043'}}>{lang === 'el' ? 'AI γεωπόνος' : 'AI agronomist'}</em><br/>
-            <span style={{color:'rgba(232,237,242,0.35)', fontWeight:300}}>{lang === 'el' ? 'για τον Μεσογειακό αγρότη.' : 'for the Mediterranean farmer.'}</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 md:mb-8 relative z-10" style={{ fontFamily: "'Noto Serif', serif" }}>
+            {lang === 'el'
+              ? <>Σταμάτα να μαντεύεις.<br/>Προστάτεψε τη σοδειά σου.</>
+              : <>Stop guessing.<br/>Start protecting your yield.</>}
           </h2>
-
-          <p className="mb-10 text-base leading-relaxed" style={{color:'rgba(232,237,242,0.4)', fontFamily:'Plus Jakarta Sans, sans-serif'}}>
-            {lang === 'el' ? 'Δωρεάν για τις πρώτες 20 ερωτήσεις.' : 'Free for the first 20 questions.'}<br/>
-            {lang === 'el' ? 'Δεν χρειάζεσαι πιστωτική κάρτα.' : 'No credit card needed.'}
+          <p className="text-base md:text-xl opacity-90 mb-8 md:mb-12 max-w-2xl mx-auto relative z-10">
+            {lang === 'el'
+              ? 'Δωρεάν 20 ερωτήσεις τον μήνα. Χωρίς πιστωτική κάρτα.'
+              : '20 free questions per month. No credit card required.'}
           </p>
-
-          <Link to={isLoggedIn ? "/chat" : "/auth"}
-            className="cta-glow inline-flex items-center gap-4 rounded-full bg-[#2EA043] px-10 py-5 font-mono text-sm tracking-widest text-white uppercase transition-all hover:bg-[#35b84d]">
-            {isLoggedIn ? (lang === 'el' ? 'Συνέχισε στο Oli' : 'Continue to Oli') : (lang === 'el' ? 'Ξεκίνα δωρεάν — χωρίς κάρτα' : 'Start free — no card')}
-            <span className="text-white/50">→</span>
-          </Link>
-
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center relative z-10">
+            <Link to={isLoggedIn ? "/chat" : "/auth"}
+              className="bg-white text-[#194121] px-8 md:px-10 py-4 md:py-5 rounded-full font-extrabold text-base md:text-xl hover:bg-[#c0eec0] hover:scale-105 transition-all"
+              style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+              {isLoggedIn
+                ? (lang === 'el' ? 'Άνοιξε τον Oli' : 'Open Oli')
+                : (lang === 'el' ? 'Ξεκίνα δωρεάν τώρα' : 'Start free now')}
+            </Link>
+          </div>
           {!isLoggedIn && (
-            <p className="mt-6 font-mono text-xs text-white/20">
+            <p className="mt-6 md:mt-8 text-sm opacity-60 relative z-10">
               {lang === 'el' ? 'Έχεις ήδη λογαριασμό;' : 'Already have an account?'}{' '}
-              <Link to="/auth" className="text-[#2EA043] hover:underline">{lang === 'el' ? 'Σύνδεση' : 'Sign in'}</Link>
+              <Link to="/auth" className="underline hover:opacity-100">{lang === 'el' ? 'Σύνδεση' : 'Sign in'}</Link>
             </p>
           )}
-        </section>
+        </div>
+      </section>
 
-        {/* ── FOOTER ── */}
-        <footer style={{borderTop:'1px solid rgba(255,255,255,0.05)'}} className="px-6 py-8 md:px-12">
-          <div className="max-w-7xl mx-auto flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <svg width="16" height="16" viewBox="0 0 32 32">
-                <ellipse cx="16" cy="7"  rx="7" ry="10" fill="#2D6A4F"/>
-                <ellipse cx="16" cy="25" rx="7" ry="10" fill="#2D6A4F"/>
-                <ellipse cx="7"  cy="16" rx="10" ry="7" fill="#2EA043"/>
-                <ellipse cx="25" cy="16" rx="10" ry="7" fill="#2EA043"/>
-                <circle  cx="16" cy="16" r="5"  fill="#080C10"/>
-              </svg>
-              <span className="font-mono text-xs text-white/20">Oli © 2026</span>
+      {/* ── FOOTER ── */}
+      <footer className="bg-[#f5f4ef] w-full py-12 md:py-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 max-w-7xl mx-auto px-6 md:px-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5">
+              <OliLogo size={22} bg="#f5f4ef" />
+              <span className="text-xl font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>Oli</span>
             </div>
-            <div className="flex gap-6 font-mono text-xs text-white/20">
-              <Link to="/legal/privacy" className="hover:text-white/60 transition-colors">{lang === 'el' ? 'Απόρρητο' : 'Privacy'}</Link>
-              <Link to="/legal/terms"   className="hover:text-white/60 transition-colors">{lang === 'el' ? 'Όροι' : 'Terms'}</Link>
+            <p className="text-[#606659] max-w-xs text-sm leading-relaxed">
+              {lang === 'el'
+                ? 'AI γεωπόνος για τον Μεσογειακό αγρότη. Διάγνωση, θεραπεία, παρακολούθηση — στο κινητό σου.'
+                : 'AI agronomist for the Mediterranean farmer. Diagnosis, treatment, follow-up — on your phone.'}
+            </p>
+            <p className="text-[#606659] text-xs opacity-60">
+              © 2026 Oli. {lang === 'el' ? 'Με ασφάλεια δεδομένων.' : 'Data encrypted & secure.'}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <p className="font-bold text-[#194121] text-sm uppercase tracking-wider">{lang === 'el' ? 'Πλατφόρμα' : 'Platform'}</p>
+              <ul className="space-y-2">
+                <li><Link to="/legal/privacy" className="text-[#606659] hover:text-[#194121] transition-all text-sm">{lang === 'el' ? 'Απόρρητο' : 'Privacy'}</Link></li>
+                <li><Link to="/legal/terms" className="text-[#606659] hover:text-[#194121] transition-all text-sm">{lang === 'el' ? 'Όροι Χρήσης' : 'Terms of Service'}</Link></li>
+              </ul>
+            </div>
+            <div className="space-y-3">
+              <p className="font-bold text-[#194121] text-sm uppercase tracking-wider">{lang === 'el' ? 'Επικοινωνία' : 'Contact'}</p>
+              <ul className="space-y-2">
+                <li><a href="mailto:hello@askoli.ai" className="text-[#606659] hover:text-[#194121] transition-all text-sm">hello@askoli.ai</a></li>
+              </ul>
             </div>
           </div>
-        </footer>
-
-      </div>
+        </div>
+      </footer>
     </div>
   );
 }
