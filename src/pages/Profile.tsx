@@ -196,7 +196,6 @@ export default function Profile() {
           </div>
           {[
             { key: 'notification_followup', label: t.followUp },
-            { key: 'notification_weekly_plan', label: t.weeklyPlan },
           ].map(({ key, label }) => {
             const isOn = notifState[key] !== undefined
               ? notifState[key]

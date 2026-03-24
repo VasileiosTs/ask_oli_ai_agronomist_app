@@ -501,39 +501,9 @@ async function applyExtractedFieldContext(
         disambiguateFields = matchedFields;
         action = 'disambiguate';
       }
-    } else if (extracted.crop_type) {
-      const { data: createdField, error: createFieldError } = await supabaseAdmin
-        .from('fields')
-        .insert({
-          user_id: appUserId,
-          name: `${extracted.crop_type} Field`,
-          crop_type: extracted.crop_type,
-          source: 'auto_detected',
-        })
-        .select('id, name')
-        .single();
-
-      if (!createFieldError && createdField) {
-        targetFieldId = createdField.id;
-        action = 'auto_set';
-      }
     }
-  } else if (extracted.crop_type) {
-    const { data: createdField, error: createFieldError } = await supabaseAdmin
-      .from('fields')
-      .insert({
-        user_id: appUserId,
-        name: `${extracted.crop_type} Field`,
-        crop_type: extracted.crop_type,
-        source: 'auto_detected',
-      })
-      .select('id, name')
-      .single();
-
-    if (!createFieldError && createdField) {
-      targetFieldId = createdField.id;
-      action = 'auto_set';
-    }
+    // No auto-field creation — users must create fields manually.
+    // Auto-created "tomato Field" etc. polluted user accounts.
   }
 
   if (messageId) {

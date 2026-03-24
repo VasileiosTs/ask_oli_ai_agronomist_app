@@ -9,7 +9,6 @@ import PaywallModal from '../components/PaywallModal';
 import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
-import { extractAndApply } from '../lib/extractAndApply';
 import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage, getCachedImage } from '../lib/imageCache';
 import clsx from 'clsx';
@@ -316,24 +315,7 @@ export default function Chat() {
           setMessages(prev => prev.length === 0 ? [followUpMsg] : prev);
         });
 
-      // Proactive greeting — once per day, only if no follow-up is pending
-      const todayKey = `oli_greeted_${new Date().toISOString().split('T')[0]}_${appUserId}`;
-      if (!localStorage.getItem(todayKey)) {
-        supabase.functions.invoke('chat', {
-          body: { mode: 'greeting' },
-        }).then(({ data, error }) => {
-          if (error || !data?.greeting) return;
-          const greetMsg = {
-            id: `greeting-${Date.now()}`,
-            role: 'assistant' as const,
-            content: data.greeting,
-            created_at: new Date().toISOString(),
-            metadata: { is_greeting: true },
-          };
-          setMessages(prev => prev.length === 0 ? [greetMsg] : prev);
-          localStorage.setItem(todayKey, '1');
-        });
-      }
+      // No API call for greeting — the empty state UI already serves as the welcome.
       return;
     }
     setFields([]);
@@ -566,6 +548,20 @@ let streamedContent = '';
       if (typeof completion.messageCountMonth === 'number') {
         setMessageCount(completion.messageCountMonth);
       }
+
+      // Post-response: silently link conversation to detected crop's field (if any)
+      const cropMentioned = completion.metadata?.crop_mentioned;
+      if (cropMentioned && !currentActiveFieldId && appUserId) {
+        const matchingField = fields.find(f =>
+          f.crop_type?.toLowerCase() === (cropMentioned as string).toLowerCase()
+        );
+        if (matchingField) {
+          setActiveFieldId(matchingField.id);
+          if (activeConversationId) {
+            supabase.from('conversations').update({ field_id: matchingField.id }).eq('id', activeConversationId);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setIsTyping(false);
@@ -731,56 +727,12 @@ let streamedContent = '';
       if (data) {
         dbMessageId = data.id;
         setMessages((prev) => prev.map(m => m.id === newUserMsg.id ? { ...m, db_id: data.id } : m));
-        
-        // Store in photo_reviews
-        if (uploadedPaths.length > 0) {
-          for (const path of uploadedPaths) {
-            await supabase.from('photo_reviews').insert({
-              user_id: appUserId,
-              storage_path: path
-            });
-          }
-        }
       }
     }
 
-    let currentActiveFieldId = activeFieldId;
-
-    const SHORT_MSGS = new Set(['ok', 'yes', 'no', 'ναι', 'όχι', 'εντάξει', 'οκ', 'thanks', 'ευχαριστώ', 'good', 'great', 'ok!', 'yes!']);
-    const shouldExtract = dbMessageId && appUserId &&
-      messageText.length > 10 &&
-      !SHORT_MSGS.has(messageText.toLowerCase().trim());
-
-    if (shouldExtract) {
-      const result = await extractAndApply(finalMessageText, appUserId, dbMessageId!);
-      if (result?.action === 'auto_set' && result.targetFieldId) {
-        setActiveFieldId(result.targetFieldId);
-        currentActiveFieldId = result.targetFieldId;
-        if (currentConversationId) {
-          await supabase.from('conversations').update({ field_id: result.targetFieldId }).eq('id', currentConversationId);
-        }
-        // Refresh fields
-        supabase.from('field_context_view').select('*').eq('user_id', appUserId).then(({ data }) => {
-          if (data) setFields(data as Field[]);
-        });
-      } else if (result?.action === 'disambiguate' && result.disambiguateFields && result.disambiguateFields.length > 0) {
-        const disambiguationMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: lang === 'el' ? 'Βρήκα μερικά χωράφια που ταιριάζουν. Για ποιο μιλάμε;' : 'I found some matching fields. Which one do you mean?',
-          created_at: new Date().toISOString(),
-          isDisambiguation: true,
-          originalText: finalMessageText,
-          originalDbId: dbMessageId,
-        };
-        setMessages((prev) => [...prev, disambiguationMsg]);
-        setIsTyping(false);
-        return;
-      }
-    }
-
-    // No forced disambiguation — let the AI respond with all-fields context.
-    // Field will be auto-detected from the message via extraction if needed.
+    // No extraction pipeline — the main Gemini call already returns crop_mentioned
+    // in its response metadata. This saves a second API call per message.
+    const currentActiveFieldId = activeFieldId;
 
     await sendMessageToAI(
       [...messages, newUserMsg],
@@ -793,21 +745,7 @@ let streamedContent = '';
     );
   };
 
-  const handleDisambiguation = async (fieldId: string, originalText: string, msgId: string, originalDbId?: string) => {
-    setActiveFieldId(fieldId);
-    
-    if (originalDbId) {
-      await supabase.from('chat_messages').update({ field_id: fieldId }).eq('id', originalDbId);
-    }
-
-    if (activeConversationId) {
-      await supabase.from('conversations').update({ field_id: fieldId }).eq('id', activeConversationId);
-    }
-
-    const filteredMessages = messages.filter((message) => message.id !== msgId);
-    setMessages(filteredMessages);
-    await sendMessageToAI(filteredMessages, originalText, fieldId, activeConversationId, originalDbId);
-  };
+  // Disambiguation removed — field context detected silently from AI response metadata.
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -938,19 +876,6 @@ let streamedContent = '';
                        : "rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface text-foreground")}>
                 {isUser ? (
                   <p className="whitespace-pre-wrap text-base leading-relaxed">{msg.content}</p>
-                ) : msg.isDisambiguation ? (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-base">{msg.content}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {fields.map(f => (
-                        <button key={f.id}
-                          onClick={() => handleDisambiguation(f.id, msg.originalText || '', msg.id, msg.originalDbId)}
-                          className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20">
-                          {f.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 ) : (
                   <div>
                     <div className="prose prose-sm prose-invert max-w-none">
