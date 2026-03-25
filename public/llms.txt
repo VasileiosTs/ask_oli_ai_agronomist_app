@@ -1,29 +1,26 @@
-# Oli — AI Agronomist for Greek Farmers
+# Oli — AI Agronomist
 # https://codex-ask-oli-app.vercel.app
 
 ## What is Oli?
-Oli is an AI-powered agronomist web application designed specifically for Greek farmers. It works with every crop — olives, vines, citrus, vegetables, fruit trees, herbs, and more. It provides instant crop disease diagnosis from photos, personalized treatment recommendations (both organic and chemical), and a 13-day follow-up system to track intervention outcomes.
+Oli is an AI-powered agronomist web application for farmers worldwide. It works with every crop — olives, vines, citrus, vegetables, fruit trees, herbs, cereals, and more. It provides instant crop disease diagnosis from photos, personalized treatment recommendations (both organic and chemical), and a 13-day follow-up system to track intervention outcomes.
 
 ## Key Capabilities
 - **Photo Diagnosis**: Upload a photo of a sick plant and get an instant AI diagnosis identifying the disease, pest, or nutrient deficiency
 - **Treatment Plans**: Every diagnosis includes both organic and chemical treatment options with exact product names, dosages, and application methods
 - **VIO Loop (Verified Intervention Outcome)**: After logging a treatment, Oli follows up in 13 days to ask if the treatment worked, building a data flywheel
-- **Voice Input**: Speak to Oli in Greek or English — ideal for farmers with dirty hands in the field
+- **Voice Input**: Speak to Oli in your language — ideal for farmers with dirty hands in the field
 - **Intervention History**: Complete log of all diagnoses and treatments, searchable and exportable
-- **Every Crop**: Works with every crop Greek farmers grow — olives, vines, citrus, tomatoes, peppers, cucumbers, potatoes, stone fruits, herbs, and 450+ identifiable diseases
-
-## Supported Crops
-Mediterranean crops including: olive trees (ελιά), vineyards (αμπέλι), citrus (εσπεριδοειδή — lemon, orange, mandarin), tomatoes (ντομάτα), peppers (πιπεριά), cucumbers, zucchini, eggplant, fig trees, pomegranate, almond, walnut, avocado, kiwi, strawberry, lettuce, herbs, and more.
+- **Every Crop**: Works with every crop — olives, vines, citrus, tomatoes, peppers, cucumbers, potatoes, stone fruits, herbs, cereals, and 450+ identifiable diseases
 
 ## Common Diseases Identified
-- Olive: Cycloconium (κυκλοκόνιο), olive fly (δάκος), peacock spot, verticillium wilt
-- Vine: Downy mildew (περονόσπορος), powdery mildew (ωίδιο), botrytis
+- Olive: Cycloconium, olive fly, peacock spot, verticillium wilt
+- Vine: Downy mildew, powdery mildew, botrytis
 - Citrus: Citrus canker, sooty mold, scale insects, tristeza
 - Tomato: Late blight, early blight, fusarium wilt, blossom end rot
 - General: Aphids, spider mites, whitefly, nitrogen/phosphorus/potassium deficiency
 
 ## Languages
-Greek (Ελληνικά) and English
+English and Greek (more coming soon)
 
 ## Pricing
 - Free: 20 questions per month, no credit card required
@@ -36,4 +33,3 @@ Greek (Ελληνικά) and English
 
 ## Contact
 - Website: https://codex-ask-oli-app.vercel.app
-- Email: hello@askoli.ai

@@ -55,6 +55,8 @@ interface ChatRequestBody {
   conversationId?: string | null;
   fieldId?: string | null;
   userMessageId?: string | null;
+  timezone?: string;
+  lang?: string;
 }
 
 // C1: Restrict CORS to production domain (was wildcard *)
@@ -101,12 +103,12 @@ BEHAVIOUR RULES (follow strictly):
 4. Always check for phytotoxicity before recommending any product.
 5. If photos or documents are attached, carefully analyze EVERYTHING visible in the image — leaf color, spots, texture, shape, soil, pests. Describe what you observe in detail before giving advice.
 6. Never open with: "Great question!", "Certainly!", "Of course!", "Sure!", or any filler.
-7. Use the farmer's language (detect from message). Default to English.
+7. Use the farmer's language (detect from their message). If unclear, respond in the same language as their most recent message.
 8. Be warm but professional. You are a trusted advisor, not a chatbot.
 9. If you don't know something, say so clearly and suggest they consult a local expert.
 10. Never give advice that could cause crop damage or regulatory violations.
 11. When diagnosing diseases, pests or deficiencies, always populate both organic_treatments AND chemical_treatments as separate arrays.
-12. CRITICAL: Pest, disease and deficiency advice must be agronomically accurate for the specific crop stated. Never suggest a pest or disease that does not affect that crop (e.g. spider mites affect citrus and vegetables, NOT olive trees — olive trees are affected by δάκος, πυρηνοτρήτης, κυκλοκόνιο etc.). If unsure whether a condition affects a crop, say so.
+12. CRITICAL: Pest, disease and deficiency advice must be agronomically accurate for the specific crop stated. Never suggest a pest or disease that does not affect that crop. If unsure whether a condition affects a crop, say so.
 
 IMAGE ANALYSIS RULES:
 - ALWAYS attempt to identify the plant and any issues visible, even if the image is blurry, partial, or low quality.
@@ -653,31 +655,35 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'greeting') {
+      const userLang = appUser.language || body.lang || 'en';
+      const userTz = body.timezone || 'UTC';
       const now = new Date();
-      const month = now.toLocaleString('el-GR', { month: 'long', timeZone: 'Europe/Athens' });
-      const hour = parseInt(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Europe/Athens' }));
-      const timeOfDay = hour < 12 ? 'πρωί' : hour < 18 ? 'απόγευμα' : 'βράδυ';
-      const crop = appUser.primary_crop || 'καλλιέργεια';
+      const locale = userLang === 'el' ? 'el-GR' : 'en-GB';
+      const month = now.toLocaleString(locale, { month: 'long', timeZone: userTz });
+      const hour = parseInt(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: userTz }));
+      const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+      const crop = appUser.primary_crop || 'crops';
       const location = appUser.location || '';
       const name = appUser.name ? appUser.name.split(' ')[0] : '';
 
-      const greetingPrompt = `You are Oli, an expert AI agronomist for Mediterranean smallholder farmers.
+      const greetingPrompt = `You are Oli, an expert AI agronomist.
 
 Generate a single short greeting message (1-2 sentences max) for a farmer.
 Farmer profile:
 - Name: ${name || 'farmer'}
 - Crop(s): ${crop}
-- Location: ${location || 'Greece'}
+- Location: ${location || 'their region'}
 - Current month: ${month}
 - Time of day: ${timeOfDay}
+- Language preference: ${userLang === 'el' ? 'Greek' : 'English'}
 
 Rules:
 1. Be warm and specific — mention their actual crop and something genuinely relevant to THIS month
 2. Reference a real seasonal concern, task, or observation relevant to their crop in ${month}
-3. NEVER invent problems that don't apply to their crop (e.g. spider mites don't affect olive trees)
+3. NEVER invent problems that don't apply to their crop
 4. Keep it to 1-2 sentences, conversational, no bullet points
-5. Use Greek if the name sounds Greek or location is in Greece, otherwise English
-6. Do not start with "Γεια" or "Hello" — be direct and practical
+5. Respond in the language preference specified above
+6. Do not start with generic greetings — be direct and practical
 7. End with an implicit or explicit invitation to ask a question
 
 Return ONLY the greeting text, nothing else.`;

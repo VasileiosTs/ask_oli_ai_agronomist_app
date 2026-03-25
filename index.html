@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="el">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Primary SEO -->
-    <title>Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών με Τεχνητή Νοημοσύνη</title>
-    <meta name="description" content="Ο Oli είναι ο AI γεωπόνος σου. Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία, πάρε συμβουλές θεραπείας (βιολογική & χημική) και κατέγραψε παρεμβάσεις. Για κάθε καλλιέργεια — ελιές, αμπέλι, κηπευτικά, δενδρώδεις." />
+    <title>Oli — AI Agronomist | Crop Disease Diagnosis with AI</title>
+    <meta name="description" content="Oli is your AI agronomist. Diagnose crop diseases from a photo, get treatment advice (organic & chemical), and track interventions. Works with every crop — olives, grapes, citrus, vegetables, fruit trees and more." />
     <link rel="canonical" href="https://codex-ask-oli-app.vercel.app/" />
 
     <!-- Language alternates -->
@@ -15,33 +15,31 @@
     <link rel="alternate" hreflang="x-default" href="https://codex-ask-oli-app.vercel.app/" />
 
     <!-- Open Graph -->
-    <meta property="og:title" content="Oli — AI Γεωπόνος για Έλληνες Αγρότες" />
-    <meta property="og:description" content="Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία σε δευτερόλεπτα. Για κάθε καλλιέργεια. Βιολογικές & χημικές θεραπείες με ακριβή δοσολογία." />
+    <meta property="og:title" content="Oli — AI Agronomist for Farmers" />
+    <meta property="og:description" content="Diagnose crop diseases from a photo in seconds. Every crop supported. Organic & chemical treatments with exact dosage." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://codex-ask-oli-app.vercel.app/" />
     <meta property="og:image" content="https://codex-ask-oli-app.vercel.app/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Oli — AI crop diagnosis for Mediterranean farmers" />
-    <meta property="og:locale" content="el_GR" />
-    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image:alt" content="Oli — AI crop diagnosis for farmers" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="el_GR" />
     <meta property="og:site_name" content="Oli" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών" />
-    <meta name="twitter:description" content="Διάγνωσε ασθένειες κάθε καλλιέργειας από φωτογραφία. AI γεωπόνος για Έλληνες αγρότες." />
+    <meta name="twitter:title" content="Oli — AI Agronomist | Crop Disease Diagnosis" />
+    <meta name="twitter:description" content="Diagnose crop diseases from a photo. AI agronomist for every farmer, every crop." />
     <meta name="twitter:image" content="https://codex-ask-oli-app.vercel.app/og-image.png" />
 
     <!-- Additional SEO -->
     <meta name="theme-color" content="#194121" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="author" content="Oli — AI Agronomist" />
-    <meta name="keywords" content="AI γεωπόνος, διάγνωση ασθενειών, ελιά, αμπέλι, εσπεριδοειδή, ντομάτα, κηπευτικά, δενδρώδεις, crop disease diagnosis, olive tree, tomato, vegetables, Greek agriculture, plant disease AI, φυτοπροστασία" />
-    <meta name="geo.region" content="GR" />
-    <meta name="geo.placename" content="Greece" />
+    <meta name="keywords" content="AI agronomist, crop disease diagnosis, plant disease AI, organic treatment, chemical treatment, pest management, olive tree, vineyard, citrus, tomato, vegetables, fruit trees, agriculture AI, farm assistant, crop protection, plant pathology" />
 
-    <!-- JSON-LD Structured Data: Organization + SoftwareApplication -->
+    <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -57,45 +55,41 @@
             "width": 512,
             "height": 512
           },
-          "description": "AI agronomist for Greek farmers. Crop disease diagnosis for every crop, treatment plans, and intervention tracking.",
-          "areaServed": {
-            "@type": "Place",
-            "name": "Greece"
-          },
+          "description": "AI agronomist for farmers worldwide. Crop disease diagnosis, treatment plans, and intervention tracking for every crop.",
           "knowsAbout": [
-            "Olive tree diseases",
-            "Vineyard management",
-            "Citrus crop protection",
-            "Vegetable crop diseases",
-            "Fruit tree pathology",
-            "Greek agriculture",
+            "Crop disease diagnosis",
             "Plant pathology",
-            "Integrated pest management"
+            "Integrated pest management",
+            "Organic farming",
+            "Vineyard management",
+            "Olive tree diseases",
+            "Citrus crop protection",
+            "Vegetable diseases",
+            "Fruit tree pathology"
           ]
         },
         {
           "@type": "SoftwareApplication",
           "@id": "https://codex-ask-oli-app.vercel.app/#app",
           "name": "Oli — AI Agronomist",
-          "alternateName": "Oli AI Γεωπόνος",
           "applicationCategory": "BusinessApplication",
           "applicationSubCategory": "Agriculture",
           "operatingSystem": "Web",
           "offers": {
             "@type": "Offer",
             "price": "0",
-            "priceCurrency": "EUR",
+            "priceCurrency": "USD",
             "description": "Free tier: 20 questions per month"
           },
           "featureList": [
             "AI crop disease diagnosis from photos",
             "Organic and chemical treatment recommendations",
             "Intervention logging and 13-day follow-up",
-            "Voice input in Greek and English",
+            "Voice input in multiple languages",
             "450+ identifiable crop diseases"
           ],
           "screenshot": "https://codex-ask-oli-app.vercel.app/og-image.png",
-          "inLanguage": ["el", "en"],
+          "inLanguage": ["en", "el"],
           "creator": {
             "@id": "https://codex-ask-oli-app.vercel.app/#organization"
           }
@@ -105,14 +99,9 @@
           "@id": "https://codex-ask-oli-app.vercel.app/#website",
           "name": "Oli",
           "url": "https://codex-ask-oli-app.vercel.app",
-          "inLanguage": ["el", "en"],
+          "inLanguage": ["en", "el"],
           "publisher": {
             "@id": "https://codex-ask-oli-app.vercel.app/#organization"
-          },
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://codex-ask-oli-app.vercel.app/auth",
-            "query-input": "required"
           }
         },
         {
@@ -121,10 +110,10 @@
           "mainEntity": [
             {
               "@type": "Question",
-              "name": "Τι κάνει ο Oli;",
+              "name": "What does Oli do?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Ο Oli είναι ένας AI γεωπόνος που διαγιγνώσκει ασθένειες καλλιεργειών από φωτογραφία ή περιγραφή. Δίνει βιολογικές και χημικές θεραπείες με ακριβή δοσολογία, και παρακολουθεί τα αποτελέσματα με follow-up σε 13 ημέρες."
+                "text": "Oli is an AI agronomist that diagnoses crop diseases from photos or descriptions. It provides organic and chemical treatment plans with exact dosages, and tracks results with a 13-day follow-up cycle."
               }
             },
             {
@@ -132,15 +121,15 @@
               "name": "What crops does Oli support?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Oli works with every crop Greek farmers grow — olive trees, vineyards, citrus, tomatoes, peppers, cucumbers, potatoes, stone fruits, herbs, and more. It can identify 450+ diseases, pests, and nutrient deficiencies."
+                "text": "Oli works with every crop — olive trees, vineyards, citrus, tomatoes, peppers, cucumbers, potatoes, stone fruits, herbs, cereals, and more. It can identify 450+ diseases, pests, and nutrient deficiencies."
               }
             },
             {
               "@type": "Question",
-              "name": "Είναι δωρεάν ο Oli;",
+              "name": "Is Oli free?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Ναι, ο Oli προσφέρει 20 δωρεάν ερωτήσεις τον μήνα χωρίς πιστωτική κάρτα. Η Pro έκδοση προσφέρει απεριόριστες ερωτήσεις."
+                "text": "Yes, Oli offers 20 free questions per month with no credit card required. The Pro version offers unlimited questions."
               }
             },
             {

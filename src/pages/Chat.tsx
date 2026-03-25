@@ -492,6 +492,8 @@ let streamedContent = '';
           conversationId: currentConversationId || null,
           userMessageId: dbMessageId || null,
           attachmentPaths: latestAttachmentPaths,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          lang,
         },
         {
           onToken: (token) => {

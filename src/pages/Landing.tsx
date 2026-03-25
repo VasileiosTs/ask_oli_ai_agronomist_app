@@ -63,8 +63,8 @@ const FEATURES = (lang: string) => [
   {
     title: lang === 'el' ? 'Φωνητική εισαγωγή' : 'Voice input',
     body: lang === 'el'
-      ? 'Μίλα στον Oli στα Ελληνικά ή Αγγλικά. Ιδανικό όταν έχεις βρώμικα χέρια στο χωράφι.'
-      : 'Talk to Oli in Greek or English. Perfect when your hands are dirty in the field.',
+      ? 'Μίλα στον Oli στη γλώσσα σου. Ιδανικό όταν έχεις βρώμικα χέρια στο χωράφι.'
+      : 'Talk to Oli in your language. Perfect when your hands are dirty in the field.',
   },
 ];
 
@@ -88,13 +88,13 @@ export default function Landing() {
     if (lang === 'el') {
       document.title = 'Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών με Τεχνητή Νοημοσύνη';
       setMeta('name', 'description', 'Ο Oli είναι ο AI γεωπόνος σου. Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία, πάρε συμβουλές θεραπείας (βιολογική & χημική) και κατέγραψε παρεμβάσεις. Για κάθε καλλιέργεια — ελιές, αμπέλι, κηπευτικά, δενδρώδεις.');
-      setMeta('property', 'og:title', 'Oli — AI Γεωπόνος για Έλληνες Αγρότες');
+      setMeta('property', 'og:title', 'Oli — AI Γεωπόνος για Αγρότες');
       setMeta('property', 'og:description', 'Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία σε δευτερόλεπτα. Για κάθε καλλιέργεια. Βιολογικές & χημικές θεραπείες με ακριβή δοσολογία.');
       setMeta('property', 'og:locale', 'el_GR');
     } else {
-      document.title = 'Oli — AI Agronomist | Crop Disease Diagnosis for Greek Farmers';
+      document.title = 'Oli — AI Agronomist | Crop Disease Diagnosis with AI';
       setMeta('name', 'description', 'Oli is your AI agronomist. Diagnose crop diseases from a photo, get organic & chemical treatment plans with exact dosages, and track interventions. Works with every crop — olives, vines, vegetables, fruit trees.');
-      setMeta('property', 'og:title', 'Oli — AI Agronomist for Greek Farmers');
+      setMeta('property', 'og:title', 'Oli — AI Agronomist for Farmers');
       setMeta('property', 'og:description', 'Diagnose crop diseases from a photo in seconds. Works with every crop. Organic & chemical treatments with exact dosages. 20 free questions/month.');
       setMeta('property', 'og:locale', 'en_US');
     }
@@ -145,7 +145,7 @@ export default function Landing() {
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px w-8 bg-[#194121]/40" />
               <span className="text-xs font-bold tracking-[0.15em] text-[#194121] uppercase">
-                {lang === 'el' ? 'AI Γεωπόνος · Μεσόγειος' : 'AI Agronomist · Mediterranean'}
+                {lang === 'el' ? 'AI Γεωπόνος' : 'AI Agronomist'}
               </span>
             </div>
 
@@ -159,7 +159,7 @@ export default function Landing() {
             <p className="text-base md:text-lg text-[#5a6053] mb-8 max-w-lg leading-relaxed">
               {lang === 'el'
                 ? 'Φωτογράφισε ή περίγραψε τι βλέπεις στο χωράφι. Σε δευτερόλεπτα μαθαίνεις τι έχει, γιατί, και τι ακριβώς να κάνεις. Ό,τι κι αν καλλιεργείς.'
-                : 'AI-powered crop analysis for Greek farmers — identify diseases, spot deficiencies, and get clear treatment recommendations in seconds. Works with every crop you grow.'}
+                : 'AI-powered crop analysis — identify diseases, spot deficiencies, and get clear treatment recommendations in seconds. Works with every crop you grow.'}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-10">
@@ -525,8 +525,8 @@ export default function Landing() {
             </div>
             <p className="text-[#606659] max-w-xs text-sm leading-relaxed">
               {lang === 'el'
-                ? 'AI γεωπόνος για τον Έλληνα αγρότη. Διάγνωση κάθε καλλιέργειας, θεραπεία, παρακολούθηση — στο κινητό σου.'
-                : 'AI agronomist for Greek farmers. Diagnosis for every crop, treatment, follow-up — on your phone.'}
+                ? 'AI γεωπόνος για κάθε αγρότη. Διάγνωση κάθε καλλιέργειας, θεραπεία, παρακολούθηση — στο κινητό σου.'
+                : 'AI agronomist for every farmer. Diagnosis for every crop, treatment, follow-up — on your phone.'}
             </p>
             <p className="text-[#606659] text-xs opacity-60">
               © 2026 Oli. {lang === 'el' ? 'Με ασφάλεια δεδομένων.' : 'Data encrypted & secure.'}

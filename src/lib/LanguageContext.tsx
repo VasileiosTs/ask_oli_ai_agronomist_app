@@ -3,16 +3,18 @@ import { detectLang, dict, type Lang, type T } from './i18n';
 
 interface LangCtx { lang: Lang; t: T; setLang: (l: Lang) => void; }
 
-const Ctx = createContext<LangCtx>({ lang: 'el', t: dict.el, setLang: () => {} });
+function getInitialLang(): Lang {
+  const manual = localStorage.getItem('oli_lang_manual') as Lang | null;
+  if (manual === 'el' || manual === 'en') return manual;
+  // Use browser language as initial default while async IP detection runs
+  return navigator.language?.startsWith('el') ? 'el' : 'en';
+}
+
+const initialLang = typeof window !== 'undefined' ? getInitialLang() : 'en';
+const Ctx = createContext<LangCtx>({ lang: initialLang, t: dict[initialLang], setLang: () => {} });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    // Manual user choice takes priority
-    const manual = localStorage.getItem('oli_lang_manual') as Lang | null;
-    if (manual === 'el' || manual === 'en') return manual;
-    // Default to Greek while async IP detection runs
-    return 'el';
-  });
+  const [lang, setLangState] = useState<Lang>(getInitialLang);
 
   useEffect(() => {
     detectLang().then(l => setLangState(l));

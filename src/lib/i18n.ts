@@ -286,6 +286,8 @@ export async function detectLang(): Promise<Lang> {
     const lang: Lang = (data.country_code === 'GR' || data.country_code === 'CY') ? 'el' : 'en';
     return lang;
   } catch {
-    return 'el'; // Default Greek for our audience
+    // Fall back to browser language
+    const browserLang = navigator.language?.startsWith('el') ? 'el' : 'en';
+    return browserLang;
   }
 }

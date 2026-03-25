@@ -1,11 +1,21 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://codex-ask-oli-app.vercel.app';
+
+function getCorsHeaders(req?: Request) {
+  const origin = req?.headers.get('Origin') || '';
+  const isAllowed =
+    origin === ALLOWED_ORIGIN ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:');
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGIN,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  };
+}
 
 function requiredEnv(name: string): string {
   const value = Deno.env.get(name);
@@ -14,8 +24,9 @@ function requiredEnv(name: string): string {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: corsHeaders });
+  const cors = getCorsHeaders(req);
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: cors });
 
   try {
     const supabaseUrl = requiredEnv('SUPABASE_URL');
@@ -26,13 +37,13 @@ Deno.serve(async (req) => {
     // Verify auth
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors });
     }
     const token = authHeader.slice(7);
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors });
     }
 
     // Fetch user profile
@@ -43,16 +54,20 @@ Deno.serve(async (req) => {
       .single();
 
     if (!profile?.primary_crop) {
-      return new Response(JSON.stringify({ greeting: null }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ greeting: null }), { headers: cors });
     }
 
-    const lang = profile.language ?? 'el';
-    const month = new Date().toLocaleString(lang === 'el' ? 'el-GR' : 'en-GB', { month: 'long' });
+    const body = await req.json().catch(() => ({}));
+    const lang = profile.language ?? body.lang ?? 'en';
+    const tz = body.timezone || 'UTC';
+    const locale = lang === 'el' ? 'el-GR' : 'en-GB';
+    const month = new Date().toLocaleString(locale, { month: 'long', timeZone: tz });
     const firstName = profile.name?.split(' ')[0] ?? '';
+    const loc = profile.location || '';
 
     const prompt = lang === 'el'
-      ? `Είσαι ο Oli, AI γεωπόνος. Γράψε ΕΝΑ σύντομο εποχιακό χαιρετισμό (1-2 προτάσεις, max 30 λέξεις) για αγρότη${firstName ? ` που λέγεται ${firstName}` : ''} που καλλιεργεί: ${profile.primary_crop}. Τοποθεσία: ${profile.location || 'Ελλάδα'}. Μήνας: ${month}. Δώσε ΜΙΑ συγκεκριμένη αγρονομική συμβουλή ή προειδοποίηση που αφορά ΑΥΤΗ ακριβώς την καλλιέργεια αυτή την εποχή. Μόνο κείμενο, χωρίς JSON.`
-      : `You are Oli, an AI agronomist. Write ONE short seasonal greeting (1-2 sentences, max 30 words) for a farmer${firstName ? ` named ${firstName}` : ''} growing: ${profile.primary_crop}. Location: ${profile.location || 'Greece'}. Month: ${month}. Give ONE specific agronomic tip or warning relevant to THIS crop at this time of year. Plain text only, no JSON.`;
+      ? `Είσαι ο Oli, AI γεωπόνος. Γράψε ΕΝΑ σύντομο εποχιακό χαιρετισμό (1-2 προτάσεις, max 30 λέξεις) για αγρότη${firstName ? ` που λέγεται ${firstName}` : ''} που καλλιεργεί: ${profile.primary_crop}.${loc ? ` Τοποθεσία: ${loc}.` : ''} Μήνας: ${month}. Δώσε ΜΙΑ συγκεκριμένη αγρονομική συμβουλή ή προειδοποίηση που αφορά ΑΥΤΗ ακριβώς την καλλιέργεια αυτή την εποχή. Μόνο κείμενο, χωρίς JSON.`
+      : `You are Oli, an AI agronomist. Write ONE short seasonal greeting (1-2 sentences, max 30 words) for a farmer${firstName ? ` named ${firstName}` : ''} growing: ${profile.primary_crop}.${loc ? ` Location: ${loc}.` : ''} Month: ${month}. Give ONE specific agronomic tip or warning relevant to THIS crop at this time of year. Plain text only, no JSON.`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
@@ -67,7 +82,7 @@ Deno.serve(async (req) => {
     );
 
     if (!response.ok) {
-      return new Response(JSON.stringify({ greeting: null }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ greeting: null }), { headers: cors });
     }
 
     const data = await response.json();
@@ -75,11 +90,11 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ greeting }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...cors, 'Content-Type': 'application/json' } }
     );
 
   } catch (err) {
     console.error('greeting error:', err);
-    return new Response(JSON.stringify({ greeting: null }), { headers: corsHeaders });
+    return new Response(JSON.stringify({ greeting: null }), { headers: getCorsHeaders(req) });
   }
 });

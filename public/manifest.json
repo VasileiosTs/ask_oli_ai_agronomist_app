@@ -1,7 +1,7 @@
 {
-  "name": "Oli — AI Γεωπόνος",
+  "name": "Oli — AI Agronomist",
   "short_name": "Oli",
-  "description": "Ο AI γεωπόνος για τον Έλληνα αγρότη. Διάγνωση κάθε καλλιέργειας, θεραπεία, follow-up.",
+  "description": "AI agronomist for every farmer. Crop disease diagnosis, treatment plans, and intervention tracking.",
   "start_url": "/chat",
   "scope": "/",
   "display": "standalone",
@@ -42,7 +42,7 @@
     }
   ],
   "categories": ["agriculture", "productivity", "utilities"],
-  "lang": "el",
+  "lang": "en",
   "dir": "ltr",
   "prefer_related_applications": false
 }

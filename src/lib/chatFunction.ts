@@ -19,6 +19,8 @@ export interface ChatFunctionRequest {
   conversationId?: string | null;
   userMessageId?: string | null;
   attachmentPaths?: string[];
+  timezone?: string;
+  lang?: string;
 }
 
 export interface ChatFunctionMetadata {
