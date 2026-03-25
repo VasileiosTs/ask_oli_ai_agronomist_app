@@ -50,7 +50,7 @@ const Privacy = () => {
         <p>Η υπηρεσία προορίζεται για χρήστες άνω των 18 ετών.</p>
 
         <h2 className="text-base font-semibold text-foreground mt-4">8. Επικοινωνία</h2>
-        <p>Για θέματα προστασίας δεδομένων: privacy@askoli.gr</p>
+        <p>Για θέματα προστασίας δεδομένων: privacy@askoli.ai</p>
       </div>
     </div>
   );

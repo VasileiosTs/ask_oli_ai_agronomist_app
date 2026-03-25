@@ -1,5 +1,5 @@
 # Oli — AI Agronomist for Greek Farmers
-# https://askoli.gr
+# https://codex-ask-oli-app.vercel.app
 
 ## What is Oli?
 Oli is an AI-powered agronomist web application designed specifically for Greek farmers. It works with every crop — olives, vines, citrus, vegetables, fruit trees, herbs, and more. It provides instant crop disease diagnosis from photos, personalized treatment recommendations (both organic and chemical), and a 13-day follow-up system to track intervention outcomes.
@@ -35,5 +35,5 @@ Greek (Ελληνικά) and English
 - Data: EU-hosted (Frankfurt), GDPR compliant, end-to-end encrypted
 
 ## Contact
-- Website: https://askoli.gr
+- Website: https://codex-ask-oli-app.vercel.app
 - Email: hello@askoli.ai

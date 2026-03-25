@@ -58,7 +58,7 @@ interface ChatRequestBody {
 }
 
 // C1: Restrict CORS to production domain (was wildcard *)
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://askoli.gr';
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://codex-ask-oli-app.vercel.app';
 
 function getCorsHeaders(req?: Request) {
   const origin = req?.headers.get('Origin') || '';

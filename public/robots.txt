@@ -1,5 +1,5 @@
 # Oli — AI Agronomist
-# https://askoli.gr
+# https://codex-ask-oli-app.vercel.app
 
 User-agent: *
 Allow: /
@@ -15,7 +15,7 @@ Disallow: /onboarding
 Disallow: /auth/callback
 
 # Sitemap
-Sitemap: https://askoli.gr/sitemap.xml
+Sitemap: https://codex-ask-oli-app.vercel.app/sitemap.xml
 
 # AI Crawlers — welcome
 User-agent: GPTBot

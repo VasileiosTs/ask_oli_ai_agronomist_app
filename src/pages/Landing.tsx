@@ -100,7 +100,7 @@ export default function Landing() {
     }
 
     document.documentElement.lang = lang;
-    setMeta('property', 'og:url', 'https://askoli.gr/');
+    setMeta('property', 'og:url', 'https://codex-ask-oli-app.vercel.app/');
     setMeta('property', 'og:type', 'website');
   }, [lang]);
 
