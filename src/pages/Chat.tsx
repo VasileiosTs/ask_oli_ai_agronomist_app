@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2, Menu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
+import InstallPrompt from '../components/InstallPrompt';
 import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
@@ -72,6 +74,8 @@ export default function Chat() {
   const recognitionRef = useRef<any>(null);
   const attachmentsRef = useRef(attachments);
   const messagesRef = useRef(messages);
+  /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
+  const loadGenerationRef = useRef(0);
 
   // Only use explicitly selected field — never auto-select.
   // Field context is inferred per-message via extraction, not forced globally.
@@ -757,6 +761,7 @@ let streamedContent = '';
   const clearChat = () => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    loadGenerationRef.current += 1; // L2: invalidate any in-flight conversation loads
     attachments.forEach((attachment) => {
       safeRevokeObjectUrl(attachment.previewUrl);
     });
@@ -784,6 +789,7 @@ let streamedContent = '';
 
   const handleSidebarSelect = async (id: string) => {
     clearChat();
+    const thisGeneration = loadGenerationRef.current;
     setSidebarLoading(true);
     setActiveConversationId(id);
 
@@ -793,6 +799,7 @@ let streamedContent = '';
       .select('field_id')
       .eq('id', id)
       .single();
+    if (loadGenerationRef.current !== thisGeneration) return; // stale load
     if (convData?.field_id) {
       setActiveFieldId(convData.field_id);
     }
@@ -803,7 +810,10 @@ let streamedContent = '';
       .eq('conversation_id', id)
       .order('created_at', { ascending: true })
       .limit(50);
+    if (loadGenerationRef.current !== thisGeneration) return; // stale load
     if (data) {
+      // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
+      const blobUrlsCreated: string[] = [];
       const messages: Message[] = await Promise.all(data.map(async (m: any) => {
         const base: Message = {
           id: m.id, db_id: m.id, role: m.role, content: m.content,
@@ -817,6 +827,7 @@ let streamedContent = '';
           for (const path of m.image_urls) {
             const cached = await getCachedImage(path);
             if (cached) {
+              blobUrlsCreated.push(cached);
               attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
             } else {
               uncached.push(path);
@@ -839,6 +850,11 @@ let streamedContent = '';
         }
         return base;
       }));
+      // L2: If another load/clear happened while we were resolving images, revoke the orphaned blob URLs
+      if (loadGenerationRef.current !== thisGeneration) {
+        blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
+        return;
+      }
       setMessages(messages);
     }
     setSidebarLoading(false);
@@ -875,11 +891,15 @@ let streamedContent = '';
                 isUser ? "rounded-[18px] rounded-br-[4px] bg-primary text-white"
                        : "rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface text-foreground")}>
                 {isUser ? (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap text-base leading-relaxed">{
+                    /* M4: Strip attachment prefix from displayed user messages */
+                    msg.content.replace(/^\[The user attached[^\]]*\]\n?/i, '')
+                  }</p>
                 ) : (
                   <div>
                     <div className="prose prose-sm prose-invert max-w-none">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      {/* M2: Sanitize HTML in AI responses to prevent XSS */}
+                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{msg.content}</ReactMarkdown>
                     </div>
 
                     {/* Treatment cards — organic vs chemical split */}
@@ -1114,18 +1134,32 @@ let streamedContent = '';
         {messages.length === 0 && (
           <div className="md:hidden flex flex-1 flex-col">
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
-              <Leaf className="mb-4 h-12 w-12 text-primary" />
-              <h1 className="mb-2 text-[28px] font-semibold text-primary">Oli</h1>
-              <p className="text-sm text-muted">{t.chatSubtitle}</p>
-              <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3">
+              <Leaf className="mb-3 h-10 w-10 text-primary" />
+              <h1 className="mb-1 text-2xl font-semibold text-primary">Oli</h1>
+              <p className="text-sm text-muted mb-5">{t.chatSubtitle}</p>
+
+              {/* Quick feature hints */}
+              <div className="flex gap-2 mb-5 flex-wrap justify-center">
+                {[
+                  { icon: '📷', label: lang === 'el' ? 'Φωτό' : 'Photo' },
+                  { icon: '🎤', label: lang === 'el' ? 'Φωνή' : 'Voice' },
+                  { icon: '🌿', label: lang === 'el' ? 'Διάγνωση' : 'Diagnose' },
+                ].map((f, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-surface/50 px-3 py-1.5 text-xs text-muted">
+                    <span>{f.icon}</span>{f.label}
+                  </span>
+                ))}
+              </div>
+
+              {/* Suggestion buttons */}
+              <div className="grid w-full max-w-md grid-cols-2 gap-2.5">
                 {t.suggestions.map((sugg, i) => (
                   <button key={i} onClick={() => handleSend(sugg)}
-                    className="rounded-2xl border border-border bg-surface px-4 py-3 text-left text-sm text-foreground transition-transform active:scale-[0.97]">
+                    className="rounded-2xl border border-border/50 bg-surface px-3.5 py-3 text-left text-[13px] leading-snug text-foreground transition-all active:scale-[0.97] hover:border-primary/30">
                     {sugg}
                   </button>
                 ))}
               </div>
-              {/* Badge removed — was showing confusing field context */}
             </div>
             {inputBarJsx}
           </div>
@@ -1154,6 +1188,7 @@ let streamedContent = '';
       </div>
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
+      <InstallPrompt />
 
       {logModalData && user && (
         <LogInterventionModal

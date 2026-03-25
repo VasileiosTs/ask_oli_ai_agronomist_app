@@ -1,11 +1,12 @@
 {
   "name": "Oli — AI Γεωπόνος",
   "short_name": "Oli",
-  "description": "Ο AI γεωπόνος για τον Μεσογειακό αγρότη",
-  "start_url": "/",
+  "description": "Ο AI γεωπόνος για τον Έλληνα αγρότη. Διάγνωση κάθε καλλιέργειας, θεραπεία, follow-up.",
+  "start_url": "/chat",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0D1117",
-  "theme_color": "#0D1117",
+  "background_color": "#faf9f4",
+  "theme_color": "#194121",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -22,10 +23,26 @@
       "src": "/favicon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["agriculture", "productivity"],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Oli AI Agronomist — Crop diagnosis dashboard"
+    }
+  ],
+  "categories": ["agriculture", "productivity", "utilities"],
   "lang": "el",
-  "dir": "ltr"
+  "dir": "ltr",
+  "prefer_related_applications": false
 }

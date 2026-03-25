@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Homepage / Landing -->
+  <url>
+    <loc>https://askoli.gr/</loc>
+    <xhtml:link rel="alternate" hreflang="el" href="https://askoli.gr/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://askoli.gr/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://askoli.gr/" />
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Legal pages -->
+  <url>
+    <loc>https://askoli.gr/legal/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>https://askoli.gr/legal/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Auth page (entry point for new users — indexable for "Oli login" queries) -->
+  <url>
+    <loc>https://askoli.gr/auth</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!--
+    Shared diagnosis pages (/d/:shareId) are dynamically generated.
+    They are public and indexable. Google will discover them via links
+    shared on social media and messaging apps.
+  -->
+
+</urlset>

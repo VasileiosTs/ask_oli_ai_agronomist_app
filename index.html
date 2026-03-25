@@ -3,19 +3,168 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Oli — Ο AI Γεωπόνος σου</title>
-    <meta name="description" content="Διάγνωσε προβλήματα καλλιεργειών, πάρε άμεσες συμβουλές και κράτα ιστορικό παρεμβάσεων. Ο AI γεωπόνος για τον Μεσογειακό αγρότη." />
-    <meta name="theme-color" content="#0D1117" />
-    <meta property="og:title" content="Oli — Ο AI Γεωπόνος σου" />
-    <meta property="og:description" content="Διάγνωσε, θεράπευσε, κατέγραψε. AI αγρονομική συμβουλή για μικρούς παραγωγούς." />
+
+    <!-- Primary SEO -->
+    <title>Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών με Τεχνητή Νοημοσύνη</title>
+    <meta name="description" content="Ο Oli είναι ο AI γεωπόνος σου. Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία, πάρε συμβουλές θεραπείας (βιολογική & χημική) και κατέγραψε παρεμβάσεις. Για κάθε καλλιέργεια — ελιές, αμπέλι, κηπευτικά, δενδρώδεις." />
+    <link rel="canonical" href="https://askoli.gr/" />
+
+    <!-- Language alternates -->
+    <link rel="alternate" hreflang="el" href="https://askoli.gr/" />
+    <link rel="alternate" hreflang="en" href="https://askoli.gr/" />
+    <link rel="alternate" hreflang="x-default" href="https://askoli.gr/" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Oli — AI Γεωπόνος για Έλληνες Αγρότες" />
+    <meta property="og:description" content="Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία σε δευτερόλεπτα. Για κάθε καλλιέργεια. Βιολογικές & χημικές θεραπείες με ακριβή δοσολογία." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/favicon-512.png" />
+    <meta property="og:url" content="https://askoli.gr/" />
+    <meta property="og:image" content="https://askoli.gr/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Oli — AI crop diagnosis for Mediterranean farmers" />
+    <meta property="og:locale" content="el_GR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:site_name" content="Oli" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών" />
+    <meta name="twitter:description" content="Διάγνωσε ασθένειες κάθε καλλιέργειας από φωτογραφία. AI γεωπόνος για Έλληνες αγρότες." />
+    <meta name="twitter:image" content="https://askoli.gr/og-image.png" />
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#194121" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="author" content="Oli — AI Agronomist" />
+    <meta name="keywords" content="AI γεωπόνος, διάγνωση ασθενειών, ελιά, αμπέλι, εσπεριδοειδή, ντομάτα, κηπευτικά, δενδρώδεις, crop disease diagnosis, olive tree, tomato, vegetables, Greek agriculture, plant disease AI, φυτοπροστασία" />
+    <meta name="geo.region" content="GR" />
+    <meta name="geo.placename" content="Greece" />
+
+    <!-- JSON-LD Structured Data: Organization + SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://askoli.gr/#organization",
+          "name": "Oli",
+          "url": "https://askoli.gr",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://askoli.gr/favicon-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "description": "AI agronomist for Greek farmers. Crop disease diagnosis for every crop, treatment plans, and intervention tracking.",
+          "areaServed": {
+            "@type": "Place",
+            "name": "Greece"
+          },
+          "knowsAbout": [
+            "Olive tree diseases",
+            "Vineyard management",
+            "Citrus crop protection",
+            "Vegetable crop diseases",
+            "Fruit tree pathology",
+            "Greek agriculture",
+            "Plant pathology",
+            "Integrated pest management"
+          ]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://askoli.gr/#app",
+          "name": "Oli — AI Agronomist",
+          "alternateName": "Oli AI Γεωπόνος",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Agriculture",
+          "operatingSystem": "Web",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR",
+            "description": "Free tier: 20 questions per month"
+          },
+          "featureList": [
+            "AI crop disease diagnosis from photos",
+            "Organic and chemical treatment recommendations",
+            "Intervention logging and 13-day follow-up",
+            "Voice input in Greek and English",
+            "450+ identifiable crop diseases"
+          ],
+          "screenshot": "https://askoli.gr/og-image.png",
+          "inLanguage": ["el", "en"],
+          "creator": {
+            "@id": "https://askoli.gr/#organization"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://askoli.gr/#website",
+          "name": "Oli",
+          "url": "https://askoli.gr",
+          "inLanguage": ["el", "en"],
+          "publisher": {
+            "@id": "https://askoli.gr/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://askoli.gr/auth",
+            "query-input": "required"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://askoli.gr/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Τι κάνει ο Oli;",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Ο Oli είναι ένας AI γεωπόνος που διαγιγνώσκει ασθένειες καλλιεργειών από φωτογραφία ή περιγραφή. Δίνει βιολογικές και χημικές θεραπείες με ακριβή δοσολογία, και παρακολουθεί τα αποτελέσματα με follow-up σε 13 ημέρες."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What crops does Oli support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Oli works with every crop Greek farmers grow — olive trees, vineyards, citrus, tomatoes, peppers, cucumbers, potatoes, stone fruits, herbs, and more. It can identify 450+ diseases, pests, and nutrient deficiencies."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Είναι δωρεάν ο Oli;",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Ναι, ο Oli προσφέρει 20 δωρεάν ερωτήσεις τον μήνα χωρίς πιστωτική κάρτα. Η Pro έκδοση προσφέρει απεριόριστες ερωτήσεις."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How accurate is Oli's diagnosis?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Oli uses Google Gemini AI trained on agricultural data to provide high-confidence diagnoses. It always recommends consulting a certified agronomist before applying chemical treatments."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Oli" />
+
+    <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />

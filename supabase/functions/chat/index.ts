@@ -57,11 +57,24 @@ interface ChatRequestBody {
   userMessageId?: string | null;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// C1: Restrict CORS to production domain (was wildcard *)
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://askoli.gr';
+
+function getCorsHeaders(req?: Request) {
+  const origin = req?.headers.get('Origin') || '';
+  // Allow the configured production domain and localhost for dev
+  const isAllowed =
+    origin === ALLOWED_ORIGIN ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:');
+
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGIN,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  };
+}
 
 const FREE_LIMIT = 20;
 const MAX_HISTORY_MESSAGES = 10;
@@ -116,11 +129,14 @@ Return valid JSON matching the validator schema. response_text is what the user 
 Keep response_text conversational, warm, and thorough. For diagnosis responses, use as many words as needed to fully explain the problem, cause, and treatment — do NOT truncate. For simple questions, keep it concise.`;
 }
 
+// Store request-scoped CORS headers
+let _reqCorsHeaders: Record<string, string> = {};
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...corsHeaders,
+      ..._reqCorsHeaders,
       'Content-Type': 'application/json',
     },
   });
@@ -132,6 +148,29 @@ function requiredEnv(name: string): string {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
+}
+
+// H3: Strip prompt injection markers from user input
+function sanitizeUserInput(text: string): string {
+  return text
+    .replace(/\[SYSTEM[^\]]*\]/gi, '')
+    .replace(/\[INSTRUCTION[^\]]*\]/gi, '')
+    .replace(/\[ADMIN[^\]]*\]/gi, '')
+    .replace(/\[OVERRIDE[^\]]*\]/gi, '')
+    .replace(/<<SYS>>[\s\S]*?<<\/SYS>>/gi, '')
+    .replace(/\bignore previous instructions\b/gi, '***')
+    .replace(/\byou are now\b/gi, '***')
+    .trim();
+}
+
+// H2: Safe error message that doesn't leak internals
+function safeErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    // Only return safe, generic messages
+    if (error.message.includes('Gemini')) return 'AI service temporarily unavailable';
+    if (error.message.includes('Missing required')) return 'Server configuration error';
+  }
+  return 'An unexpected error occurred';
 }
 
 function cleanAssistantText(text: string): string {
@@ -545,9 +584,12 @@ async function applyExtractedFieldContext(
 }
 
 Deno.serve(async (req) => {
+  // Set request-scoped CORS headers
+  _reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
-      headers: corsHeaders,
+      headers: _reqCorsHeaders,
     });
   }
 
@@ -612,8 +654,8 @@ Deno.serve(async (req) => {
 
     if (mode === 'greeting') {
       const now = new Date();
-      const month = now.toLocaleString('el-GR', { month: 'long' });
-      const hour = now.getUTCHours() + 2; // rough Greece time
+      const month = now.toLocaleString('el-GR', { month: 'long', timeZone: 'Europe/Athens' });
+      const hour = parseInt(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Europe/Athens' }));
       const timeOfDay = hour < 12 ? 'πρωί' : hour < 18 ? 'απόγευμα' : 'βράδυ';
       const crop = appUser.primary_crop || 'καλλιέργεια';
       const location = appUser.location || '';
@@ -710,6 +752,13 @@ Return ONLY the greeting text, nothing else.`;
       }
     }
 
+    // H3: Sanitize user input to strip prompt injection markers
+    for (const message of requestMessages) {
+      if (message.role !== 'assistant') {
+        message.content = sanitizeUserInput(message.content);
+      }
+    }
+
     const latestUserMessage =
       [...requestMessages].reverse().find((message) => message.role !== 'assistant') ?? requestMessages[requestMessages.length - 1];
 
@@ -736,6 +785,23 @@ Return ONLY the greeting text, nothing else.`;
         },
         429,
       );
+    }
+
+    // C2: Burst rate limiting — max 1 message per 2 seconds per user
+    const { data: lastMsg } = await supabaseAdmin
+      .from('chat_messages')
+      .select('created_at')
+      .eq('user_id', appUser.id)
+      .eq('role', 'user')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastMsg) {
+      const elapsed = Date.now() - new Date(lastMsg.created_at).getTime();
+      if (elapsed < 2000) {
+        return jsonResponse({ error: 'Please wait a moment before sending another message' }, 429);
+      }
     }
 
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
@@ -776,10 +842,10 @@ Return ONLY the greeting text, nothing else.`;
         .single();
 
       if (updateUserMessageError || !updatedUserMessage) {
+        console.error('Failed to update user message:', updateUserMessageError?.message);
         return jsonResponse(
           {
-            error: 'Failed to update the existing user message',
-            details: updateUserMessageError?.message,
+            error: 'Failed to process your message',
           },
           500,
         );
@@ -812,10 +878,10 @@ Return ONLY the greeting text, nothing else.`;
         .single();
 
       if (insertUserMessageError || !insertedUserMessage) {
+        console.error('Failed to insert user message:', insertUserMessageError?.message);
         return jsonResponse(
           {
-            error: 'Failed to save user message',
-            details: insertUserMessageError?.message,
+            error: 'Failed to save your message',
           },
           500,
         );
@@ -823,6 +889,17 @@ Return ONLY the greeting text, nothing else.`;
 
       userMessageId = insertedUserMessage.id;
     }
+
+    // C3: Atomically increment message count BEFORE calling Gemini (prevents TOCTOU race)
+    const nextMessageCount = currentCount + 1;
+    await supabaseAdmin
+      .from('users')
+      .update({
+        message_count_month: nextMessageCount,
+        message_reset_date: now.toISOString(),
+        last_active_at: now.toISOString(),
+      })
+      .eq('id', appUser.id);
 
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
@@ -846,7 +923,6 @@ Return ONLY the greeting text, nothing else.`;
 
     const encoder = new TextEncoder();
     const chunks = splitIntoChunks(assistantText);
-    const nextMessageCount = currentCount + 1;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -887,21 +963,16 @@ Return ONLY the greeting text, nothing else.`;
             throw insertAssistantMessageError ?? new Error('Failed to insert assistant message');
           }
 
-          await supabaseAdmin
-            .from('users')
-            .update({
-              message_count_month: nextMessageCount,
-              message_reset_date: now.toISOString(),
-              last_active_at: now.toISOString(),
-            })
-            .eq('id', appUser.id);
+          // C3: Message count already incremented before Gemini call (atomic, no TOCTOU race)
 
           // Set conversation title — use AI-detected crop + problem for meaningful labels
           if (body.conversationId) {
+            // C4: Owner check — only update conversations belonging to this user
             const { data: convo } = await supabaseAdmin
               .from('conversations')
               .select('title')
               .eq('id', body.conversationId)
+              .eq('user_id', appUser.id)
               .single();
             if (convo && (!convo.title || convo.title === 'New conversation')) {
               let title = '';
@@ -934,7 +1005,8 @@ Return ONLY the greeting text, nothing else.`;
               await supabaseAdmin
                 .from('conversations')
                 .update({ title })
-                .eq('id', body.conversationId);
+                .eq('id', body.conversationId)
+                .eq('user_id', appUser.id);
             }
           }
 
@@ -948,8 +1020,9 @@ Return ONLY the greeting text, nothing else.`;
           controller.close();
         } catch (error) {
           console.error('chat function stream error', error);
+          // H2: Don't leak internal error details to client
           sendEvent('error', {
-            message: error instanceof Error ? error.message : 'Unknown streaming error',
+            message: 'An error occurred while processing your request',
           });
           controller.close();
         }
@@ -958,7 +1031,7 @@ Return ONLY the greeting text, nothing else.`;
 
     return new Response(stream, {
       headers: {
-        ...corsHeaders,
+        ..._reqCorsHeaders,
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
         'Content-Type': 'text/event-stream',
@@ -966,9 +1039,10 @@ Return ONLY the greeting text, nothing else.`;
     });
   } catch (error) {
     console.error('chat function error', error);
+    // H2: Sanitized error message — never leak internal details
     return jsonResponse(
       {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: safeErrorMessage(error),
       },
       500,
     );

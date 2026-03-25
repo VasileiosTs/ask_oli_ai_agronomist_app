@@ -69,36 +69,69 @@ export async function deleteCachedImage(key: string): Promise<void> {
  * Compress an image File to max 1000×1000, JPEG 80%.
  * Ported from PlantPal — reduces payload for slow rural connections.
  */
+/**
+ * Compress an image File to max 1000×1000, JPEG 80%.
+ * L1: Proper error handling with reject + fallback for all failure modes.
+ */
 export function compressImage(file: File): Promise<{ blob: Blob; base64: string; mimeType: string }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const fallback = () => {
+      // If anything fails, try to return the original file as-is
+      const fallbackReader = new FileReader();
+      fallbackReader.onloadend = () => {
+        const b64 = (fallbackReader.result as string)?.split(',')[1];
+        if (b64) {
+          resolve({ blob: file, base64: b64, mimeType: file.type });
+        } else {
+          reject(new Error('Failed to read image file'));
+        }
+      };
+      fallbackReader.onerror = () => reject(new Error('Failed to read image file'));
+      fallbackReader.readAsDataURL(file);
+    };
+
     const reader = new FileReader();
     reader.onloadend = () => {
       const src = reader.result as string;
+      if (!src) { fallback(); return; }
+
       const img = new Image();
       img.onload = () => {
-        const MAX = 1000;
-        let w = img.width, h = img.height;
-        if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
-        else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) { resolve({ blob: file, base64: src.split(',')[1], mimeType: file.type }); return; }
-            const fr = new FileReader();
-            fr.onloadend = () => {
-              const b64 = (fr.result as string).split(',')[1];
-              resolve({ blob, base64: b64, mimeType: 'image/jpeg' });
-            };
-            fr.readAsDataURL(blob);
-          },
-          'image/jpeg', 0.8
-        );
+        try {
+          const MAX = 1000;
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+          else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { fallback(); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) { resolve({ blob: file, base64: src.split(',')[1], mimeType: file.type }); return; }
+              const fr = new FileReader();
+              fr.onloadend = () => {
+                const b64 = (fr.result as string)?.split(',')[1];
+                if (b64) {
+                  resolve({ blob, base64: b64, mimeType: 'image/jpeg' });
+                } else {
+                  fallback();
+                }
+              };
+              fr.onerror = () => fallback();
+              fr.readAsDataURL(blob);
+            },
+            'image/jpeg', 0.8
+          );
+        } catch {
+          fallback();
+        }
       };
-      img.onerror = () => resolve({ blob: file, base64: src.split(',')[1], mimeType: file.type });
+      img.onerror = () => fallback();
       img.src = src;
     };
+    reader.onerror = () => fallback();
     reader.readAsDataURL(file);
   });
 }

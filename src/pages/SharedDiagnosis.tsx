@@ -67,6 +67,52 @@ export default function SharedDiagnosis() {
       document.head.appendChild(twitterCard);
     }
     twitterCard.setAttribute('content', 'summary_large_image');
+
+    // Canonical URL
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', `${origin}/d/${shareId}`);
+
+    // JSON-LD structured data for rich search results
+    const existingLd = document.querySelector('script[data-oli-ld]');
+    if (existingLd) existingLd.remove();
+    const ldScript = document.createElement('script');
+    ldScript.type = 'application/ld+json';
+    ldScript.setAttribute('data-oli-ld', 'true');
+    ldScript.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: title,
+      description: description,
+      image: ogImageUrl,
+      url: `${origin}/d/${shareId}`,
+      author: {
+        '@type': 'Organization',
+        name: 'Oli — AI Agronomist',
+        url: origin,
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: 'Oli',
+        logo: { '@type': 'ImageObject', url: `${origin}/favicon-512.png` },
+      },
+      about: {
+        '@type': 'Thing',
+        name: data.crop_type || 'Crop',
+        description: `${data.problem || 'Crop issue'} — ${data.cause || 'AI diagnosis'}`,
+      },
+      inLanguage: 'el',
+    });
+    document.head.appendChild(ldScript);
+
+    return () => {
+      const ld = document.querySelector('script[data-oli-ld]');
+      if (ld) ld.remove();
+    };
   }, [data, shareId]);
 
   if (loading) return (

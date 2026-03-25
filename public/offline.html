@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oli — Εκτός σύνδεσης</title>
+  <meta name="theme-color" content="#194121" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf9f4;
+      color: #1b1c19;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+      text-align: center;
+    }
+    .container { max-width: 360px; }
+    .icon {
+      width: 72px; height: 72px;
+      background: #194121;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .icon svg { width: 36px; height: 36px; color: #c0eec0; }
+    h1 {
+      font-size: 22px; font-weight: 700;
+      color: #194121; margin-bottom: 8px;
+    }
+    p {
+      font-size: 15px; color: #5a6053;
+      line-height: 1.5; margin-bottom: 24px;
+    }
+    button {
+      background: #194121; color: white;
+      border: none; border-radius: 999px;
+      padding: 14px 32px; font-size: 15px;
+      font-weight: 600; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    .wifi-off {
+      width: 48px; height: 48px; opacity: 0.15;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 20A7 7 0 0 1 9.8 6.29C15.52 5.2 17.82 2 17.82 2S20 6.18 20 9.5A8.5 8.5 0 0 1 11 20Z"/>
+        <path d="M6.6 18.4A4 4 0 0 1 4 14c0-2.21 1.79-5 4-5"/>
+      </svg>
+    </div>
+
+    <h1>Εκτός σύνδεσης</h1>
+    <p>Ο Oli χρειάζεται σύνδεση στο internet για να λειτουργήσει. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.</p>
+
+    <button onclick="window.location.reload()">Δοκίμασε ξανά</button>
+  </div>
+</body>
+</html>

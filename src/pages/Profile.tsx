@@ -76,15 +76,39 @@ export default function Profile() {
     await supabase.from('users').update({ [field]: newVal }).eq('id', appUserId);
   };
 
+  /** Fetch all rows from a table with pagination (Supabase default limit is 1000). */
+  const fetchAllRows = async (table: string, userId: string) => {
+    const PAGE_SIZE = 1000;
+    const allRows: Record<string, unknown>[] = [];
+    let from = 0;
+    let keepGoing = true;
+    while (keepGoing) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at')
+        .range(from, from + PAGE_SIZE - 1);
+      if (error || !data || data.length === 0) {
+        keepGoing = false;
+      } else {
+        allRows.push(...data);
+        if (data.length < PAGE_SIZE) keepGoing = false;
+        else from += PAGE_SIZE;
+      }
+    }
+    return allRows;
+  };
+
   const exportData = async () => {
     if (!appUserId) return;
     setExporting(true);
-    const [msgs, ints] = await Promise.all([
-      supabase.from('chat_messages').select('*').eq('user_id', appUserId).order('created_at'),
-      supabase.from('interventions').select('*').eq('user_id', appUserId).order('created_at'),
+    const [messages, interventions] = await Promise.all([
+      fetchAllRows('chat_messages', appUserId),
+      fetchAllRows('interventions', appUserId),
     ]);
     const blob = new Blob([
-      JSON.stringify({ profile: currentProfile, messages: msgs.data, interventions: ints.data }, null, 2)
+      JSON.stringify({ profile: currentProfile, messages, interventions }, null, 2)
     ], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -109,9 +133,16 @@ export default function Profile() {
         .remove(files.map(f => `${user.id}/${f.name}`));
     }
 
-    // 2. Delete DB rows
+    // 2. Delete ALL DB rows (H1: Complete GDPR deletion — all user tables)
     await supabase.from('chat_messages').delete().eq('user_id', appUserId);
     await supabase.from('interventions').delete().eq('user_id', appUserId);
+    await supabase.from('memory_snapshots').delete().eq('user_id', appUserId);
+    await supabase.from('crops').delete().in(
+      'field_id',
+      (await supabase.from('fields').select('id').eq('user_id', appUserId)).data?.map((f: { id: string }) => f.id) || []
+    );
+    await supabase.from('conversations').delete().eq('user_id', appUserId);
+    await supabase.from('fields').delete().eq('user_id', appUserId);
     await supabase.from('users').delete().eq('id', appUserId);
 
     // 3. Sign out

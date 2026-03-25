@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -14,8 +15,8 @@ const PROBLEMS = (lang: string) => [
     icon: 'eco',
     title: lang === 'el' ? 'Κιτρίνισμα Φύλλων' : 'Leaf Yellowing',
     body: lang === 'el'
-      ? 'Αναγνώρισε αν είναι έλλειψη αζώτου, μυκητολογικό πρόβλημα ή ριζόσηψη — πριν χαθεί η σοδειά.'
-      : 'Instantly distinguish between nitrogen deficiency, fungal disease, or root rot — before yield loss.',
+      ? 'Αναγνώρισε αν είναι έλλειψη αζώτου, μυκητολογικό πρόβλημα ή ριζόσηψη — σε κάθε καλλιέργεια.'
+      : 'Instantly distinguish between nitrogen deficiency, fungal disease, or root rot — in any crop.',
   },
   {
     icon: 'coronavirus',
@@ -28,8 +29,8 @@ const PROBLEMS = (lang: string) => [
     icon: 'bug_report',
     title: lang === 'el' ? 'Παράσιτα & Έντομα' : 'Pests & Insects',
     body: lang === 'el'
-      ? 'Δάκος, πυρηνοτρήτης, αφίδες — αναγνώριση και σχέδιο αντιμετώπισης σε δευτερόλεπτα.'
-      : 'Olive fly, codling moth, aphids — identification and treatment plan in seconds.',
+      ? 'Δάκος, αφίδες, τούτα, αλευρώδης — αναγνώριση και σχέδιο αντιμετώπισης σε δευτερόλεπτα.'
+      : 'Olive fly, aphids, tuta absoluta, whitefly — identification and treatment plan in seconds.',
   },
   {
     icon: 'water_drop',
@@ -71,6 +72,37 @@ export default function Landing() {
   const { user, profile } = useAuth();
   const isLoggedIn = !!(user && profile);
   const { lang, setLang } = useLanguage();
+
+  // Dynamic SEO meta tags based on language
+  useEffect(() => {
+    const setMeta = (attr: string, key: string, content: string) => {
+      let el = document.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    if (lang === 'el') {
+      document.title = 'Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών με Τεχνητή Νοημοσύνη';
+      setMeta('name', 'description', 'Ο Oli είναι ο AI γεωπόνος σου. Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία, πάρε συμβουλές θεραπείας (βιολογική & χημική) και κατέγραψε παρεμβάσεις. Για κάθε καλλιέργεια — ελιές, αμπέλι, κηπευτικά, δενδρώδεις.');
+      setMeta('property', 'og:title', 'Oli — AI Γεωπόνος για Έλληνες Αγρότες');
+      setMeta('property', 'og:description', 'Διάγνωσε ασθένειες καλλιεργειών από φωτογραφία σε δευτερόλεπτα. Για κάθε καλλιέργεια. Βιολογικές & χημικές θεραπείες με ακριβή δοσολογία.');
+      setMeta('property', 'og:locale', 'el_GR');
+    } else {
+      document.title = 'Oli — AI Agronomist | Crop Disease Diagnosis for Greek Farmers';
+      setMeta('name', 'description', 'Oli is your AI agronomist. Diagnose crop diseases from a photo, get organic & chemical treatment plans with exact dosages, and track interventions. Works with every crop — olives, vines, vegetables, fruit trees.');
+      setMeta('property', 'og:title', 'Oli — AI Agronomist for Greek Farmers');
+      setMeta('property', 'og:description', 'Diagnose crop diseases from a photo in seconds. Works with every crop. Organic & chemical treatments with exact dosages. 20 free questions/month.');
+      setMeta('property', 'og:locale', 'en_US');
+    }
+
+    document.documentElement.lang = lang;
+    setMeta('property', 'og:url', 'https://askoli.gr/');
+    setMeta('property', 'og:type', 'website');
+  }, [lang]);
 
   return (
     <div className="min-h-screen bg-[#faf9f4] text-[#1b1c19] overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -126,8 +158,8 @@ export default function Landing() {
 
             <p className="text-base md:text-lg text-[#5a6053] mb-8 max-w-lg leading-relaxed">
               {lang === 'el'
-                ? 'Φωτογράφισε ή περίγραψε τι βλέπεις στο χωράφι. Σε δευτερόλεπτα μαθαίνεις τι έχει, γιατί, και τι ακριβώς να κάνεις. Για ελιές, αμπέλι, εσπεριδοειδή — ό,τι καλλιεργείς.'
-                : 'AI-powered crop analysis for Mediterranean growers — identify diseases, spot deficiencies, and get clear treatment recommendations in seconds. For olives, citrus, vines, and more.'}
+                ? 'Φωτογράφισε ή περίγραψε τι βλέπεις στο χωράφι. Σε δευτερόλεπτα μαθαίνεις τι έχει, γιατί, και τι ακριβώς να κάνεις. Ό,τι κι αν καλλιεργείς.'
+                : 'AI-powered crop analysis for Greek farmers — identify diseases, spot deficiencies, and get clear treatment recommendations in seconds. Works with every crop you grow.'}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-10">
@@ -260,8 +292,8 @@ export default function Landing() {
                 </h3>
                 <p className="text-white/80 max-w-md text-sm md:text-base">
                   {lang === 'el'
-                    ? 'Η AI του Oli αναγνωρίζει εκατοντάδες ασθένειες σε ελιές, αμπέλια, εσπεριδοειδή και δεκάδες Μεσογειακές καλλιέργειες.'
-                    : 'Oli\'s AI identifies hundreds of diseases across olives, vines, citrus, and dozens of Mediterranean crops.'}
+                    ? 'Η AI του Oli αναγνωρίζει εκατοντάδες ασθένειες σε κάθε καλλιέργεια — ελιές, αμπέλια, κηπευτικά, δενδρώδεις, αρωματικά φυτά.'
+                    : 'Oli\'s AI identifies hundreds of diseases across every crop — olives, vines, vegetables, fruit trees, herbs, and more.'}
                 </p>
               </div>
             </div>
@@ -291,8 +323,8 @@ export default function Landing() {
                 </h3>
                 <p className="text-sm text-[#5a6053]">
                   {lang === 'el'
-                    ? 'Πρώιμη ανίχνευση δάκου, αφίδων και ακάρεων πριν τη μαζική προσβολή.'
-                    : 'Early detection of olive fly, aphids, and mites before colony establishment.'}
+                    ? 'Πρώιμη ανίχνευση δάκου, αφίδων, τούτα, αλευρώδη πριν τη μαζική προσβολή.'
+                    : 'Early detection of olive fly, aphids, tuta absoluta, and whitefly before colony establishment.'}
                 </p>
               </div>
             </div>
@@ -493,8 +525,8 @@ export default function Landing() {
             </div>
             <p className="text-[#606659] max-w-xs text-sm leading-relaxed">
               {lang === 'el'
-                ? 'AI γεωπόνος για τον Μεσογειακό αγρότη. Διάγνωση, θεραπεία, παρακολούθηση — στο κινητό σου.'
-                : 'AI agronomist for the Mediterranean farmer. Diagnosis, treatment, follow-up — on your phone.'}
+                ? 'AI γεωπόνος για τον Έλληνα αγρότη. Διάγνωση κάθε καλλιέργειας, θεραπεία, παρακολούθηση — στο κινητό σου.'
+                : 'AI agronomist for Greek farmers. Diagnosis for every crop, treatment, follow-up — on your phone.'}
             </p>
             <p className="text-[#606659] text-xs opacity-60">
               © 2026 Oli. {lang === 'el' ? 'Με ασφάλεια δεδομένων.' : 'Data encrypted & secure.'}

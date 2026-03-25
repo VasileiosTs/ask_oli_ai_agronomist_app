@@ -1,6 +1,12 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useCallback, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+
+/** L6: Inactivity timeout — auto-logout after 30 minutes of no user interaction. */
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
+  'mousedown', 'keydown', 'touchstart', 'scroll', 'pointermove',
+];
 
 export interface UserProfile {
   id: string;
@@ -33,6 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /** Fields that should never be stored in client-side state (L5). */
+  const REDACTED_FIELDS = ['stripe_customer_id'];
+
   const fetchProfile = async (authUserId: string): Promise<void> => {
     try {
       const { data } = await supabase
@@ -40,6 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('*')
         .eq('auth_id', authUserId)
         .maybeSingle();
+      if (data) {
+        // L5: Strip sensitive fields that the client never needs
+        for (const field of REDACTED_FIELDS) delete (data as Record<string, unknown>)[field];
+      }
       setProfile((data as UserProfile | null) ?? null);
     } catch (e) {
       console.error('fetchProfile error:', e);
@@ -95,6 +108,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // L6: Inactivity auto-logout — reset timer on any user interaction
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logoutRef = useRef(logout);
+  logoutRef.current = logout;
+
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      logoutRef.current();
+    }, INACTIVITY_TIMEOUT_MS);
+  }, []);
+
+  useEffect(() => {
+    // Only track inactivity when a user is logged in
+    if (!session) {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      return;
+    }
+
+    resetInactivityTimer();
+
+    const handler = () => resetInactivityTimer();
+    for (const evt of ACTIVITY_EVENTS) {
+      window.addEventListener(evt, handler, { passive: true });
+    }
+
+    return () => {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      for (const evt of ACTIVITY_EVENTS) {
+        window.removeEventListener(evt, handler);
+      }
+    };
+  }, [session, resetInactivityTimer]);
 
   const refreshProfile = async () => {
     if (user) await fetchProfile(user.id);
