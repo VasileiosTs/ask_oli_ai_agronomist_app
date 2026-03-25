@@ -12,6 +12,15 @@ export default function Auth() {
   const [error, setError] = useState('');
   const { t, lang } = useLanguage();
 
+  // Capture referral share ID from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('oli_referral', ref);
+    }
+  }, []);
+
   // SEO: noindex for auth page, set proper title
   useEffect(() => {
     document.title = lang === 'el' ? 'Σύνδεση — Oli' : 'Sign in — Oli';

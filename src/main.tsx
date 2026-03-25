@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { AuthProvider } from './hooks/useAuth';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initSentry } from './lib/sentry';
+import { initAnalytics } from './lib/analytics';
 import App from './App.tsx';
 import './index.css';
 
 initSentry();
+initAnalytics();
 
 // Register service worker for PWA install + offline fallback
 if ('serviceWorker' in navigator) {

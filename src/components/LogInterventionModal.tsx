@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/LanguageContext';
+import { trackEvent, Events } from '../lib/analytics';
 
 interface Props {
   isOpen: boolean;
@@ -53,10 +54,15 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
 
   const handleFollowUp = async (yes: boolean) => {
     if (yes && interventionId) {
+      // VIO multi-step: first check-in at 3 days ("did you apply?")
       const followUp = new Date();
-      followUp.setDate(followUp.getDate() + 13);
-      await supabase.from('interventions').update({ follow_up_at: followUp.toISOString() }).eq('id', interventionId);
+      followUp.setDate(followUp.getDate() + 3);
+      await supabase.from('interventions').update({
+        follow_up_at: followUp.toISOString(),
+        vio_step: 1,
+      }).eq('id', interventionId);
     }
+    trackEvent(Events.INTERVENTION_LOGGED, { withFollowUp: yes });
     onSuccess(interventionId!);
     onClose();
   };

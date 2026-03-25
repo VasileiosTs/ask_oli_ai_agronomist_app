@@ -2,7 +2,8 @@
 // Edge function has its own copy (separate Deno runtime)
 
 export const FREE_MESSAGE_LIMIT = 20;    // messages per month on free tier
-export const FOLLOW_UP_DAYS = 13;        // days after intervention to follow up
+export const VIO_STEP1_DAYS = 3;         // days after logging → "did you apply?"
+export const VIO_STEP2_DAYS = 3;         // days after apply confirm → "any improvement?"
 export const MAX_ATTACHMENTS = 3;        // max files per message
 export const MAX_CONVERSATION_HISTORY = 10; // messages sent to AI context
 export const SIGNED_URL_EXPIRY = 3600;   // seconds (1 hour) for storage signed URLs

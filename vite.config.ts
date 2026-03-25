@@ -17,6 +17,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           supabase: ['@supabase/supabase-js'],
           ui: ['lucide-react', 'clsx', 'react-markdown'],
+          analytics: ['posthog-js'],
         },
       },
     },

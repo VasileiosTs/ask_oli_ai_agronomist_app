@@ -239,7 +239,7 @@ export default function SharedDiagnosis() {
               : 'Oli diagnoses crop problems from a photo in seconds. Free for the first 20 questions.'}
           </p>
           <Link
-            to="/"
+            to={`/auth?ref=${shareId}`}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2EA043] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
             {lang === 'el' ? 'Δοκίμασε το Oli δωρεάν' : 'Try Oli for free'}

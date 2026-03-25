@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import { trackEvent, identifyUser, Events } from '../lib/analytics';
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -63,7 +64,10 @@ export default function Onboarding() {
       }
     } catch { /* geocoding is optional */ }
 
-    const payload = {
+    // Check for referral from shared diagnosis
+    const referral = localStorage.getItem('oli_referral');
+
+    const payload: Record<string, unknown> = {
       auth_id: user.id,
       name: name.trim(),
       location: location.trim(),
@@ -72,6 +76,10 @@ export default function Onboarding() {
       primary_crop: finalCrops.join(', '),
       onboarding_complete: true,
     };
+    if (referral) {
+      payload.referred_by_share_id = referral;
+      localStorage.removeItem('oli_referral');
+    }
 
     const { error: upsertError } = await supabase
       .from('users')
@@ -83,6 +91,11 @@ export default function Onboarding() {
       setLoading(false);
       return;
     }
+
+    // Analytics: identify user and track signup
+    identifyUser(user.id, { name: name.trim(), location: location.trim(), crops: finalCrops.join(', ') });
+    trackEvent(Events.SIGNUP, { crops: finalCrops, location: location.trim() });
+    if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
 
     // Refresh auth context so App.tsx routing sees the new profile
     await refreshProfile();

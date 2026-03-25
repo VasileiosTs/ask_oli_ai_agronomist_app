@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useCallback, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { identifyUser, resetAnalytics, trackEvent, Events } from '../lib/analytics';
 
 /** L6: Inactivity timeout — auto-logout after 30 minutes of no user interaction. */
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
@@ -96,8 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
+          if (event === 'SIGNED_IN') {
+            identifyUser(session.user.id, { email: session.user.email });
+            trackEvent(Events.LOGIN);
+          }
         } else {
           setProfile(null);
+          resetAnalytics();
         }
         setLoading(false);
       }

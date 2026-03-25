@@ -13,9 +13,11 @@ import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage, getCachedImage } from '../lib/imageCache';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import clsx from 'clsx';
+import { trackEvent, Events } from '../lib/analytics';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY, FOLLOW_UP_DAYS } from "../lib/constants";
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY } from "../lib/constants";
 
 interface MessageAttachment {
   url: string;
@@ -118,10 +120,55 @@ export default function Chat() {
     showToast(newStarred ? t.savedMessage : t.removedMessage);
   };
 
+  const handleVioApplyConfirm = async (interventionId: string, applied: boolean, msgId: string) => {
+    if (!appUserId) return;
+    if (applied) {
+      // User confirmed they applied treatment → advance to step 2, check improvements in 3 days
+      const nextFollowUp = new Date();
+      nextFollowUp.setDate(nextFollowUp.getDate() + 3);
+      await supabase.from('interventions').update({
+        applied_confirmed: true,
+        vio_step: 2,
+        follow_up_at: nextFollowUp.toISOString(),
+      }).eq('id', interventionId);
+
+      const confirmMsg: Message = {
+        id: `vio-applied-${Date.now()}`,
+        role: 'assistant',
+        content: lang === 'el'
+          ? 'Τέλεια! Θα σε ρωτήσω σε 3 μέρες αν βλέπεις βελτίωση.'
+          : "Great! I'll check back in 3 days to see if you notice any improvement.",
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
+      trackEvent(Events.VIO_APPLIED_CONFIRMED, { interventionId });
+    } else {
+      // User didn't apply → close the loop, no further follow-ups
+      await supabase.from('interventions').update({
+        applied_confirmed: false,
+        vio_step: 3,
+        outcome: 'not_applied',
+        outcome_recorded_at: new Date().toISOString(),
+      }).eq('id', interventionId);
+
+      const confirmMsg: Message = {
+        id: `vio-not-applied-${Date.now()}`,
+        role: 'assistant',
+        content: lang === 'el'
+          ? 'Εντάξει, κανένα πρόβλημα. Αν χρειαστείς βοήθεια στο μέλλον, είμαι εδώ!'
+          : "No worries! If you need help in the future, I'm here.",
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
+    }
+    showToast(lang === 'el' ? 'Καταχωρήθηκε' : 'Recorded');
+  };
+
   const handleOutcome = async (interventionId: string, outcome: 'better' | 'same' | 'worse', msgId: string) => {
     if (!appUserId) return;
     await supabase.from('interventions').update({
       outcome,
+      vio_step: 3,
       followed_up_at: new Date().toISOString(),
       outcome_recorded_at: new Date().toISOString(),
     }).eq('id', interventionId);
@@ -146,6 +193,21 @@ export default function Chat() {
     };
     setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
     showToast(t.outcomeRecorded);
+    trackEvent(Events.VIO_OUTCOME_RECORDED, { outcome, interventionId });
+  };
+
+  const handleFeedback = async (msg: Message, feedback: 'positive' | 'negative') => {
+    if (!msg.db_id) return;
+    // Optimistic update
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: { ...m.metadata, feedback } } : m));
+    await supabase.from('chat_messages').update({ feedback }).eq('id', msg.db_id);
+    trackEvent(feedback === 'positive' ? Events.FEEDBACK_POSITIVE : Events.FEEDBACK_NEGATIVE, {
+      messageId: msg.db_id,
+      hasDiagnosis: !!msg.metadata?.diagnosis_data,
+    });
+    showToast(feedback === 'positive'
+      ? (lang === 'el' ? 'Ευχαριστώ!' : 'Thanks!')
+      : (lang === 'el' ? 'Θα βελτιωθώ!' : "I'll improve!"));
   };
 
   const handleLogIntervention = (msg: Message) => {
@@ -250,7 +312,8 @@ export default function Chat() {
       return;
     }
 
-    const shareUrl = `${window.location.origin}/d/${publicShareId}`;
+    const shareUrl = `${window.location.origin}/d/${publicShareId}?ref=${publicShareId}`;
+    trackEvent(Events.SHARE_DIAGNOSIS, { shareId: publicShareId });
 
     // Try Web Share API first (native on mobile)
     if (navigator.share) {
@@ -292,10 +355,10 @@ export default function Chat() {
         if (data) setFields(data as Field[]);
       });
 
-      // Check for pending follow-ups — VIO loop
+      // Check for pending follow-ups — VIO multi-step loop
       supabase
         .from('interventions')
-        .select('id, crop_type, diagnosis, follow_up_at, field_id')
+        .select('id, crop_type, diagnosis, follow_up_at, field_id, vio_step, product_applied')
         .eq('user_id', appUserId)
         .lte('follow_up_at', new Date().toISOString())
         .is('outcome', null)
@@ -304,17 +367,38 @@ export default function Chat() {
         .limit(1)
         .then(({ data: due }) => {
           if (!due || due.length === 0) return;
-          const item = due[0];
+          const item = due[0] as any;
           const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
-          const followUpContent = lang === 'el'
-            ? `Πριν από ${FOLLOW_UP_DAYS} μέρες κάναμε παρέμβαση για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Πώς πάει τώρα;`
-            : `${FOLLOW_UP_DAYS} days ago we treated **${item.diagnosis || 'a problem'}** in **${cropLabel}**. How is it going?`;
+          const step = item.vio_step ?? 1;
+
+          let followUpContent: string;
+          let vioStepType: string;
+
+          if (step <= 1) {
+            // Step 1: Did you apply the treatment?
+            followUpContent = lang === 'el'
+              ? `Πριν λίγες μέρες μιλήσαμε για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Εφάρμοσες κάποια θεραπεία;`
+              : `A few days ago we discussed **${item.diagnosis || 'a problem'}** in **${cropLabel}**. Did you apply any treatment?`;
+            vioStepType = 'apply_check';
+          } else {
+            // Step 2: Any improvements?
+            followUpContent = lang === 'el'
+              ? `Πώς πάει το **${cropLabel}** μετά τη θεραπεία${item.product_applied ? ` με ${item.product_applied}` : ''}; Βλέπεις βελτίωση;`
+              : `How is **${cropLabel}** doing after the treatment${item.product_applied ? ` with ${item.product_applied}` : ''}? Any improvement?`;
+            vioStepType = 'outcome_check';
+          }
+
           const followUpMsg = {
             id: `followup-${item.id}`,
             role: 'assistant' as const,
             content: followUpContent,
             created_at: new Date().toISOString(),
-            metadata: { follow_up_intervention_id: item.id, is_follow_up: true },
+            metadata: {
+              follow_up_intervention_id: item.id,
+              is_follow_up: true,
+              vio_step: step,
+              vio_step_type: vioStepType,
+            },
           };
           setMessages(prev => prev.length === 0 ? [followUpMsg] : prev);
         });
@@ -390,6 +474,7 @@ export default function Chat() {
     } else {
       recognitionRef.current?.start();
       setIsListening(true);
+      trackEvent(Events.VOICE_INPUT);
     }
   };
 
@@ -613,6 +698,7 @@ let streamedContent = '';
 
     if (messageCount >= FREE_LIMIT) {
       setShowPaywall(true);
+      trackEvent(Events.PAYWALL_HIT, { messageCount });
       return;
     }
 
@@ -696,6 +782,11 @@ let streamedContent = '';
     setMessages((prev) => [...prev, newUserMsg]);
     setInput('');
     setAttachments([]);
+
+    // Analytics
+    const hasPhotos = base64Images.length > 0 || uploadedPaths.length > 0;
+    trackEvent(Events.MESSAGE_SENT, { hasPhotos, messageCount: messageCount + 1 });
+    if (hasPhotos) trackEvent(Events.FIRST_PHOTO);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
 
@@ -926,8 +1017,37 @@ let streamedContent = '';
                       </div>
                     ) : null}
 
-                    {/* Outcome chips — follow-up messages */}
-                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && (
+                    {/* VIO Step 1: "Did you apply?" buttons */}
+                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && msg.metadata?.vio_step_type === 'apply_check' && (
+                      <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
+                        <button
+                          onClick={() => handleVioApplyConfirm(msg.metadata!.follow_up_intervention_id as string, true, msg.id)}
+                          className="rounded-full border border-green-500/30 bg-green-500/5 px-4 py-1.5 text-sm font-medium text-green-400 transition-colors hover:bg-green-500/10 active:scale-[0.97]">
+                          {lang === 'el' ? 'Ναι, εφάρμοσα' : 'Yes, I applied'}
+                        </button>
+                        <button
+                          onClick={() => handleVioApplyConfirm(msg.metadata!.follow_up_intervention_id as string, false, msg.id)}
+                          className="rounded-full border border-border/50 bg-background px-4 py-1.5 text-sm font-medium text-muted transition-colors hover:border-primary/50 hover:bg-primary/5 active:scale-[0.97]">
+                          {lang === 'el' ? 'Όχι ακόμα' : 'Not yet'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* VIO Step 2: "Any improvement?" outcome buttons */}
+                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && msg.metadata?.vio_step_type === 'outcome_check' && (
+                      <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
+                        {(['better', 'same', 'worse'] as const).map(outcome => (
+                          <button key={outcome}
+                            onClick={() => handleOutcome(msg.metadata!.follow_up_intervention_id as string, outcome, msg.id)}
+                            className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 active:scale-[0.97]">
+                            {outcome === 'better' ? t.outcomeBetter : outcome === 'same' ? t.outcomeSame : t.outcomeWorse}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Legacy follow-ups without vio_step_type */}
+                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && !msg.metadata?.vio_step_type && (
                       <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
                         {(['better', 'same', 'worse'] as const).map(outcome => (
                           <button key={outcome}
@@ -944,6 +1064,23 @@ let streamedContent = '';
               <span className={clsx("text-[11px] text-muted opacity-0 transition-opacity group-hover:opacity-100", isUser ? "text-right" : "text-left")}>
                 {formatTime(msg.created_at)}
               </span>
+              {/* Feedback thumbs — all AI messages */}
+              {!isUser && !msg.metadata?.is_follow_up && (
+                <div className="mt-1 flex items-center gap-1">
+                  <button onClick={() => handleFeedback(msg, 'positive')}
+                    className={clsx("rounded-full p-1.5 transition-colors",
+                      msg.metadata?.feedback === 'positive' ? "text-green-400 bg-green-500/10" : "text-muted/40 hover:text-green-400 hover:bg-green-500/5")}>
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => handleFeedback(msg, 'negative')}
+                    className={clsx("rounded-full p-1.5 transition-colors",
+                      msg.metadata?.feedback === 'negative' ? "text-red-400 bg-red-500/10" : "text-muted/40 hover:text-red-400 hover:bg-red-500/5")}>
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Diagnosis action buttons */}
               {!isUser && msg.metadata?.diagnosis_data && !msg.metadata?.is_follow_up && (
                 <div className="mt-1 flex flex-wrap gap-2">
                   <button onClick={() => handleStarMessage(msg)}
@@ -953,7 +1090,7 @@ let streamedContent = '';
                     {t.savedMessage}
                   </button>
                   <button onClick={() => handleLogIntervention(msg)}
-                    className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground">
+                    className="flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/5 px-2.5 py-1 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/10">
                     <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
                   </button>
                   <button onClick={() => handleShare(msg)}
