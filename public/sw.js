@@ -1,45 +1,23 @@
-// Oli Service Worker — PWA install + offline fallback + push notifications
-const CACHE_NAME = 'oli-v2';
-const OFFLINE_URL = '/offline.html';
+// Oli Service Worker — PWA install + push notifications
+const CACHE_NAME = 'oli-v3';
 
-// Pre-cache the offline page on install
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        OFFLINE_URL,
-        '/favicon.svg',
-        '/favicon-180.png',
-        '/favicon-512.png',
-      ]);
-    })
-  );
+// Install: skip waiting immediately, no pre-caching
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Clean up old caches on activate
+// Activate: delete ALL old caches to prevent stale assets
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      );
-    })
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((key) => caches.delete(key)))
+    )
   );
   self.clients.claim();
 });
 
-// Network-first strategy for navigation requests
-self.addEventListener('fetch', (event) => {
-  if (event.request.mode !== 'navigate') return;
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(OFFLINE_URL);
-    })
-  );
-});
+// Do NOT intercept fetch — let the browser handle all requests normally.
+// This prevents stale HTML/JS/CSS from being served after deploys.
 
 // ── PUSH NOTIFICATIONS ──
 self.addEventListener('push', (event) => {
