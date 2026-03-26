@@ -79,6 +79,15 @@ export interface T {
   fieldDelete: string; fieldSave: string; fieldSaving: string;
   statusHealthy: string; statusWarning: string; statusCritical: string;
   guestFieldsTitle: string; guestFieldsBody: string;
+  // History
+  interventionHistory: string; historySubtitle: string;
+  noHistoryTitle: string; noHistoryBody: string;
+  appliedOn: string; followUpPending: string; outcomeLabel: string;
+  productLabel: string; dosageLabel: string; methodLabel: string;
+  stepApplyCheck: string; stepOutcomeCheck: string; stepComplete: string;
+  daysAgo: string;
+  // Sidebar nav
+  navChat: string; navHistory: string; navFields: string; navProfile: string;
 }
 
 const el: T = {
@@ -159,7 +168,7 @@ const el: T = {
   logIt: 'Καταχώρηση', logging: 'Καταχώρηση...',
   cropType: 'Καλλιέργεια', problem: 'Πρόβλημα / Διάγνωση', product: 'Προϊόν',
   dosage: 'Δοσολογία', appMethod: 'Μέθοδος Εφαρμογής', notes: 'Σημειώσεις',
-  setReminder: 'Ορισμός Υπενθύμισης', reminderQuestion: 'Θέλεις υπενθύμιση σε 13 μέρες;', noThanks: 'Όχι ευχαριστώ',
+  setReminder: 'Ορισμός Υπενθύμισης', reminderQuestion: 'Θέλεις follow-up σε 3 μέρες;', noThanks: 'Όχι ευχαριστώ',
   paywallTitle: 'Ξεκλειδώστε το Oli Pro',
   paywallBody: 'Φτάσατε το όριο δωρεάν μηνυμάτων για αυτόν τον μήνα. Αναβαθμίστε για απεριόριστη πρόσβαση.',
   monthlyPlan: 'Μηνιαίο Πλάνο', yearlyPlan: 'Ετήσιο Πλάνο',
@@ -173,6 +182,13 @@ const el: T = {
   statusHealthy: 'Υγιές', statusWarning: 'Προσοχή', statusCritical: 'Κρίσιμο',
   guestFieldsTitle: 'Δημιουργία Λογαριασμού',
   guestFieldsBody: 'Συνδέσου για να αποθηκεύεις τα χωράφια σου και να έχεις προστατευμένη μνήμη.',
+  interventionHistory: 'Ιστορικό Παρεμβάσεων', historySubtitle: 'Χρονολόγιο εφαρμογών & αποτελεσμάτων',
+  noHistoryTitle: 'Κανένα ιστορικό ακόμα', noHistoryBody: 'Καταχώρησε μια παρέμβαση από τη συνομιλία.',
+  appliedOn: 'Εφαρμογή:', followUpPending: 'Αναμονή follow-up', outcomeLabel: 'Αποτέλεσμα',
+  productLabel: 'Προϊόν', dosageLabel: 'Δόση', methodLabel: 'Μέθοδος',
+  stepApplyCheck: 'Εφαρμόστηκε;', stepOutcomeCheck: 'Βελτίωση;', stepComplete: 'Ολοκληρώθηκε',
+  daysAgo: 'μέρες πριν',
+  navChat: 'Συνομιλία', navHistory: 'Ιστορικό', navFields: 'Χωράφια', navProfile: 'Προφίλ',
 };
 
 const en: T = {
@@ -253,7 +269,7 @@ const en: T = {
   logIt: 'Log it', logging: 'Logging...',
   cropType: 'Crop', problem: 'Problem / Diagnosis', product: 'Product',
   dosage: 'Dosage', appMethod: 'Application Method', notes: 'Notes',
-  setReminder: 'Set Reminder', reminderQuestion: 'Set a follow-up reminder for 13 days?', noThanks: 'No thanks',
+  setReminder: 'Set Reminder', reminderQuestion: 'Set a follow-up check-in in 3 days?', noThanks: 'No thanks',
   paywallTitle: 'Unlock Oli Pro',
   paywallBody: 'You have reached the free message limit for this month. Upgrade for unlimited access.',
   monthlyPlan: 'Monthly Plan', yearlyPlan: 'Yearly Plan',
@@ -267,6 +283,13 @@ const en: T = {
   statusHealthy: 'Healthy', statusWarning: 'Warning', statusCritical: 'Critical',
   guestFieldsTitle: 'Create an Account',
   guestFieldsBody: 'Sign in to save your fields and keep your farming history protected.',
+  interventionHistory: 'Intervention History', historySubtitle: 'Timeline of treatments & outcomes',
+  noHistoryTitle: 'No history yet', noHistoryBody: 'Log an intervention from the chat to get started.',
+  appliedOn: 'Applied:', followUpPending: 'Follow-up pending', outcomeLabel: 'Outcome',
+  productLabel: 'Product', dosageLabel: 'Dosage', methodLabel: 'Method',
+  stepApplyCheck: 'Applied?', stepOutcomeCheck: 'Improved?', stepComplete: 'Complete',
+  daysAgo: 'days ago',
+  navChat: 'Chat', navHistory: 'History', navFields: 'Fields', navProfile: 'Profile',
 };
 
 export const dict: Record<Lang, T> = { el, en };

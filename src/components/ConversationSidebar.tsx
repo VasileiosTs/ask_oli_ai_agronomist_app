@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus, MessageCircle, User, Search } from 'lucide-react';
+import { X, Plus, MessageCircle, User, Search, ClipboardList, Sprout } from 'lucide-react';
 import OliLogo from './OliLogo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -126,6 +126,22 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
             </button>
           ))
         )}
+      </div>
+
+      {/* Quick nav links */}
+      <div className="border-t border-border/50 px-3 py-2 space-y-0.5">
+        {[
+          { path: '/history', icon: <ClipboardList className="h-4 w-4" />, label: t.navHistory },
+          { path: '/fields', icon: <Sprout className="h-4 w-4" />, label: t.navFields },
+        ].map(({ path, icon, label }) => (
+          <button key={path}
+            onClick={() => { if (!desktop) onClose(); navigate(path); }}
+            className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm text-muted transition-colors hover:bg-background/60 hover:text-foreground"
+          >
+            {icon}
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* User footer — click to go to profile */}

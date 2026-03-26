@@ -10,6 +10,8 @@ import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
+import History from './pages/History';
+import Fields from './pages/Fields';
 import SharedDiagnosis from './pages/SharedDiagnosis';
 
 const Privacy = () => {
@@ -155,6 +157,8 @@ function AppRoutes() {
         }
       >
         <Route path="/chat" element={<Chat />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/fields" element={<Fields />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 
