@@ -1,13 +1,20 @@
 import { X, Crown } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
+import { useState } from 'react';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
 export default function PaywallModal({ isOpen, onClose }: Props) {
   const { t, lang } = useLanguage();
+  const [selected, setSelected] = useState<'monthly' | 'yearly' | null>(null);
   if (!isOpen) return null;
 
   const comingSoon = lang === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
+
+  const handleSelect = (plan: 'monthly' | 'yearly') => {
+    setSelected(plan);
+    // TODO: integrate Stripe checkout when ready
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -27,7 +34,14 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
 
         <div className="space-y-3">
           {/* Monthly plan */}
-          <div className="flex w-full items-center justify-between rounded-xl border border-border bg-background p-4">
+          <button
+            onClick={() => handleSelect('monthly')}
+            className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+              selected === 'monthly'
+                ? 'border-primary bg-primary/10'
+                : 'border-border bg-background hover:border-primary/50'
+            }`}
+          >
             <div>
               <p className="font-semibold text-foreground">{t.monthlyPlan}</p>
               <p className="text-sm text-muted">{t.unlimitedMessages}</p>
@@ -35,10 +49,17 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
             <div className="text-right">
               <span className="text-lg font-bold text-foreground">{t.monthly}</span>
             </div>
-          </div>
+          </button>
 
           {/* Yearly plan */}
-          <div className="relative flex w-full items-center justify-between rounded-xl border border-border bg-background p-4">
+          <button
+            onClick={() => handleSelect('yearly')}
+            className={`relative flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+              selected === 'yearly'
+                ? 'border-primary bg-primary/10'
+                : 'border-border bg-background hover:border-primary/50'
+            }`}
+          >
             <div className="absolute -top-3 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
               {t.savings}
             </div>
@@ -49,7 +70,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
             <div className="text-right">
               <span className="text-lg font-bold text-foreground">{t.yearly}</span>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Coming soon notice */}
