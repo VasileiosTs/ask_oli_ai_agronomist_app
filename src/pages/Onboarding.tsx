@@ -97,6 +97,11 @@ export default function Onboarding() {
     trackEvent(Events.SIGNUP, { crops: finalCrops, location: location.trim() });
     if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
 
+    // Send welcome email (fire-and-forget)
+    supabase.functions.invoke('send-email', {
+      body: { mode: 'welcome', email: user.email, name: name.trim(), lang },
+    }).catch(() => {});
+
     // Refresh auth context so App.tsx routing sees the new profile
     await refreshProfile();
     setLoading(false);
