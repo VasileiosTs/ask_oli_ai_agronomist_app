@@ -12,13 +12,26 @@ const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Oli <noreply@askoli.ai>";
 const APP_URL = Deno.env.get("APP_URL") || "https://codex-ask-oli-app.vercel.app";
 
 // ── CORS ──
+const ALLOWED_ORIGINS = [
+  "https://codex-ask-oli-app.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
 function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("origin") || "*";
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
+}
+
+// ── Email validation ──
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(email: string): boolean {
+  return typeof email === "string" && EMAIL_REGEX.test(email) && email.length <= 254;
 }
 
 // ── Send via Resend ──
@@ -341,10 +354,20 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
 
+    // Cron modes require service_role_key auth
+    const cronModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron"];
+    if (cronModes.includes(body.mode)) {
+      const authHeader = req.headers.get("authorization") || "";
+      if (!authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+      }
+    }
+
     // Mode: welcome
     if (body.mode === "welcome") {
       const { email, name, lang } = body;
       if (!email) return new Response(JSON.stringify({ error: "email required" }), { status: 400, headers });
+      if (!isValidEmail(email)) return new Response(JSON.stringify({ error: "invalid email format" }), { status: 400, headers });
       const tpl = welcomeEmail(name || "Farmer", lang || "en");
       const ok = await sendEmail(email, tpl.subject, tpl.html);
       return new Response(JSON.stringify({ sent: ok }), { headers });
@@ -354,6 +377,7 @@ serve(async (req) => {
     if (body.mode === "vio_reminder") {
       const { email, name, problem, step, lang } = body;
       if (!email) return new Response(JSON.stringify({ error: "email required" }), { status: 400, headers });
+      if (!isValidEmail(email)) return new Response(JSON.stringify({ error: "invalid email format" }), { status: 400, headers });
       const tpl = vioReminderEmail(name || "Farmer", problem || "your crop", step ?? 1, lang || "en");
       const ok = await sendEmail(email, tpl.subject, tpl.html);
       return new Response(JSON.stringify({ sent: ok }), { headers });

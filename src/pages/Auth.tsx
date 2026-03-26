@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Leaf, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Leaf, CheckCircle2, ArrowLeft, Home } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/LanguageContext';
@@ -74,6 +74,15 @@ export default function Auth() {
 
       <div className="w-full max-w-[420px] rounded-[24px] bg-white p-8 md:p-10"
         style={{ boxShadow: '0 8px 40px rgba(25,65,33,0.08)', border: '1px solid rgba(194, 201, 187, 0.2)' }}>
+
+        {/* Back to home */}
+        <Link to="/" className="mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
+          style={{ color: '#606659' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#194121')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#606659')}>
+          <ArrowLeft className="h-4 w-4" />
+          {lang === 'el' ? 'Αρχική' : 'Home'}
+        </Link>
 
         {/* Header */}
         <div className="mb-8 flex flex-col items-center text-center">
@@ -153,6 +162,7 @@ export default function Auth() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
+                aria-label={t.emailPlaceholder}
                 className="w-full rounded-full px-5 py-3.5 text-sm focus:outline-none focus:ring-2"
                 style={{
                   background: '#f5f4ef',

@@ -83,7 +83,16 @@ const MAX_HISTORY_MESSAGES = 10;
 const MAX_INLINE_ATTACHMENTS = 3;
 const MAX_MESSAGE_CHARS = 8000;
 const MAX_TOTAL_INLINE_ATTACHMENT_CHARS = 12_000_000;
-const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+const ALLOWED_GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-pro',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+];
+const _rawGeminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+const GEMINI_MODEL = ALLOWED_GEMINI_MODELS.includes(_rawGeminiModel) ? _rawGeminiModel : 'gemini-2.5-flash';
 const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -363,11 +372,12 @@ async function callGemini(
   };
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': geminiApiKey,
       },
       body: JSON.stringify(payload),
     },
@@ -375,7 +385,8 @@ async function callGemini(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini request failed (${response.status}): ${errorText}`);
+    console.error(`Gemini request failed (${response.status}):`, errorText);
+    throw new Error(`Gemini request failed (${response.status})`);
   }
 
   const data = await response.json();
@@ -409,11 +420,12 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
   };
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': geminiApiKey,
       },
       body: JSON.stringify(payload),
     },
@@ -421,7 +433,8 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini extraction failed (${response.status}): ${errorText}`);
+    console.error(`Gemini extraction failed (${response.status}):`, errorText);
+    throw new Error(`Gemini extraction failed (${response.status})`);
   }
 
   const data = await response.json();
@@ -695,8 +708,8 @@ Return ONLY the greeting text, nothing else.`;
       };
 
       const greetingRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey }, body: JSON.stringify(payload) }
       );
 
       if (!greetingRes.ok) {
@@ -792,6 +805,16 @@ Return ONLY the greeting text, nothing else.`;
         429,
       );
     }
+
+    // C3: Atomically increment message count immediately after free limit check (prevents TOCTOU race)
+    const nextMessageCount = currentCount + 1;
+    await supabaseAdmin
+      .from('users')
+      .update({
+        message_count_month: nextMessageCount,
+        message_reset_date: now.toISOString(),
+      })
+      .eq('id', appUser.id);
 
     // C2: Burst rate limiting — max 1 message per 2 seconds per user
     const { data: lastMsg } = await supabaseAdmin
@@ -896,13 +919,10 @@ Return ONLY the greeting text, nothing else.`;
       userMessageId = insertedUserMessage.id;
     }
 
-    // C3: Atomically increment message count BEFORE calling Gemini (prevents TOCTOU race)
-    const nextMessageCount = currentCount + 1;
+    // Update last_active_at (message count already incremented above)
     await supabaseAdmin
       .from('users')
       .update({
-        message_count_month: nextMessageCount,
-        message_reset_date: now.toISOString(),
         last_active_at: now.toISOString(),
       })
       .eq('id', appUser.id);
@@ -1012,7 +1032,8 @@ Return ONLY the greeting text, nothing else.`;
                 .from('conversations')
                 .update({ title })
                 .eq('id', body.conversationId)
-                .eq('user_id', appUser.id);
+                .eq('user_id', appUser.id)
+                .or('title.is.null,title.eq.New conversation');
             }
           }
 

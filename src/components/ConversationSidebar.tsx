@@ -24,14 +24,16 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [convs, setConvs] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    if (!appUserId) return;
+    if (!appUserId) { setLoading(false); return; }
+    setLoading(true);
     supabase
       .from('conversations').select('id, title, updated_at')
       .eq('user_id', appUserId).order('updated_at', { ascending: false }).limit(100)
-      .then(({ data }) => { if (data) setConvs(data); });
+      .then(({ data }) => { if (data) setConvs(data); setLoading(false); });
   }, [appUserId, isOpen, activeId]);
 
   const filtered = useMemo(() => {
@@ -101,7 +103,16 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
 
       {/* Conversations */}
       <div className="flex-1 overflow-y-auto py-2 mt-1">
-        {convs.length === 0 ? (
+        {loading ? (
+          <div className="space-y-1 px-4 py-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-4 rounded bg-muted/20 mb-1.5" style={{ width: `${70 - i * 8}%` }} />
+                <div className="h-3 w-12 rounded bg-muted/10 mb-3" />
+              </div>
+            ))}
+          </div>
+        ) : convs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-6">
             <MessageCircle className="h-7 w-7 text-muted/30 mb-2" />
             <p className="text-xs text-muted">{t.noConversations}</p>

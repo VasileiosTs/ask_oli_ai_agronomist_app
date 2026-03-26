@@ -35,8 +35,10 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const shareId = url.searchParams.get('id');
 
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   let data: any = null;
-  if (shareId) {
+  if (shareId && UUID_REGEX.test(shareId)) {
     const sb = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
     const { data: d } = await sb
       .from('safe_shared_diagnoses')

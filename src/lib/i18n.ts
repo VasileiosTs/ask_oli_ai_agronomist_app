@@ -40,6 +40,15 @@ export interface T {
   savedMessage: string; removedMessage: string;
   linkCopied: string; shareLabel: string;
   logIntervention: string;
+  shareTitle: string; shareDefaultText: string;
+  // Error boundary
+  errorTitle: string; errorBody: string; errorRefresh: string;
+  // 404 page
+  notFoundTitle: string; notFoundBody: string; notFoundHome: string;
+  // Export
+  exportFailed: string;
+  // Conversation
+  conversationCreateError: string;
   // Sidebar
   chatHistory: string; newChat: string; noConversations: string;
   today: string; yesterday: string;
@@ -164,6 +173,11 @@ const el: T = {
   savedMessage: 'Αποθηκεύτηκε', removedMessage: 'Αφαιρέθηκε',
   linkCopied: 'Σύνδεσμος αντιγράφηκε!', shareLabel: 'Κοινοποίηση',
   logIntervention: 'Καταχώρηση',
+  shareTitle: 'Oli — Διάγνωση', shareDefaultText: 'Δες αυτή τη διάγνωση από τον Oli',
+  errorTitle: 'Κάτι πήγε στραβά', errorBody: 'Παρουσιάστηκε σφάλμα. Ανανεώστε τη σελίδα.', errorRefresh: 'Ανανέωση',
+  notFoundTitle: 'Η σελίδα δεν βρέθηκε', notFoundBody: 'Η σελίδα που ψάχνεις δεν υπάρχει.', notFoundHome: 'Πίσω στην αρχική',
+  exportFailed: 'Η εξαγωγή απέτυχε. Δοκιμάστε ξανά.',
+  conversationCreateError: 'Αποτυχία δημιουργίας συνομιλίας.',
   chatHistory: 'Ιστορικό', newChat: 'Νέα Συνομιλία', noConversations: 'Δεν υπάρχουν συνομιλίες ακόμα',
   today: 'Σήμερα', yesterday: 'Χθες',
   editProfile: 'Επεξεργασία προφίλ',
@@ -306,6 +320,11 @@ const en: T = {
   savedMessage: 'Saved', removedMessage: 'Removed',
   linkCopied: 'Link copied!', shareLabel: 'Share',
   logIntervention: 'Log',
+  shareTitle: 'Oli — Diagnosis', shareDefaultText: 'Check out this diagnosis from Oli',
+  errorTitle: 'Something went wrong', errorBody: 'An error occurred. Please refresh the page.', errorRefresh: 'Refresh',
+  notFoundTitle: 'Page not found', notFoundBody: 'The page you are looking for does not exist.', notFoundHome: 'Back to home',
+  exportFailed: 'Export failed. Please try again.',
+  conversationCreateError: 'Failed to create conversation.',
   chatHistory: 'History', newChat: 'New Chat', noConversations: 'No conversations yet',
   today: 'Today', yesterday: 'Yesterday',
   editProfile: 'Edit profile',

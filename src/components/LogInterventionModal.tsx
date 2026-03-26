@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function LogInterventionModal({ isOpen, onClose, initialData, userId, fieldId, onSuccess }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [cropType, setCropType] = useState(initialData?.crop_mentioned || '');
   const [problem, setProblem] = useState(initialData?.diagnosis_data?.problem || '');
   const [product, setProduct] = useState(initialData?.diagnosis_data?.product_applied || '');
@@ -24,11 +24,13 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [interventionId, setInterventionId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleLog = async () => {
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       const { data, error } = await supabase.from('interventions').insert({
         user_id: userId,
@@ -47,6 +49,7 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
       if (data) { setInterventionId(data.id); setShowFollowUp(true); }
     } catch (e) {
       console.error('Error logging intervention', e);
+      setErrorMessage(lang === 'el' ? 'Αποτυχία αποθήκευσης. Δοκιμάστε ξανά.' : 'Failed to save. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -71,7 +74,7 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-background p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-background p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">
             {showFollowUp ? t.setReminder : t.logIntervention}
@@ -102,6 +105,11 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
                 className="w-full resize-none rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
+            {errorMessage && (
+              <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                {errorMessage}
+              </p>
+            )}
             <button onClick={handleLog} disabled={isSubmitting}
               className="mt-2 w-full rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-white shadow-sm transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-70">
               {isSubmitting ? t.logging : t.logIt}

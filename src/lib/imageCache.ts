@@ -35,6 +35,13 @@ export async function cacheImage(key: string, blob: Blob): Promise<void> {
   }
 }
 
+/**
+ * Returns a blob URL for the cached image.
+ * IMPORTANT: The caller MUST call URL.revokeObjectURL() on the returned URL
+ * when it is no longer needed (e.g. on component unmount or when replacing the image)
+ * to avoid memory leaks. Blob URLs hold a reference to the underlying Blob in memory
+ * and are never garbage-collected until explicitly revoked or the page is unloaded.
+ */
 export async function getCachedImage(key: string): Promise<string | null> {
   try {
     const db = await openDB();
@@ -109,6 +116,11 @@ export function compressImage(file: File): Promise<{ blob: Blob; base64: string;
           ctx.drawImage(img, 0, 0, w, h);
           canvas.toBlob(
             (blob) => {
+              // Free GPU memory held by the canvas
+              canvas.width = 0;
+              canvas.height = 0;
+              // Release the data URL from the image element
+              img.src = '';
               if (!blob) { resolve({ blob: file, base64: src.split(',')[1], mimeType: file.type }); return; }
               const fr = new FileReader();
               fr.onloadend = () => {

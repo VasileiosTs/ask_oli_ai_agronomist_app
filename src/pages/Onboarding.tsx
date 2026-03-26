@@ -131,6 +131,7 @@ export default function Onboarding() {
                 type="text" value={name} autoFocus
                 onChange={e => setName(e.target.value)}
                 placeholder={t.step1P}
+                aria-label={t.step1Q}
                 onKeyDown={e => e.key === 'Enter' && name.trim() && handleNext()}
                 className="w-full rounded-[22px] border border-border bg-surface px-4 py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
@@ -145,6 +146,7 @@ export default function Onboarding() {
                 type="text" value={location} autoFocus
                 onChange={e => setLocation(e.target.value)}
                 placeholder={t.step2P}
+                aria-label={t.step2Q}
                 onKeyDown={e => e.key === 'Enter' && location.trim() && handleNext()}
                 className="w-full rounded-[22px] border border-border bg-surface px-4 py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
@@ -182,6 +184,7 @@ export default function Onboarding() {
                   onChange={e => setCustomCrop(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addCustomCrop()}
                   placeholder={lang === 'el' ? 'Άλλη καλλιέργεια...' : 'Other crop...'}
+                  aria-label={t.step3Q}
                   className="flex-1 rounded-[22px] border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
                 />
                 {customCrop.trim() && (

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider, useLanguage } from './lib/LanguageContext';
 import AppLayout from './components/AppLayout';
@@ -13,6 +13,23 @@ import Profile from './pages/Profile';
 import History from './pages/History';
 import Fields from './pages/Fields';
 import SharedDiagnosis from './pages/SharedDiagnosis';
+import { Leaf } from 'lucide-react';
+
+const NotFound = () => {
+  const { t } = useLanguage();
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-6 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+        <Leaf className="h-8 w-8 text-primary" />
+      </div>
+      <h1 className="mb-2 text-xl font-semibold text-foreground">{t.notFoundTitle}</h1>
+      <p className="mb-6 text-sm text-muted">{t.notFoundBody}</p>
+      <Link to="/" className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90">
+        {t.notFoundHome}
+      </Link>
+    </div>
+  );
+};
 
 const Privacy = () => {
   const { t } = useLanguage();
@@ -134,7 +151,7 @@ function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

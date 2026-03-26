@@ -48,6 +48,27 @@ export function usePushSubscription(userId: string | null) {
       });
 
       const json = sub.toJSON();
+
+      // Enforce max 5 subscriptions per user
+      const MAX_SUBSCRIPTIONS = 5;
+      const { count } = await supabase
+        .from('push_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      if ((count ?? 0) >= MAX_SUBSCRIPTIONS) {
+        // Delete oldest subscription to make room
+        const { data: oldest } = await supabase
+          .from('push_subscriptions')
+          .select('id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+        if (oldest) {
+          await supabase.from('push_subscriptions').delete().eq('id', oldest.id);
+        }
+      }
+
       const { error } = await supabase.from('push_subscriptions').upsert({
         user_id: userId,
         endpoint: json.endpoint!,

@@ -11,21 +11,32 @@ const SEVERITY_BADGE: Record<string, { el: string; en: string; cls: string }> = 
   high:   { el: 'Υψηλή σοβαρότητα',  en: 'High severity',    cls: 'bg-red-500/10   text-red-400   border-red-500/20'   },
 };
 
+/** Validate that a string looks like a UUID (v4) */
+const isValidUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
 export default function SharedDiagnosis() {
   const { shareId } = useParams();
   const { lang } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isNetworkError, setIsNetworkError] = useState(false);
 
   useEffect(() => {
-    if (!shareId) { setLoading(false); return; }
+    if (!shareId || !isValidUUID(shareId)) { setLoading(false); return; }
     (async () => {
-      const { data: d1 } = await supabase
-        .from('safe_shared_diagnoses').select('*').eq('share_id', shareId).maybeSingle();
-      if (d1) { setData(d1); setLoading(false); return; }
-      const { data: d2 } = await supabase
-        .from('safe_shared_diagnoses').select('*').eq('legacy_intervention_id', shareId).maybeSingle();
-      setData(d2 ?? null);
+      try {
+        const { data: d1, error: e1 } = await supabase
+          .from('safe_shared_diagnoses').select('*').eq('share_id', shareId).maybeSingle();
+        if (e1) throw e1;
+        if (d1) { setData(d1); setLoading(false); return; }
+        const { data: d2, error: e2 } = await supabase
+          .from('safe_shared_diagnoses').select('*').eq('legacy_intervention_id', shareId).maybeSingle();
+        if (e2) throw e2;
+        setData(d2 ?? null);
+      } catch (err) {
+        console.error('SharedDiagnosis fetch error:', err);
+        setIsNetworkError(true);
+      }
       setLoading(false);
     })();
   }, [shareId]);
@@ -118,6 +129,20 @@ export default function SharedDiagnosis() {
   if (loading) return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-[#0D1117]">
       <LoadingSpinner />
+    </div>
+  );
+
+  /* ── Network error ── */
+  if (isNetworkError) return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#0D1117] p-6 text-center">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
+        <AlertTriangle className="h-7 w-7 text-amber-400" />
+      </div>
+      <h1 className="mb-2 text-lg font-semibold text-white">{lang === 'el' ? 'Σφάλμα σύνδεσης' : 'Connection error'}</h1>
+      <p className="mb-6 text-sm text-[#8B949E]">{lang === 'el' ? 'Δεν ήταν δυνατή η φόρτωση. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.' : 'Could not load. Check your connection and try again.'}</p>
+      <button onClick={() => window.location.reload()} className="rounded-full bg-[#2EA043] px-6 py-2.5 text-sm font-medium text-white">
+        {lang === 'el' ? 'Δοκίμασε ξανά' : 'Try again'}
+      </button>
     </div>
   );
 
@@ -239,7 +264,7 @@ export default function SharedDiagnosis() {
               : 'Oli diagnoses crop problems from a photo in seconds. Free for the first 20 questions.'}
           </p>
           <Link
-            to={`/auth?ref=${shareId}`}
+            to={`/auth?ref=${shareId && isValidUUID(shareId) ? shareId : ''}`}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2EA043] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
             {lang === 'el' ? 'Δοκίμασε το Oli δωρεάν' : 'Try Oli for free'}

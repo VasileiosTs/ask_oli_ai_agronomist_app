@@ -7,6 +7,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { usePushSubscription } from '../hooks/usePushSubscription';
 import type { Lang } from '../lib/i18n';
 import clsx from 'clsx';
+import PaywallModal from '../components/PaywallModal';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
 
@@ -26,6 +27,8 @@ export default function Profile() {
   const [exporting, setExporting] = useState(false);
   const [notifState, setNotifState] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const push = usePushSubscription(appUserId ?? null);
 
   if (!profile) {
@@ -103,23 +106,34 @@ export default function Profile() {
     return allRows;
   };
 
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const exportData = async () => {
     if (!appUserId) return;
     setExporting(true);
-    const [messages, interventions] = await Promise.all([
-      fetchAllRows('chat_messages', appUserId),
-      fetchAllRows('interventions', appUserId),
-    ]);
-    const blob = new Blob([
-      JSON.stringify({ profile: currentProfile, messages, interventions }, null, 2)
-    ], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `oli-data-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setExporting(false);
+    try {
+      const [messages, interventions] = await Promise.all([
+        fetchAllRows('chat_messages', appUserId),
+        fetchAllRows('interventions', appUserId),
+      ]);
+      const blob = new Blob([
+        JSON.stringify({ profile: currentProfile, messages, interventions }, null, 2)
+      ], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `oli-data-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast(t.exportFailed);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const deleteAccount = async () => {
@@ -201,7 +215,7 @@ export default function Profile() {
               <div className={clsx('h-full rounded-full transition-all', msgPercent >= 80 ? 'bg-amber-400' : 'bg-primary')}
                 style={{ width: `${msgPercent}%` }} />
             </div>
-            <button className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90">
+            <button onClick={() => setShowPaywall(true)} className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90">
               {t.upgradeBtn} — {t.monthly}
             </button>
           </div>
@@ -361,6 +375,15 @@ export default function Profile() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
+
+      {/* Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-foreground/90 px-5 py-2.5 text-sm text-background shadow-lg animate-fade-in">
+          {toastMessage}
         </div>
       )}
 

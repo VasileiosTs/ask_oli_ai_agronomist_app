@@ -17,7 +17,7 @@ import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY } from "../lib/constants";
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, ALLOWED_FILE_ACCEPT, VIO_STEP2_DAYS } from "../lib/constants";
 
 interface MessageAttachment {
   url: string;
@@ -125,9 +125,9 @@ export default function Chat() {
   const handleVioApplyConfirm = async (interventionId: string, applied: boolean, msgId: string) => {
     if (!appUserId) return;
     if (applied) {
-      // User confirmed they applied treatment → advance to step 2, check improvements in 3 days
+      // User confirmed they applied treatment → advance to step 2, check improvements in VIO_STEP2_DAYS
       const nextFollowUp = new Date();
-      nextFollowUp.setDate(nextFollowUp.getDate() + 3);
+      nextFollowUp.setDate(nextFollowUp.getDate() + VIO_STEP2_DAYS);
       await supabase.from('interventions').update({
         applied_confirmed: true,
         vio_step: 2,
@@ -200,9 +200,16 @@ export default function Chat() {
 
   const handleFeedback = async (msg: Message, feedback: 'positive' | 'negative') => {
     if (!msg.db_id) return;
+    const previousFeedback = msg.metadata?.feedback;
     // Optimistic update
     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: { ...m.metadata, feedback } } : m));
-    await supabase.from('chat_messages').update({ feedback }).eq('id', msg.db_id);
+    const { error } = await supabase.from('chat_messages').update({ feedback }).eq('id', msg.db_id);
+    if (error) {
+      // Revert on error
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: { ...m.metadata, feedback: previousFeedback } } : m));
+      showToast(t.starSaveError);
+      return;
+    }
     trackEvent(feedback === 'positive' ? Events.FEEDBACK_POSITIVE : Events.FEEDBACK_NEGATIVE, {
       messageId: msg.db_id,
       hasDiagnosis: !!msg.metadata?.diagnosis_data,
@@ -321,8 +328,8 @@ export default function Chat() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Oli — Διάγνωση',
-          text: msg.metadata?.diagnosis_data?.problem || 'Δες αυτή τη διάγνωση από τον Oli',
+          title: t.shareTitle,
+          text: msg.metadata?.diagnosis_data?.problem || t.shareDefaultText,
           url: shareUrl,
         });
         showToast(t.linkCopied);
@@ -411,9 +418,14 @@ export default function Chat() {
     setFields([]);
   }, [appUserId]);
 
+  const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    const currentCount = messages.length + (isTyping ? 1 : 0);
+    if (currentCount > prevMessageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMessageCountRef.current = currentCount;
+  }, [messages.length, isTyping]);
 
   useEffect(() => {
     attachmentsRef.current = attachments;
@@ -462,7 +474,7 @@ export default function Chat() {
         setIsListening(false);
       };
     }
-  }, []);
+  }, [lang]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
@@ -484,8 +496,8 @@ export default function Chat() {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       const validFiles = newFiles.filter(f => {
-        const isValidType = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'].includes(f.type);
-        const isValidSize = f.size <= 10 * 1024 * 1024; // 10MB
+        const isValidType = (ALLOWED_FILE_TYPES as readonly string[]).includes(f.type);
+        const isValidSize = f.size <= MAX_FILE_SIZE;
         return isValidType && isValidSize;
       });
 
@@ -527,8 +539,10 @@ export default function Chat() {
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const el = e.target;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    requestAnimationFrame(() => {
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    });
   };
 
   const sendMessageToAI = async (
@@ -548,7 +562,7 @@ export default function Chat() {
     setIsTyping(true);
 
     try {
-      const assistantMsgId = (Date.now() + 1).toString();
+      const assistantMsgId = crypto.randomUUID();
       let messageAdded = false;
 
       let fieldContext = '';
@@ -586,7 +600,6 @@ let streamedContent = '';
           onToken: (token) => {
             if (controller.signal.aborted) return;
             streamedContent += token;
-            setIsTyping(false);
             if (!messageAdded) {
               messageAdded = true;
               setMessages((prev) => [
@@ -768,7 +781,7 @@ let streamedContent = '';
     }
 
     const newUserMsg: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: 'user',
       content: finalMessageText,
       created_at: new Date().toISOString(),
@@ -806,6 +819,7 @@ let streamedContent = '';
 
       if (conversationError) {
         console.error('Failed to create conversation:', conversationError);
+        showToast(t.conversationCreateError);
       } else if (conversationData?.id) {
         currentConversationId = conversationData.id;
         setActiveConversationId(conversationData.id);
@@ -877,7 +891,7 @@ let streamedContent = '';
   };
 
   const formatTime = (isoString: string) => {
-    const locale = lang === 'el' ? 'el-GR' : 'en-GB';
+    const locale = lang === 'el' ? 'el-GR' : 'en-US';
     return new Date(isoString).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -1034,7 +1048,7 @@ let streamedContent = '';
           </div>
         )}
         <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileSelect} />
-        <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" multiple onChange={handleFileSelect} />
+        <input type="file" ref={fileInputRef} className="hidden" accept={ALLOWED_FILE_ACCEPT} multiple onChange={handleFileSelect} />
         <button onClick={() => setShowAttachmentSheet(!showAttachmentSheet)} aria-label="Attach file"
           className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground transition-colors">
           <Paperclip className="h-5 w-5" />
@@ -1046,6 +1060,7 @@ let streamedContent = '';
         </button>
         <div className="relative flex-1">
           <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
+            aria-label={t.inputPlaceholder}
             placeholder={isListening ? t.listening : t.inputPlaceholder}
             className="max-h-[120px] min-h-[40px] w-full resize-none rounded-[22px] border border-border/50 bg-background px-4 py-2.5 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             rows={1} />
@@ -1126,6 +1141,7 @@ let streamedContent = '';
               </div>
               <div className="relative">
                 <textarea ref={desktopTextareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
+                  aria-label={t.inputPlaceholder}
                   placeholder={t.inputPlaceholder} rows={1}
                   className="max-h-[120px] min-h-[52px] w-full resize-none rounded-[22px] border border-border/50 bg-surface px-5 py-3.5 pr-14 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                 <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"

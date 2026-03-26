@@ -144,7 +144,13 @@ export async function streamChatCompletion(
         return;
       }
 
-      const payload = JSON.parse(parsed.data) as Record<string, unknown>;
+      let payload: Record<string, unknown>;
+      try {
+        payload = JSON.parse(parsed.data) as Record<string, unknown>;
+      } catch {
+        console.warn('Failed to parse SSE data:', parsed.data);
+        return;
+      }
 
       if (parsed.event === 'token') {
         const token = typeof payload.text === 'string' ? payload.text : '';

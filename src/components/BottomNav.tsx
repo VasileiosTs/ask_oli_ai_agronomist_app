@@ -24,6 +24,7 @@ export default function BottomNav() {
             <button
               key={path}
               onClick={() => navigate(path)}
+              aria-label={t[labelKey]}
               className={clsx(
                 'flex flex-col items-center gap-0.5 px-3 py-1 transition-colors',
                 active ? 'text-primary' : 'text-muted'

@@ -32,7 +32,9 @@ Deno.serve(async (req) => {
     const supabaseUrl = requiredEnv('SUPABASE_URL');
     const serviceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const geminiApiKey = requiredEnv('GEMINI_API_KEY');
-    const geminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+    const ALLOWED_GEMINI_MODELS = ['gemini-2.5-flash','gemini-2.5-pro','gemini-2.0-flash','gemini-2.0-pro','gemini-1.5-flash','gemini-1.5-pro'];
+    const _rawModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+    const geminiModel = ALLOWED_GEMINI_MODELS.includes(_rawModel) ? _rawModel : 'gemini-2.5-flash';
 
     // Verify auth
     const authHeader = req.headers.get('Authorization');
@@ -70,10 +72,10 @@ Deno.serve(async (req) => {
       : `You are Oli, an AI agronomist. Write ONE short seasonal greeting (1-2 sentences, max 30 words) for a farmer${firstName ? ` named ${firstName}` : ''} growing: ${profile.primary_crop}.${loc ? ` Location: ${loc}.` : ''} Month: ${month}. Give ONE specific agronomic tip or warning relevant to THIS crop at this time of year. Plain text only, no JSON.`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.7, maxOutputTokens: 80 },
