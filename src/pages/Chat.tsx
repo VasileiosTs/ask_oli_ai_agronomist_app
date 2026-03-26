@@ -42,6 +42,8 @@ interface Message {
 }
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
+import PushPrompt from '../components/PushPrompt';
+import MessageBubble from '../components/MessageBubble';
 
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
@@ -955,154 +957,21 @@ let streamedContent = '';
 
   const messagesListJsx = (
     <div className="space-y-6">
-      {messages.map((msg, index) => {
-        const isUser = msg.role === 'user';
-        const isFirstAiInSequence = !isUser && (index === 0 || messages[index - 1].role === 'user');
-        return (
-          <div key={msg.id} className={clsx("group flex w-full animate-fade-in", isUser ? "justify-end" : "justify-start")}>
-            {!isUser && (
-              <div className="w-6 flex-shrink-0 pt-3">
-                {isFirstAiInSequence && <div className="h-2 w-2 rounded-full bg-primary/60" />}
-              </div>
-            )}
-            <div className="flex max-w-[78%] flex-col gap-1">
-              {msg.attachments && msg.attachments.length > 0 && (
-                <div className={clsx("flex flex-wrap gap-2 mb-1", isUser ? "justify-end" : "justify-start")}>
-                  {msg.attachments.map((attachment, i) => (
-                    attachment.mimeType.startsWith('image/') ? (
-                      <img key={i} src={attachment.url} alt={attachment.name} loading="lazy" className="h-24 w-24 rounded-xl border border-border/50 object-cover" />
-                    ) : (
-                      <div key={i} className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border border-border/50 bg-surface px-2 text-center">
-                        <FileText className="mb-2 h-6 w-6 text-muted" />
-                        <span className="line-clamp-2 text-[11px] text-muted">{attachment.name}</span>
-                      </div>
-                    )
-                  ))}
-                </div>
-              )}
-              <div className={clsx("px-4 py-3",
-                isUser ? "rounded-[18px] rounded-br-[4px] bg-primary text-white"
-                       : "rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface text-foreground")}>
-                {isUser ? (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">{
-                    /* M4: Strip attachment prefix from displayed user messages */
-                    msg.content.replace(/^\[The user attached[^\]]*\]\n?/i, '')
-                  }</p>
-                ) : (
-                  <div>
-                    <div className="prose prose-sm prose-invert max-w-none">
-                      {/* M2: Sanitize HTML in AI responses to prevent XSS */}
-                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{msg.content}</ReactMarkdown>
-                    </div>
-
-                    {/* Treatment cards — organic vs chemical split */}
-                    {msg.metadata?.diagnosis_data?.organic_treatments?.length > 0 || msg.metadata?.diagnosis_data?.chemical_treatments?.length > 0 ? (
-                      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-3">
-                        {msg.metadata.diagnosis_data.organic_treatments?.length > 0 && (
-                          <div className="rounded-xl bg-green-500/5 border border-green-500/20 p-3">
-                            <p className="text-xs font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
-                            {(msg.metadata.diagnosis_data.organic_treatments as string[]).map((tx: string, i: number) => (
-                              <p key={i} className="text-[12px] text-foreground/80 leading-snug">• {tx}</p>
-                            ))}
-                          </div>
-                        )}
-                        {msg.metadata?.diagnosis_data?.chemical_treatments?.length > 0 && (
-                          <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 p-3">
-                            <p className="text-xs font-semibold text-blue-400 mb-1.5">{t.chemicalTreatments}</p>
-                            {(msg.metadata.diagnosis_data.chemical_treatments as string[]).map((tx: string, i: number) => (
-                              <p key={i} className="text-[12px] text-foreground/80 leading-snug">• {tx}</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {/* VIO Step 1: "Did you apply?" buttons */}
-                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && msg.metadata?.vio_step_type === 'apply_check' && (
-                      <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
-                        <button
-                          onClick={() => handleVioApplyConfirm(msg.metadata!.follow_up_intervention_id as string, true, msg.id)}
-                          className="rounded-full border border-green-500/30 bg-green-500/5 px-4 py-1.5 text-sm font-medium text-green-400 transition-colors hover:bg-green-500/10 active:scale-[0.97]">
-                          {lang === 'el' ? 'Ναι, εφάρμοσα' : 'Yes, I applied'}
-                        </button>
-                        <button
-                          onClick={() => handleVioApplyConfirm(msg.metadata!.follow_up_intervention_id as string, false, msg.id)}
-                          className="rounded-full border border-border/50 bg-background px-4 py-1.5 text-sm font-medium text-muted transition-colors hover:border-primary/50 hover:bg-primary/5 active:scale-[0.97]">
-                          {lang === 'el' ? 'Όχι ακόμα' : 'Not yet'}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* VIO Step 2: "Any improvement?" outcome buttons */}
-                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && msg.metadata?.vio_step_type === 'outcome_check' && (
-                      <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
-                        {(['better', 'same', 'worse'] as const).map(outcome => (
-                          <button key={outcome}
-                            onClick={() => handleOutcome(msg.metadata!.follow_up_intervention_id as string, outcome, msg.id)}
-                            className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 active:scale-[0.97]">
-                            {outcome === 'better' ? t.outcomeBetter : outcome === 'same' ? t.outcomeSame : t.outcomeWorse}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Legacy follow-ups without vio_step_type */}
-                    {msg.metadata?.is_follow_up && msg.metadata?.follow_up_intervention_id && !msg.metadata?.vio_step_type && (
-                      <div className="mt-3 flex flex-wrap gap-2 border-t border-border/30 pt-3">
-                        {(['better', 'same', 'worse'] as const).map(outcome => (
-                          <button key={outcome}
-                            onClick={() => handleOutcome(msg.metadata!.follow_up_intervention_id as string, outcome, msg.id)}
-                            className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 active:scale-[0.97]">
-                            {outcome === 'better' ? t.outcomeBetter : outcome === 'same' ? t.outcomeSame : t.outcomeWorse}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <span className={clsx("text-[11px] text-muted opacity-0 transition-opacity group-hover:opacity-100", isUser ? "text-right" : "text-left")}>
-                {formatTime(msg.created_at)}
-              </span>
-              {/* Feedback thumbs — all AI messages */}
-              {!isUser && !msg.metadata?.is_follow_up && (
-                <div className="mt-1 flex items-center gap-1">
-                  <button onClick={() => handleFeedback(msg, 'positive')}
-                    className={clsx("rounded-full p-1.5 transition-colors",
-                      msg.metadata?.feedback === 'positive' ? "text-green-400 bg-green-500/10" : "text-muted/40 hover:text-green-400 hover:bg-green-500/5")}>
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => handleFeedback(msg, 'negative')}
-                    className={clsx("rounded-full p-1.5 transition-colors",
-                      msg.metadata?.feedback === 'negative' ? "text-red-400 bg-red-500/10" : "text-muted/40 hover:text-red-400 hover:bg-red-500/5")}>
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {/* Diagnosis action buttons */}
-              {!isUser && msg.metadata?.diagnosis_data && !msg.metadata?.is_follow_up && (
-                <div className="mt-1 flex flex-wrap gap-2">
-                  <button onClick={() => handleStarMessage(msg)}
-                    className={clsx("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                      msg.starred ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-500" : "border-border/50 bg-surface text-muted hover:bg-muted/10 hover:text-foreground")}>
-                    <Star className={clsx("h-3.5 w-3.5", msg.starred && "fill-current")} />
-                    {t.savedMessage}
-                  </button>
-                  <button onClick={() => handleLogIntervention(msg)}
-                    className="flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/5 px-2.5 py-1 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/10">
-                    <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
-                  </button>
-                  <button onClick={() => handleShare(msg)}
-                    className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground">
-                    <Share2 className="h-3.5 w-3.5" />{t.shareLabel}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {messages.map((msg, index) => (
+        <MessageBubble
+          key={msg.id}
+          msg={msg}
+          isFirstAiInSequence={msg.role !== 'user' && (index === 0 || messages[index - 1].role === 'user')}
+          t={t}
+          lang={lang}
+          onStar={handleStarMessage}
+          onFeedback={handleFeedback}
+          onLogIntervention={handleLogIntervention}
+          onShare={handleShare}
+          onVioApplyConfirm={handleVioApplyConfirm}
+          onOutcome={handleOutcome}
+        />
+      ))}
       {isTyping && (
         <div className="group flex w-full justify-start animate-fade-in">
           <div className="w-6 flex-shrink-0 pt-3"><div className="h-2 w-2 rounded-full bg-primary/60" /></div>
@@ -1120,7 +989,7 @@ let streamedContent = '';
   );
 
   const inputBarJsx = (
-    <div className="border-t border-border/50 bg-surface/95 pb-safe backdrop-blur-sm">
+    <div className="border-t border-border/50 bg-surface/95 pb-safe md:pb-safe backdrop-blur-sm mb-12 md:mb-0">
       {messageCount >= FREE_LIMIT - 3 && (
         <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
           {FREE_LIMIT - messageCount} {t.messagesLeft}
@@ -1318,6 +1187,7 @@ let streamedContent = '';
             </div>
             <div className="flex-shrink-0">
               <div className="mx-auto max-w-2xl md:px-2 md:pb-4">
+                <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
                 {inputBarJsx}
               </div>
             </div>

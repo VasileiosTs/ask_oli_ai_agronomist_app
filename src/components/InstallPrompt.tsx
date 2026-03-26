@@ -86,7 +86,7 @@ export default function InstallPrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm animate-slide-up">
+    <div className="fixed bottom-[72px] md:bottom-20 left-4 right-4 z-50 mx-auto max-w-sm animate-slide-up">
       <div className="rounded-2xl bg-white border border-[#194121]/10 p-5 shadow-xl"
         style={{ boxShadow: '0 12px 40px rgba(25,65,33,0.15)' }}>
 

@@ -92,6 +92,23 @@ export interface T {
   pushDenied: string;
   // Sidebar nav
   navChat: string; navHistory: string; navFields: string; navProfile: string;
+  // Legal
+  legalUpdated: string;
+  privacyDataTitle: string; privacyDataAccount: string; privacyDataUsage: string; privacyDataTech: string;
+  privacyHowTitle: string; privacyHowBody: string;
+  privacyStorageTitle: string; privacyStorageBody: string; privacyStorageRls: string;
+  privacyThirdTitle: string; privacyGemini: string; privacySentry: string; privacyVercel: string;
+  privacyGdprTitle: string; privacyGdprAccess: string; privacyGdprDelete: string; privacyGdprCorrect: string; privacyGdprPortability: string;
+  privacyCookies: string; privacyAge: string; privacyContact: string;
+  termsNature: string; termsNatureBody: string;
+  termsLiability: string; termsLiabilityBody: string;
+  termsUse: string; termsUseBody: string;
+  termsAccounts: string; termsAccountsBody: string;
+  termsIp: string; termsIpBody: string;
+  termsTermination: string; termsTerminationBody: string;
+  termsLaw: string; termsLawBody: string;
+  // Push prompt
+  pushPromptTitle: string; pushPromptBody: string; pushPromptEnable: string; pushPromptLater: string;
 }
 
 const el: T = {
@@ -196,6 +213,43 @@ const el: T = {
   pushEnableBtn: 'Ενεργοποίηση', pushDisableBtn: 'Απενεργοποίηση', pushNotSupported: 'Δεν υποστηρίζεται σε αυτό το πρόγραμμα.',
   pushDenied: 'Οι ειδοποιήσεις έχουν αποκλειστεί. Ενεργοποίησέ τες από τις ρυθμίσεις του browser.',
   navChat: 'Συνομιλία', navHistory: 'Ιστορικό', navFields: 'Χωράφια', navProfile: 'Προφίλ',
+  legalUpdated: 'Τελευταία ενημέρωση: Μάρτιος 2026',
+  privacyDataTitle: 'Δεδομένα που συλλέγουμε',
+  privacyDataAccount: 'Στοιχεία λογαριασμού: email, όνομα, τοποθεσία, κύρια καλλιέργεια.',
+  privacyDataUsage: 'Δεδομένα χρήσης: μηνύματα chat, φωτογραφίες, δεδομένα αγροτεμαχίων, καταγεγραμμένες παρεμβάσεις, αποτελέσματα VIO.',
+  privacyDataTech: 'Τεχνικά δεδομένα: διεύθυνση IP (μόνο για ασφάλεια), user agent, γλώσσα προτίμησης.',
+  privacyHowTitle: 'Πώς χρησιμοποιούμε τα δεδομένα',
+  privacyHowBody: 'Παροχή εξατομικευμένης αγρονομικής συμβουλής, βελτίωση της υπηρεσίας, αποστολή follow-up ειδοποιήσεων για τον κύκλο VIO.',
+  privacyStorageTitle: 'Αποθήκευση & Ασφάλεια',
+  privacyStorageBody: 'Supabase EU (Frankfurt) — GDPR compliant. Κρυπτογράφηση at rest και in transit.',
+  privacyStorageRls: 'Κάθε χρήστης βλέπει μόνο τα δικά του δεδομένα.',
+  privacyThirdTitle: 'Τρίτα μέρη',
+  privacyGemini: 'Τα μηνύματα αποστέλλονται στο Gemini API για AI επεξεργασία. Η Google δεν αποθηκεύει τα δεδομένα πέραν της επεξεργασίας.',
+  privacySentry: 'Αναφορές σφαλμάτων (χωρίς προσωπικά δεδομένα).',
+  privacyVercel: 'Hosting — EU edge nodes.',
+  privacyGdprTitle: 'Δικαιώματά σας (GDPR)',
+  privacyGdprAccess: 'Profile → Εξαγωγή δεδομένων (JSON).',
+  privacyGdprDelete: 'Profile → Διαγραφή λογαριασμού — διαγράφονται ΟΛΑ τα δεδομένα.',
+  privacyGdprCorrect: 'Profile → Επεξεργασία προφίλ.',
+  privacyGdprPortability: 'Τα δεδομένα εξάγονται σε JSON format.',
+  privacyCookies: 'Κανένα advertising cookie. Μόνο essential session cookies για authentication.',
+  privacyAge: 'Η υπηρεσία προορίζεται για χρήστες άνω των 18 ετών.',
+  privacyContact: 'Για θέματα προστασίας δεδομένων: privacy@askoli.ai',
+  termsNature: 'Φύση της υπηρεσίας',
+  termsNatureBody: 'Το Oli παρέχει AI συμβουλές για ενημέρωση μόνο. Δεν αντικαθιστά τον επιστημονικό αγρονομικό σύμβουλο. Πάντα συμβουλευτείτε έναν πιστοποιημένο αγρονόμο πριν την εφαρμογή χημικών σκευασμάτων.',
+  termsLiability: 'Περιορισμός ευθύνης',
+  termsLiabilityBody: 'Το Oli δεν ευθύνεται για απώλειες στη σοδειά, ζημιές από λανθασμένη εφαρμογή συμβουλών, ή οποιαδήποτε έμμεση ζημία.',
+  termsUse: 'Αποδεκτή χρήση',
+  termsUseBody: 'Απαγορεύεται η κατάχρηση, η αντίστροφη μηχανολόγηση, η αποστολή spam ή κακόβουλου περιεχομένου, η χρήση για παράνομους σκοπούς.',
+  termsAccounts: 'Λογαριασμοί',
+  termsAccountsBody: 'Οι χρήστες πρέπει να είναι άνω των 18 ετών. Κάθε χρήστης δικαιούται έναν λογαριασμό. Η δωρεάν βαθμίδα περιλαμβάνει 20 μηνύματα/μήνα.',
+  termsIp: 'Πνευματική ιδιοκτησία',
+  termsIpBody: 'Το περιεχόμενο που δημιουργείτε παραμένει δικό σας. Μας παρέχετε άδεια επεξεργασίας για τη λειτουργία της υπηρεσίας.',
+  termsTermination: 'Τερματισμός',
+  termsTerminationBody: 'Διατηρούμε το δικαίωμα αναστολής λογαριασμών που παραβιάζουν τους όρους. Μπορείτε να διαγράψετε τον λογαριασμό σας ανά πάσα στιγμή.',
+  termsLaw: 'Εφαρμοστέο δίκαιο',
+  termsLawBody: 'Εφαρμόζεται το ελληνικό δίκαιο. Αρμόδια δικαστήρια τα δικαστήρια Αθηνών.',
+  pushPromptTitle: 'Ειδοποιήσεις', pushPromptBody: 'Ενεργοποίησε τις ειδοποιήσεις για follow-up υπενθυμίσεις.', pushPromptEnable: 'Ενεργοποίηση', pushPromptLater: 'Αργότερα',
 };
 
 const en: T = {
@@ -300,6 +354,43 @@ const en: T = {
   pushEnableBtn: 'Enable', pushDisableBtn: 'Disable', pushNotSupported: 'Not supported on this browser.',
   pushDenied: 'Notifications are blocked. Enable them in your browser settings.',
   navChat: 'Chat', navHistory: 'History', navFields: 'Fields', navProfile: 'Profile',
+  legalUpdated: 'Last updated: March 2026',
+  privacyDataTitle: 'Data we collect',
+  privacyDataAccount: 'Account details: email, name, location, primary crop.',
+  privacyDataUsage: 'Usage data: chat messages, photos, field data, logged interventions, VIO outcomes.',
+  privacyDataTech: 'Technical data: IP address (security only), user agent, preferred language.',
+  privacyHowTitle: 'How we use your data',
+  privacyHowBody: 'Providing personalized agronomic advice, improving the service, sending VIO follow-up reminders.',
+  privacyStorageTitle: 'Storage & Security',
+  privacyStorageBody: 'Supabase EU (Frankfurt) — GDPR compliant. Encryption at rest and in transit.',
+  privacyStorageRls: 'Each user can only see their own data (Row-Level Security).',
+  privacyThirdTitle: 'Third parties',
+  privacyGemini: 'Messages are sent to Gemini API for AI processing. Google does not store data beyond processing.',
+  privacySentry: 'Error reports (no personal data).',
+  privacyVercel: 'Hosting — EU edge nodes.',
+  privacyGdprTitle: 'Your rights (GDPR)',
+  privacyGdprAccess: 'Profile → Export data (JSON).',
+  privacyGdprDelete: 'Profile → Delete account — ALL data is permanently removed.',
+  privacyGdprCorrect: 'Profile → Edit profile.',
+  privacyGdprPortability: 'Data is exported in JSON format.',
+  privacyCookies: 'No advertising cookies. Only essential session cookies for authentication.',
+  privacyAge: 'The service is intended for users aged 18 and over.',
+  privacyContact: 'For data protection inquiries: privacy@askoli.ai',
+  termsNature: 'Nature of the service',
+  termsNatureBody: 'Oli provides AI advice for informational purposes only. It does not replace a certified agronomist. Always consult a professional before applying chemical treatments.',
+  termsLiability: 'Limitation of liability',
+  termsLiabilityBody: 'Oli is not liable for crop losses, damages from misapplied advice, or any indirect damages.',
+  termsUse: 'Acceptable use',
+  termsUseBody: 'Prohibited: abuse or reverse engineering, sending spam or malicious content, attempting to extract the AI model, use for illegal purposes.',
+  termsAccounts: 'Accounts',
+  termsAccountsBody: 'Users must be 18 or older. Each user is entitled to one account. The free tier includes 20 messages per month.',
+  termsIp: 'Intellectual property',
+  termsIpBody: 'Content you create (messages, photos) remains yours. You grant us a license to process it for the operation of the service.',
+  termsTermination: 'Termination',
+  termsTerminationBody: 'We reserve the right to suspend accounts that violate these terms. You can delete your account at any time from your Profile.',
+  termsLaw: 'Governing law',
+  termsLawBody: 'Greek law applies. The courts of Athens have exclusive jurisdiction.',
+  pushPromptTitle: 'Notifications', pushPromptBody: 'Enable notifications for VIO follow-up reminders.', pushPromptEnable: 'Enable', pushPromptLater: 'Later',
 };
 
 export const dict: Record<Lang, T> = { el, en };
