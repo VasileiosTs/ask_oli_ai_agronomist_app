@@ -1,5 +1,5 @@
-// Oli Service Worker — minimal for PWA install + offline fallback
-const CACHE_NAME = 'oli-v1';
+// Oli Service Worker — PWA install + offline fallback + push notifications
+const CACHE_NAME = 'oli-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Pre-cache the offline page on install
@@ -14,7 +14,6 @@ self.addEventListener('install', (event) => {
       ]);
     })
   );
-  // Activate immediately — don't wait for old SW to die
   self.skipWaiting();
 });
 
@@ -29,18 +28,56 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Take control of all pages immediately
   self.clients.claim();
 });
 
-// Network-first strategy: try network, fall back to offline page for navigations
+// Network-first strategy for navigation requests
 self.addEventListener('fetch', (event) => {
-  // Only handle navigation requests (HTML pages)
   if (event.request.mode !== 'navigate') return;
-
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(OFFLINE_URL);
+    })
+  );
+});
+
+// ── PUSH NOTIFICATIONS ──
+self.addEventListener('push', (event) => {
+  let data = { title: 'Oli', body: 'You have a new update', url: '/chat' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    // fallback to defaults
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/favicon-180.png',
+      badge: '/favicon-48.png',
+      tag: data.tag || 'oli-notification',
+      data: { url: data.url || '/chat' },
+      vibrate: [100, 50, 100],
+    })
+  );
+});
+
+// When user clicks the notification, open/focus the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/chat';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      // Focus existing tab if open
+      for (const client of clients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      // Otherwise open new window
+      return self.clients.openWindow(url);
     })
   );
 });

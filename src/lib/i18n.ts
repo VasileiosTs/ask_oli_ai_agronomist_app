@@ -86,6 +86,10 @@ export interface T {
   productLabel: string; dosageLabel: string; methodLabel: string;
   stepApplyCheck: string; stepOutcomeCheck: string; stepComplete: string;
   daysAgo: string;
+  // Push notifications
+  pushNotifications: string; pushEnabled: string; pushDisabled: string;
+  pushEnableBtn: string; pushDisableBtn: string; pushNotSupported: string;
+  pushDenied: string;
   // Sidebar nav
   navChat: string; navHistory: string; navFields: string; navProfile: string;
 }
@@ -188,6 +192,9 @@ const el: T = {
   productLabel: 'Προϊόν', dosageLabel: 'Δόση', methodLabel: 'Μέθοδος',
   stepApplyCheck: 'Εφαρμόστηκε;', stepOutcomeCheck: 'Βελτίωση;', stepComplete: 'Ολοκληρώθηκε',
   daysAgo: 'μέρες πριν',
+  pushNotifications: 'Ειδοποιήσεις Push', pushEnabled: 'Ενεργές', pushDisabled: 'Ανενεργές',
+  pushEnableBtn: 'Ενεργοποίηση', pushDisableBtn: 'Απενεργοποίηση', pushNotSupported: 'Δεν υποστηρίζεται σε αυτό το πρόγραμμα.',
+  pushDenied: 'Οι ειδοποιήσεις έχουν αποκλειστεί. Ενεργοποίησέ τες από τις ρυθμίσεις του browser.',
   navChat: 'Συνομιλία', navHistory: 'Ιστορικό', navFields: 'Χωράφια', navProfile: 'Προφίλ',
 };
 
@@ -289,6 +296,9 @@ const en: T = {
   productLabel: 'Product', dosageLabel: 'Dosage', methodLabel: 'Method',
   stepApplyCheck: 'Applied?', stepOutcomeCheck: 'Improved?', stepComplete: 'Complete',
   daysAgo: 'days ago',
+  pushNotifications: 'Push Notifications', pushEnabled: 'Enabled', pushDisabled: 'Disabled',
+  pushEnableBtn: 'Enable', pushDisableBtn: 'Disable', pushNotSupported: 'Not supported on this browser.',
+  pushDenied: 'Notifications are blocked. Enable them in your browser settings.',
   navChat: 'Chat', navHistory: 'History', navFields: 'Fields', navProfile: 'Profile',
 };
 

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, Bell, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, Bell, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import { usePushSubscription } from '../hooks/usePushSubscription';
 import type { Lang } from '../lib/i18n';
 import clsx from 'clsx';
 
@@ -24,6 +25,7 @@ export default function Profile() {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [notifState, setNotifState] = useState<Record<string, boolean>>({});
+  const push = usePushSubscription(appUserId ?? null);
 
   if (!profile) {
     return (
@@ -141,6 +143,7 @@ export default function Profile() {
       'field_id',
       (await supabase.from('fields').select('id').eq('user_id', appUserId)).data?.map((f: { id: string }) => f.id) || []
     );
+    await supabase.from('push_subscriptions').delete().eq('user_id', appUserId);
     await supabase.from('conversations').delete().eq('user_id', appUserId);
     await supabase.from('fields').delete().eq('user_id', appUserId);
     await supabase.from('users').delete().eq('id', appUserId);
@@ -244,6 +247,29 @@ export default function Profile() {
               </div>
             );
           })}
+
+          {/* Push notifications */}
+          <div className="flex items-center justify-between rounded-xl p-3">
+            <div className="flex items-center gap-3">
+              <BellRing className="h-5 w-5 text-muted" />
+              <div>
+                <span className="text-sm text-foreground">{t.pushNotifications}</span>
+                {!push.isSupported && <p className="text-[11px] text-muted">{t.pushNotSupported}</p>}
+                {push.permission === 'denied' && <p className="text-[11px] text-red-400">{t.pushDenied}</p>}
+              </div>
+            </div>
+            {push.isSupported && push.permission !== 'denied' && (
+              <button
+                onClick={() => push.isSubscribed ? push.unsubscribe() : push.subscribe()}
+                disabled={push.loading}
+                className={clsx('relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50',
+                  push.isSubscribed ? 'bg-primary' : 'bg-border')}
+              >
+                <span className={clsx('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+                  push.isSubscribed ? 'translate-x-5' : 'translate-x-0')} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
