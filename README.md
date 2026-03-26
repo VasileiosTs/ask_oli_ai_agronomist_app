@@ -1,6 +1,6 @@
 # Oli — AI Agronomist
 
-Oli is a chat-first AI agronomist app for Mediterranean smallholder farmers. Think ChatGPT but for farming — one conversation screen where a grower can diagnose crop disease, log interventions, get weekly advice, and build a memory of their fields over time.
+Oli is a chat-first AI agronomist app for smallholder farmers and growers. Think ChatGPT but for farming — one conversation screen where a grower can diagnose crop disease, log interventions, get weekly advice, and build a memory of their fields over time.
 
 **Live app:** https://codex-ask-oli-app.vercel.app  
 **Stack:** React + TypeScript + Vite + Tailwind · Supabase (Postgres + Edge Functions + Storage) · Gemini AI  
