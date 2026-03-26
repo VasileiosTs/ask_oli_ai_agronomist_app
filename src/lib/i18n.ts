@@ -109,6 +109,8 @@ export interface T {
   termsLaw: string; termsLawBody: string;
   // Push prompt
   pushPromptTitle: string; pushPromptBody: string; pushPromptEnable: string; pushPromptLater: string;
+  // Referral
+  inviteFriends: string; inviteBody: string; inviteCopied: string; copyLink: string;
 }
 
 const el: T = {
@@ -250,6 +252,7 @@ const el: T = {
   termsLaw: 'Εφαρμοστέο δίκαιο',
   termsLawBody: 'Εφαρμόζεται το ελληνικό δίκαιο. Αρμόδια δικαστήρια τα δικαστήρια Αθηνών.',
   pushPromptTitle: 'Ειδοποιήσεις', pushPromptBody: 'Ενεργοποίησε τις ειδοποιήσεις για follow-up υπενθυμίσεις.', pushPromptEnable: 'Ενεργοποίηση', pushPromptLater: 'Αργότερα',
+  inviteFriends: 'Προσκάλεσε φίλους', inviteBody: 'Μοιράσου τον Oli με άλλους αγρότες.', inviteCopied: 'Ο σύνδεσμος αντιγράφηκε!', copyLink: 'Αντιγραφή συνδέσμου',
 };
 
 const en: T = {
@@ -391,6 +394,7 @@ const en: T = {
   termsLaw: 'Governing law',
   termsLawBody: 'Greek law applies. The courts of Athens have exclusive jurisdiction.',
   pushPromptTitle: 'Notifications', pushPromptBody: 'Enable notifications for VIO follow-up reminders.', pushPromptEnable: 'Enable', pushPromptLater: 'Later',
+  inviteFriends: 'Invite friends', inviteBody: 'Share Oli with other farmers.', inviteCopied: 'Link copied!', copyLink: 'Copy link',
 };
 
 export const dict: Record<Lang, T> = { el, en };

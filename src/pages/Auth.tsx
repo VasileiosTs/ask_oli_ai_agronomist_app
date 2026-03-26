@@ -158,7 +158,7 @@ export default function Auth() {
                   background: '#f5f4ef',
                   color: '#1b1c19',
                   border: '1px solid #e3e3de',
-                  focusRingColor: '#194121',
+                  // focus ring handled via onFocus/onBlur
                 }}
                 onFocus={e => { e.currentTarget.style.borderColor = '#194121'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(25,65,33,0.15)'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = '#e3e3de'; e.currentTarget.style.boxShadow = 'none'; }}

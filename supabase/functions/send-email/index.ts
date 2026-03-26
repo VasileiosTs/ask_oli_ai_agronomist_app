@@ -224,6 +224,113 @@ function weeklyDigestEmail(
   };
 }
 
+function onboardingDripEmail(
+  name: string,
+  day: number,
+  lang: string
+): { subject: string; html: string } {
+  const isEl = lang === "el";
+
+  const content = day <= 3
+    ? {
+        subject: isEl ? "Ήξερες ότι ο Oli αναγνωρίζει 200+ ασθένειες;" : "Did you know Oli detects 200+ diseases?",
+        heading: isEl ? `${name}, δοκίμασε τη φωτο-διάγνωση!` : `${name}, try photo diagnosis!`,
+        body: isEl
+          ? "Στείλε μια φωτογραφία της καλλιέργειάς σου και πάρε άμεση διάγνωση με σύσταση θεραπείας. Ο Oli αναγνωρίζει πάνω από 200 ασθένειες και παράσιτα."
+          : "Send a photo of your crop and get instant diagnosis with treatment advice. Oli detects over 200 diseases and pests.",
+        cta: isEl ? "Στείλε φωτογραφία →" : "Send a photo →",
+      }
+    : {
+        subject: isEl ? "Ο Oli σε περιμένει — δωρεάν ακόμα!" : "Oli is waiting — still free!",
+        heading: isEl ? `${name}, μη χάσεις τις δωρεάν ερωτήσεις σου!` : `${name}, don't miss your free questions!`,
+        body: isEl
+          ? "Έχεις 20 δωρεάν ερωτήσεις κάθε μήνα. Ρώτησε τον Oli για ψεκασμούς, λίπανση, ή ό,τι αφορά τις καλλιέργειές σου."
+          : "You have 20 free questions every month. Ask Oli about spraying, fertilization, or anything about your crops.",
+        cta: isEl ? "Ρώτα τον Oli →" : "Ask Oli →",
+      };
+
+  return {
+    subject: content.subject,
+    html: `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <tr><td style="text-align:center;padding-bottom:24px;">
+      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
+    </td></tr>
+    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">${content.heading}</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">${content.body}</p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
+          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">${content.cta}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="text-align:center;padding-top:24px;">
+      <p style="font-size:12px;color:#999;">
+        <a href="${APP_URL}/profile" style="color:#999;">${isEl ? "Ρυθμίσεις ειδοποιήσεων" : "Notification settings"}</a>
+      </p>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
+function reEngagementEmail(
+  name: string,
+  lang: string
+): { subject: string; html: string } {
+  const isEl = lang === "el";
+  return {
+    subject: isEl ? "Λείπεις από τον Oli! 🌿" : "We miss you at Oli! 🌿",
+    html: `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <tr><td style="text-align:center;padding-bottom:24px;">
+      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
+    </td></tr>
+    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">
+        ${isEl ? `${name}, πώς πάνε οι καλλιέργειες;` : `${name}, how are your crops doing?`}
+      </h1>
+      <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">
+        ${isEl
+          ? "Ο Oli είναι εδώ για να σε βοηθήσει με ό,τι χρειαστείς — από διάγνωση ασθενειών μέχρι πρόγραμμα ψεκασμών."
+          : "Oli is here to help with anything you need — from disease diagnosis to spray schedules."
+        }
+      </p>
+      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
+        ${isEl
+          ? "Στείλε μια φωτογραφία ή κάνε μια ερώτηση — είναι δωρεάν."
+          : "Send a photo or ask a question — it's free."
+        }
+      </p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
+          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">
+            ${isEl ? "Επιστροφή στον Oli →" : "Back to Oli →"}
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="text-align:center;padding-top:24px;">
+      <p style="font-size:12px;color:#999;">
+        <a href="${APP_URL}/profile" style="color:#999;">${isEl ? "Ρυθμίσεις ειδοποιήσεων" : "Notification settings"}</a>
+      </p>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
 // ── Main handler ──
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -360,8 +467,99 @@ serve(async (req) => {
       return new Response(JSON.stringify({ sent }), { headers });
     }
 
+    // Mode: onboarding_drip_cron — Day 3 & Day 7 emails for new users
+    if (body.mode === "onboarding_drip_cron") {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+      // Day 3: users created 3 days ago (±12h window)
+      const day3Start = new Date(Date.now() - 3.5 * 86400000).toISOString();
+      const day3End = new Date(Date.now() - 2.5 * 86400000).toISOString();
+      // Day 7: users created 7 days ago (±12h window)
+      const day7Start = new Date(Date.now() - 7.5 * 86400000).toISOString();
+      const day7End = new Date(Date.now() - 6.5 * 86400000).toISOString();
+
+      const { data: day3Users } = await supabase
+        .from("users")
+        .select("id, name, auth_id, lang")
+        .gte("created_at", day3Start)
+        .lte("created_at", day3End);
+
+      const { data: day7Users } = await supabase
+        .from("users")
+        .select("id, name, auth_id, lang")
+        .gte("created_at", day7Start)
+        .lte("created_at", day7End);
+
+      const allUsers = [
+        ...((day3Users || []).map(u => ({ ...u, day: 3 }))),
+        ...((day7Users || []).map(u => ({ ...u, day: 7 }))),
+      ];
+
+      if (allUsers.length === 0) {
+        return new Response(JSON.stringify({ sent: 0 }), { headers });
+      }
+
+      const { data: { users: authUsers } = { users: [] } } = await supabase.auth.admin.listUsers();
+
+      let sent = 0;
+      for (const u of allUsers) {
+        const authUser = (authUsers || []).find((a: any) => a.id === u.auth_id);
+        if (!authUser?.email) continue;
+        const tpl = onboardingDripEmail(u.name || "Farmer", u.day, u.lang || "en");
+        const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
+        if (ok) sent++;
+      }
+
+      return new Response(JSON.stringify({ sent, total: allUsers.length }), { headers });
+    }
+
+    // Mode: reengagement_cron — email users inactive for 14+ days
+    if (body.mode === "reengagement_cron") {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+      const twentyOneDaysAgo = new Date(Date.now() - 21 * 86400000).toISOString();
+
+      // Users whose last message is between 14-21 days ago (send once)
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, name, auth_id, lang");
+
+      if (!users || users.length === 0) {
+        return new Response(JSON.stringify({ sent: 0 }), { headers });
+      }
+
+      const { data: { users: authUsers } = { users: [] } } = await supabase.auth.admin.listUsers();
+
+      let sent = 0;
+      for (const u of users) {
+        const authUser = (authUsers || []).find((a: any) => a.id === u.auth_id);
+        if (!authUser?.email) continue;
+
+        // Check last message date
+        const { data: lastMsg } = await supabase
+          .from("chat_messages")
+          .select("created_at")
+          .eq("user_id", u.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!lastMsg) continue;
+        const lastActive = lastMsg.created_at;
+
+        // Only send if last activity is 14-21 days ago
+        if (lastActive > fourteenDaysAgo || lastActive < twentyOneDaysAgo) continue;
+
+        const tpl = reEngagementEmail(u.name || "Farmer", u.lang || "en");
+        const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
+        if (ok) sent++;
+      }
+
+      return new Response(JSON.stringify({ sent }), { headers });
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron" }),
+      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron" }),
       { status: 400, headers }
     );
   } catch (e) {

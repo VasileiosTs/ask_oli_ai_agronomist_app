@@ -1,11 +1,13 @@
-import { X } from 'lucide-react';
+import { X, Crown } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
 export default function PaywallModal({ isOpen, onClose }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   if (!isOpen) return null;
+
+  const comingSoon = lang === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -16,14 +18,16 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
         </button>
 
         <div className="mb-6 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
+            <Crown className="h-6 w-6 text-primary" />
+          </div>
           <h2 className="mb-2 text-2xl font-bold text-foreground">{t.paywallTitle}</h2>
           <p className="text-sm text-muted">{t.paywallBody}</p>
         </div>
 
-        <div className="space-y-4">
-          <button
-            onClick={() => console.log('monthly checkout')}
-            className="group flex w-full items-center justify-between rounded-xl border border-border bg-background p-4 transition-all hover:border-primary hover:ring-1 hover:ring-primary">
+        <div className="space-y-3">
+          {/* Monthly plan */}
+          <div className="flex w-full items-center justify-between rounded-xl border border-border bg-background p-4">
             <div>
               <p className="font-semibold text-foreground">{t.monthlyPlan}</p>
               <p className="text-sm text-muted">{t.unlimitedMessages}</p>
@@ -31,11 +35,10 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
             <div className="text-right">
               <span className="text-lg font-bold text-foreground">{t.monthly}</span>
             </div>
-          </button>
+          </div>
 
-          <button
-            onClick={() => console.log('yearly checkout')}
-            className="relative flex w-full items-center justify-between rounded-xl border-2 border-primary bg-primary/5 p-4 transition-all hover:bg-primary/10">
+          {/* Yearly plan */}
+          <div className="relative flex w-full items-center justify-between rounded-xl border border-border bg-background p-4">
             <div className="absolute -top-3 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
               {t.savings}
             </div>
@@ -46,10 +49,15 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
             <div className="text-right">
               <span className="text-lg font-bold text-foreground">{t.yearly}</span>
             </div>
-          </button>
+          </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-muted">{t.cancelAnytime}</p>
+        {/* Coming soon notice */}
+        <div className="mt-4 rounded-xl bg-primary/10 p-3 text-center">
+          <p className="text-sm font-medium text-primary">{comingSoon}</p>
+        </div>
+
+        <p className="mt-3 text-center text-xs text-muted">{t.cancelAnytime}</p>
       </div>
     </div>
   );

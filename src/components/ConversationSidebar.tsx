@@ -50,7 +50,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
   };
 
   const userInitial = user?.email?.[0]?.toUpperCase() ?? 'U';
-  const userName = profile?.name ?? user?.email ?? '';
+  const userName = (profile?.name as string) ?? user?.email ?? '';
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const searchPlaceholder = lang === 'el' ? 'Αναζήτηση...' : 'Search...';
   const noResults = lang === 'el' ? 'Δεν βρέθηκαν αποτελέσματα' : 'No results found';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, Bell, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, Bell, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -25,6 +25,7 @@ export default function Profile() {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [notifState, setNotifState] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState(false);
   const push = usePushSubscription(appUserId ?? null);
 
   if (!profile) {
@@ -269,6 +270,33 @@ export default function Profile() {
                   push.isSubscribed ? 'translate-x-5' : 'translate-x-0')} />
               </button>
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="h-px bg-border/50" />
+
+      {/* Invite Friends */}
+      <div className="px-4 py-4">
+        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t.inviteFriends}</h2>
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <Users className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground leading-relaxed">{t.inviteBody}</p>
+              <button
+                onClick={() => {
+                  const link = `${window.location.origin}/auth?ref=${appUserId}`;
+                  navigator.clipboard.writeText(link);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="mt-3 flex items-center gap-2 rounded-xl bg-primary/15 px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/25"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? t.inviteCopied : t.copyLink}
+              </button>
+            </div>
           </div>
         </div>
       </div>

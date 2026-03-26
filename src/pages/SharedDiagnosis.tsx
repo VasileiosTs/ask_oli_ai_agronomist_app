@@ -38,7 +38,7 @@ export default function SharedDiagnosis() {
     const title = `${data.problem || data.diagnosis || 'Διάγνωση'} — ${data.crop_type || 'Καλλιέργεια'} | Oli`;
     const description = data.cause
       ? `Αιτία: ${data.cause}. Διαγνώστηκε με Oli — AI γεωπόνος.`
-      : 'Διαγνώστηκε με Oli — AI γεωπόνος για Μεσογειακούς αγρότες.';
+      : 'Diagnosed with Oli — AI agronomist for farmers worldwide.';
 
     const setMeta = (property: string, content: string) => {
       let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
@@ -105,7 +105,7 @@ export default function SharedDiagnosis() {
         name: data.crop_type || 'Crop',
         description: `${data.problem || 'Crop issue'} — ${data.cause || 'AI diagnosis'}`,
       },
-      inLanguage: 'el',
+      inLanguage: lang,
     });
     document.head.appendChild(ldScript);
 
@@ -247,10 +247,20 @@ export default function SharedDiagnosis() {
           </Link>
         </div>
 
-        {/* Footer trust signal */}
-        <p className="text-center text-xs text-[#8B949E] pb-4">
-          {lang === 'el' ? 'Διαγνώστηκε από Oli · AI Γεωπόνος για Μεσογειακούς αγρότες' : 'Diagnosed by Oli · AI Agronomist for Mediterranean farmers'}
-        </p>
+        {/* Social proof + trust signal */}
+        <div className="text-center space-y-2 pb-4">
+          <div className="flex items-center justify-center gap-4 text-xs text-[#8B949E]">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-[#2EA043] animate-pulse" />
+              {lang === 'el' ? 'AI-powered' : 'AI-powered'}
+            </span>
+            <span>{lang === 'el' ? 'Δωρεάν 20 ερωτήσεις/μήνα' : 'Free 20 questions/mo'}</span>
+            <span>{lang === 'el' ? 'Χωρίς κάρτα' : 'No card needed'}</span>
+          </div>
+          <p className="text-xs text-[#8B949E]">
+            {lang === 'el' ? 'Διαγνώστηκε από Oli · AI Γεωπόνος' : 'Diagnosed by Oli · AI Agronomist'}
+          </p>
+        </div>
 
       </main>
     </div>
