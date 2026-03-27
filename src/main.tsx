@@ -14,22 +14,8 @@ initAnalytics();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
-      // Check for updates every 5 minutes so users always get fresh content
+      // Check for updates every 5 minutes
       setInterval(() => reg.update(), 5 * 60 * 1000);
-
-      // When a new SW is waiting, activate it immediately so the next
-      // navigation (or reload) serves the latest version — no hard reset needed
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-            // New version active — the next navigation will use it automatically.
-            // For SPA: reload once so the user gets new HTML + JS without manual hard reset.
-            window.location.reload();
-          }
-        });
-      });
     }).catch((err) => {
       console.warn('SW registration failed:', err);
     });

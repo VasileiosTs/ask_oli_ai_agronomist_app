@@ -1,5 +1,5 @@
 // Oli Service Worker — PWA install + push notifications + smart caching
-const CACHE_NAME = 'oli-v4';
+const CACHE_NAME = 'oli-v5';
 const SHELL_URLS = ['/offline.html'];
 
 // Install: cache offline fallback, then activate immediately
