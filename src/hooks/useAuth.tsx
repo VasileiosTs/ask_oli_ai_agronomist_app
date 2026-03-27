@@ -44,6 +44,25 @@ const AuthContext = createContext<AuthContextValue>({
 /** Fields that should never be stored in client-side state (L5). */
 const REDACTED_FIELDS = ['stripe_customer_id', 'stripe_subscription_id'] as const;
 
+function readStoredSession(): Session | null {
+  try {
+    const raw = localStorage.getItem('oli-auth');
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Session | null;
+    if (!parsed?.access_token || !parsed?.user?.id) {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to read stored session fallback:', error);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -171,6 +190,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Safety net: if nothing resolves within 5s, stop the spinner
     const timeout = setTimeout(() => {
       if (!cancelled && !initialResolved) {
+        const storedSession = readStoredSession();
+        if (storedSession?.user) {
+          console.warn('Auth init timed out — using persisted session fallback');
+          initialResolved = true;
+          setSession(storedSession);
+          setUser(storedSession.user);
+          fetchProfile(storedSession.user.id, {
+            retries: 4,
+            delayMs: 250,
+            preserveExisting: true,
+          }).finally(() => {
+            if (!cancelled) setLoading(false);
+          });
+          return;
+        }
+
         console.warn('Auth init timed out — forcing loading=false');
         initialResolved = true;
         setLoading(false);
