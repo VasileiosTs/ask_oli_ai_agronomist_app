@@ -1,12 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MessageCircle, ClipboardList, Sprout, User } from 'lucide-react';
+import { MessageCircle, User } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import clsx from 'clsx';
 
 const tabs = [
   { path: '/chat', icon: MessageCircle, labelKey: 'navChat' as const },
-  { path: '/history', icon: ClipboardList, labelKey: 'navHistory' as const },
-  { path: '/fields', icon: Sprout, labelKey: 'navFields' as const },
   { path: '/profile', icon: User, labelKey: 'navProfile' as const },
 ];
 

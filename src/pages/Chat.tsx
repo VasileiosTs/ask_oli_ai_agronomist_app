@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
 import InstallPrompt from '../components/InstallPrompt';
 import ConversationSidebar from '../components/ConversationSidebar';
-import { assembleFieldContext, Field } from '../lib/fieldContext';
+import type { Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage, getCachedImage, getCachedImages } from '../lib/imageCache';
@@ -573,10 +573,9 @@ export default function Chat() {
       const assistantMsgId = crypto.randomUUID();
       let messageAdded = false;
 
-      let fieldContext = '';
-      if (appUserId) {
-        fieldContext = await assembleFieldContext(appUserId, currentActiveFieldId);
-      }
+      // Field and treatment history are assembled server-side so the backend
+      // stays authoritative as we expand field memory.
+      const fieldContext = '';
 
       const recentMessages = currentMessages.slice(-10);
       const latestUserMessage = [...recentMessages].reverse().find((message) => message.role === 'user');
@@ -584,7 +583,7 @@ export default function Chat() {
       const latestInlineAttachments = base64Images ?? latestUserMessage?.inlineAttachments ?? [];
       const latestAttachmentPaths = attachmentPaths ?? latestUserMessage?.attachmentPaths ?? [];
 
-let streamedContent = '';
+      let streamedContent = '';
       const completion = await streamChatCompletion(
         {
           messages: recentMessages.map((message) => ({
@@ -642,20 +641,8 @@ let streamedContent = '';
         setMessageCount(completion.messageCountMonth);
       }
 
-      // Post-response: silently link conversation to detected crop's field (if any)
-      const cropMentioned = completion.metadata?.crop_mentioned;
-      if (cropMentioned && !currentActiveFieldId && appUserId) {
-        const matchingField = fields.find(f =>
-          f.crop_type?.toLowerCase() === (cropMentioned as string).toLowerCase()
-        );
-        if (matchingField) {
-          setActiveFieldId(matchingField.id);
-          if (activeConversationId) {
-            supabase.from('conversations').update({ field_id: matchingField.id }).eq('id', activeConversationId).then(({ error }) => {
-              if (error) console.error('Failed to link field to conversation:', error);
-            });
-          }
-        }
+      if (completion.fieldId && completion.fieldId !== currentActiveFieldId) {
+        setActiveFieldId(completion.fieldId);
       }
     } catch (error) {
       console.error('Error sending message:', error);

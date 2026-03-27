@@ -39,6 +39,7 @@ export interface ChatFunctionDonePayload {
   messageCountMonth: number | null;
   metadata?: ChatFunctionMetadata;
   userMessageId?: string | null;
+  fieldId?: string | null;
 }
 
 type StreamCallbacks = {
@@ -172,6 +173,7 @@ export async function streamChatCompletion(
           messageCountMonth: typeof payload.messageCountMonth === 'number' ? payload.messageCountMonth : null,
           metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
           userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : null,
+          fieldId: typeof payload.fieldId === 'string' ? payload.fieldId : null,
         };
       }
     };
