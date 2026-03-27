@@ -29,8 +29,8 @@ export function usePushSubscription(userId: string | null) {
     navigator.serviceWorker.ready.then(reg => {
       reg.pushManager.getSubscription().then(sub => {
         setIsSubscribed(!!sub);
-      });
-    });
+      }).catch(() => { /* permission denied or SW not active */ });
+    }).catch(() => { /* SW not registered */ });
   }, []);
 
   const subscribe = useCallback(async () => {

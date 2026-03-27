@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useReducer } from 'react';
 import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -10,7 +10,7 @@ import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
-import { compressImage, cacheImage, getCachedImage } from '../lib/imageCache';
+import { compressImage, cacheImage, getCachedImage, getCachedImages } from '../lib/imageCache';
 import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 
@@ -22,6 +22,39 @@ import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
 import FieldSelector from '../components/FieldSelector';
 
+// ── Message reducer ────────────────────────────────────────────────
+type MsgAction =
+  | { type: 'set'; messages: Message[] }
+  | { type: 'clear' }
+  | { type: 'append'; message: Message }
+  | { type: 'set_if_empty'; message: Message }
+  | { type: 'update'; id: string; patch: Partial<Message> }
+  | { type: 'replace'; id: string; message: Message }
+  | { type: 'update_by'; predicate: (m: Message) => boolean; patch: Partial<Message> }
+  | { type: 'filter'; predicate: (m: Message) => boolean }
+  | { type: 'batch_update'; updates: Array<{ id: string; patch: Partial<Message> }> };
+
+function messagesReducer(state: Message[], action: MsgAction): Message[] {
+  switch (action.type) {
+    case 'set': return action.messages;
+    case 'clear': return [];
+    case 'append': return [...state, action.message];
+    case 'set_if_empty': return state.length === 0 ? [action.message] : state;
+    case 'update': return state.map(m => m.id === action.id ? { ...m, ...action.patch } : m);
+    case 'replace': return state.map(m => m.id === action.id ? action.message : m);
+    case 'update_by': return state.map(m => action.predicate(m) ? { ...m, ...action.patch } : m);
+    case 'filter': return state.filter(action.predicate);
+    case 'batch_update': {
+      const patchMap = new Map(action.updates.map(u => [u.id, u.patch]));
+      return state.map(m => {
+        const patch = patchMap.get(m.id);
+        return patch ? { ...m, ...patch } : m;
+      });
+    }
+    default: return state;
+  }
+}
+
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
   const { t, lang } = useLanguage();
@@ -29,7 +62,7 @@ export default function Chat() {
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, dispatch] = useReducer(messagesReducer, []);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
@@ -87,11 +120,11 @@ export default function Chat() {
     if (!appUserId || !msg.db_id) return;
 
     const newStarred = !msg.starred;
-    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, starred: newStarred } : m));
+    dispatch({ type: 'update', id: msg.id, patch: { starred: newStarred } });
 
     const { error } = await supabase.from('chat_messages').update({ starred: newStarred }).eq('id', msg.db_id);
     if (error) {
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, starred: msg.starred } : m));
+      dispatch({ type: 'update', id: msg.id, patch: { starred: msg.starred } });
       showToast(t.starSaveError);
       return;
     }
@@ -119,7 +152,7 @@ export default function Chat() {
           : "Great! I'll check back in 3 days to see if you notice any improvement.",
         created_at: new Date().toISOString(),
       };
-      setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
+      dispatch({ type: 'replace', id: msgId, message: confirmMsg });
       trackEvent(Events.VIO_APPLIED_CONFIRMED, { interventionId });
     } else {
       // User didn't apply → close the loop, no further follow-ups
@@ -138,7 +171,7 @@ export default function Chat() {
           : "No worries! If you need help in the future, I'm here.",
         created_at: new Date().toISOString(),
       };
-      setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
+      dispatch({ type: 'replace', id: msgId, message: confirmMsg });
     }
     showToast(lang === 'el' ? 'Καταχωρήθηκε' : 'Recorded');
   };
@@ -170,7 +203,7 @@ export default function Chat() {
       content: confirmContent,
       created_at: new Date().toISOString(),
     };
-    setMessages(prev => prev.map(m => m.id === msgId ? confirmMsg : m));
+    dispatch({ type: 'replace', id: msgId, message: confirmMsg });
     showToast(t.outcomeRecorded);
     trackEvent(Events.VIO_OUTCOME_RECORDED, { outcome, interventionId });
   };
@@ -179,11 +212,11 @@ export default function Chat() {
     if (!msg.db_id) return;
     const previousFeedback = msg.metadata?.feedback;
     // Optimistic update
-    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: { ...m.metadata, feedback } } : m));
+    dispatch({ type: 'update', id: msg.id, patch: { metadata: { ...msg.metadata, feedback } } });
     const { error } = await supabase.from('chat_messages').update({ feedback }).eq('id', msg.db_id);
     if (error) {
       // Revert on error
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: { ...m.metadata, feedback: previousFeedback } } : m));
+      dispatch({ type: 'update', id: msg.id, patch: { metadata: { ...msg.metadata, feedback: previousFeedback } } });
       showToast(t.starSaveError);
       return;
     }
@@ -219,9 +252,7 @@ export default function Chat() {
         .single();
       if (dbMsg?.metadata?.diagnosis_data) {
         // Update message in state and retry
-        setMessages(prev => prev.map(m =>
-          m.id === msg.id ? { ...m, metadata: dbMsg.metadata } : m
-        ));
+        dispatch({ type: 'update', id: msg.id, patch: { metadata: dbMsg.metadata } });
         // Re-run with updated msg
         await handleShareWithData({ ...msg, metadata: dbMsg.metadata });
         return;
@@ -265,7 +296,7 @@ export default function Chat() {
         interventionId = data.id;
         publicShareId = data.share_id;
         const newMetadata = { ...msg.metadata, intervention_id: interventionId, share_id: publicShareId };
-        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: newMetadata } : m));
+        dispatch({ type: 'update', id: msg.id, patch: { metadata: newMetadata } });
         await supabase.from('chat_messages').update({ metadata: newMetadata }).eq('id', msg.db_id);
       } else {
         showToast(t.shareError);
@@ -288,7 +319,7 @@ export default function Chat() {
 
       if (publicShareId && publicShareId !== msg.metadata.share_id) {
         const newMetadata = { ...msg.metadata, intervention_id: interventionId, share_id: publicShareId };
-        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: newMetadata } : m));
+        dispatch({ type: 'update', id: msg.id, patch: { metadata: newMetadata } });
         await supabase.from('chat_messages').update({ metadata: newMetadata }).eq('id', msg.db_id);
       }
     }
@@ -386,7 +417,7 @@ export default function Chat() {
               vio_step_type: vioStepType,
             },
           };
-          setMessages(prev => prev.length === 0 ? [followUpMsg] : prev);
+          dispatch({ type: 'set_if_empty', message: followUpMsg });
         });
 
       // No API call for greeting — the empty state UI already serves as the welcome.
@@ -579,16 +610,9 @@ let streamedContent = '';
             streamedContent += token;
             if (!messageAdded) {
               messageAdded = true;
-              setMessages((prev) => [
-                ...prev,
-                { id: assistantMsgId, role: 'assistant', content: streamedContent, created_at: new Date().toISOString() }
-              ]);
+              dispatch({ type: 'append', message: { id: assistantMsgId, role: 'assistant', content: streamedContent, created_at: new Date().toISOString() } });
             } else {
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMsgId ? { ...msg, content: streamedContent } : msg
-                )
-              );
+              dispatch({ type: 'update', id: assistantMsgId, patch: { content: streamedContent } });
             }
           },
         }
@@ -598,34 +622,18 @@ let streamedContent = '';
 
       const finalContent = streamedContent || completion.assistantText;
       if (!messageAdded && finalContent) {
-        setMessages((prev) => [
-          ...prev,
-          { id: assistantMsgId, role: 'assistant', content: finalContent, created_at: new Date().toISOString() }
-        ]);
+        dispatch({ type: 'append', message: { id: assistantMsgId, role: 'assistant', content: finalContent, created_at: new Date().toISOString() } });
         messageAdded = true;
       }
 
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id === assistantMsgId) {
-            return {
-              ...msg,
-              content: streamedContent || completion.assistantText,
-              db_id: completion.assistantMessageId || undefined,
-              metadata: completion.metadata,
-            };
-          }
-
-          if (msg.id === latestUserMessageId && !msg.db_id && completion.userMessageId) {
-            return {
-              ...msg,
-              db_id: completion.userMessageId,
-            };
-          }
-
-          return msg;
-        })
-      );
+      // Finalize assistant + user messages in one batch
+      const updates: Array<{ id: string; patch: Partial<Message> }> = [
+        { id: assistantMsgId, patch: { content: streamedContent || completion.assistantText, db_id: completion.assistantMessageId || undefined, metadata: completion.metadata } },
+      ];
+      if (latestUserMessageId && completion.userMessageId) {
+        updates.push({ id: latestUserMessageId, patch: { db_id: completion.userMessageId } });
+      }
+      dispatch({ type: 'batch_update', updates });
 
       // Set isTyping false AFTER the final message content is finalized
       setIsTyping(false);
@@ -658,27 +666,15 @@ let streamedContent = '';
 
       if (status === 429) {
         setShowPaywall(true);
-        setMessages((prev) => prev.filter((msg) => !(msg.role === 'assistant' && !msg.content)));
+        dispatch({ type: 'filter', predicate: (msg) => !(msg.role === 'assistant' && !msg.content) });
         return;
       }
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.role === 'assistant' && !msg.content
-            ? { ...msg, content: t.connectionError }
-            : msg
-        )
-      );
+      dispatch({ type: 'update_by', predicate: (msg) => msg.role === 'assistant' && !msg.content, patch: { content: t.connectionError } });
     } finally {
       const latestUserMessage = [...currentMessages].reverse().find((message) => message.role === 'user');
       if (latestUserMessage?.id) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === latestUserMessage.id
-              ? { ...msg, inlineAttachments: undefined, attachmentPaths: undefined }
-              : msg
-          )
-        );
+        dispatch({ type: 'update', id: latestUserMessage.id, patch: { inlineAttachments: undefined, attachmentPaths: undefined } });
       }
     }
   };
@@ -775,7 +771,7 @@ let streamedContent = '';
       }))
     };
 
-    setMessages((prev) => [...prev, newUserMsg]);
+    dispatch({ type: 'append', message: newUserMsg });
     setInput('');
     setAttachments([]);
 
@@ -822,7 +818,7 @@ let streamedContent = '';
         console.error('Failed to save message:', insertError);
       } else if (data) {
         dbMessageId = data.id;
-        setMessages((prev) => prev.map(m => m.id === newUserMsg.id ? { ...m, db_id: data.id } : m));
+        dispatch({ type: 'update', id: newUserMsg.id, patch: { db_id: data.id } });
       }
     }
 
@@ -860,7 +856,7 @@ let streamedContent = '';
     revokeMessageAttachments(messages);
     attachmentsRef.current = [];
     messagesRef.current = [];
-    setMessages([]);
+    dispatch({ type: 'clear' });
     setAttachments([]);
     setInput('');
     setIsTyping(false);
@@ -915,9 +911,10 @@ let streamedContent = '';
         if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
           const attachments: NonNullable<Message['attachments']> = [];
           const uncached: string[] = [];
-          // 1. Check IndexedDB cache for all paths first (instant, no network)
+          // 1. Batch check IndexedDB cache (single transaction instead of per-image)
+          const cachedMap = await getCachedImages(m.image_urls);
           for (const path of m.image_urls) {
-            const cached = await getCachedImage(path);
+            const cached = cachedMap.get(path);
             if (cached) {
               blobUrlsCreated.push(cached);
               attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
@@ -947,7 +944,7 @@ let streamedContent = '';
         blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
         return;
       }
-      setMessages(messages);
+      dispatch({ type: 'set', messages });
     }
     setSidebarLoading(false);
   };
@@ -1148,7 +1145,7 @@ let streamedContent = '';
             const msg = messages.find(m => m.id === logModalData.msg_id);
             if (msg && msg.db_id) {
               const newMetadata = { ...msg.metadata, intervention_id: id };
-              setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, metadata: newMetadata } : m));
+              dispatch({ type: 'update', id: msg.id, patch: { metadata: newMetadata } });
               await supabase.from('chat_messages').update({ metadata: newMetadata }).eq('id', msg.db_id);
             }
           }}

@@ -58,6 +58,37 @@ export async function getCachedImage(key: string): Promise<string | null> {
   }
 }
 
+/**
+ * Batch get multiple cached images in a single IndexedDB transaction.
+ * Returns a Map of key → blobUrl for all found entries.
+ * Caller MUST revoke returned blob URLs when no longer needed.
+ */
+export async function getCachedImages(keys: string[]): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (keys.length === 0) return result;
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE, 'readonly');
+    const store = tx.objectStore(STORE);
+    const blobs = await Promise.all(
+      keys.map(
+        (key) =>
+          new Promise<{ key: string; blob: Blob | null }>((resolve) => {
+            const req = store.get(key);
+            req.onsuccess = () => resolve({ key, blob: req.result ?? null });
+            req.onerror = () => resolve({ key, blob: null });
+          })
+      )
+    );
+    for (const { key, blob } of blobs) {
+      if (blob) result.set(key, URL.createObjectURL(blob));
+    }
+  } catch {
+    // If IndexedDB fails, return empty — caller will fetch from network
+  }
+  return result;
+}
+
 export async function deleteCachedImage(key: string): Promise<void> {
   try {
     const db = await openDB();
