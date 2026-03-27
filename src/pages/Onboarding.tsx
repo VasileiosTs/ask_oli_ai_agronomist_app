@@ -54,15 +54,19 @@ export default function Onboarding() {
 
     let lat = null, lon = null;
     try {
+      const geocodeController = new AbortController();
+      const geocodeTimeout = setTimeout(() => geocodeController.abort(), 3000);
       const res = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=el&format=json`
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=el&format=json`,
+        { signal: geocodeController.signal }
       );
+      clearTimeout(geocodeTimeout);
       const data = await res.json();
       if (data.results?.[0]) {
         lat = data.results[0].latitude;
         lon = data.results[0].longitude;
       }
-    } catch { /* geocoding is optional */ }
+    } catch { /* geocoding is optional — timeout or network failure is fine */ }
 
     // Check for referral from shared diagnosis
     const referral = localStorage.getItem('oli_referral');
@@ -81,31 +85,37 @@ export default function Onboarding() {
       localStorage.removeItem('oli_referral');
     }
 
-    const { error: upsertError } = await supabase
-      .from('users')
-      .upsert(payload, { onConflict: 'auth_id' });
+    try {
+      const { error: upsertError } = await supabase
+        .from('users')
+        .upsert(payload, { onConflict: 'auth_id' });
 
-    if (upsertError) {
-      console.error('Onboarding upsert error:', upsertError);
-      setError(`${t.savingError} (${upsertError.message})`);
+      if (upsertError) {
+        console.error('Onboarding upsert error:', upsertError);
+        setError(`${t.savingError} (${upsertError.message})`);
+        setLoading(false);
+        return;
+      }
+
+      // Analytics: identify user and track signup
+      identifyUser(user.id, { name: name.trim(), location: location.trim(), crops: finalCrops.join(', ') });
+      trackEvent(Events.SIGNUP, { crops: finalCrops, location: location.trim() });
+      if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
+
+      // Send welcome email (fire-and-forget)
+      supabase.functions.invoke('send-email', {
+        body: { mode: 'welcome', email: user.email, name: name.trim(), lang },
+      }).catch(() => {});
+
+      // Refresh auth context so App.tsx routing sees the new profile
+      await refreshProfile();
+      navigate('/chat', { replace: true });
+    } catch (err) {
+      console.error('Onboarding failed:', err);
+      setError(lang === 'el' ? 'Κάτι πήγε στραβά. Δοκίμασε ξανά.' : 'Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Analytics: identify user and track signup
-    identifyUser(user.id, { name: name.trim(), location: location.trim(), crops: finalCrops.join(', ') });
-    trackEvent(Events.SIGNUP, { crops: finalCrops, location: location.trim() });
-    if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
-
-    // Send welcome email (fire-and-forget)
-    supabase.functions.invoke('send-email', {
-      body: { mode: 'welcome', email: user.email, name: name.trim(), lang },
-    }).catch(() => {});
-
-    // Refresh auth context so App.tsx routing sees the new profile
-    await refreshProfile();
-    setLoading(false);
-    navigate('/chat', { replace: true });
   };
 
   return (
