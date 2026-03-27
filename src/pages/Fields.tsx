@@ -102,7 +102,7 @@ export default function Fields() {
 
 
   return (
-    <div className="flex h-[calc(100dvh-96px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
+    <div className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       <div className="border-b border-border/50 px-4 py-4">
         <div className="flex items-center gap-2">
           <Sprout className="h-5 w-5 text-primary" />
@@ -158,7 +158,7 @@ export default function Fields() {
       </div>
 
       {fields.length > 0 && (
-        <button onClick={openAdd} aria-label="Add field" className="fixed bottom-[72px] md:bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform active:scale-95 hover:bg-primary/90">
+        <button onClick={openAdd} aria-label="Add field" className="fixed bottom-[80px] md:bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform active:scale-95 hover:bg-primary/90">
           <Plus className="h-6 w-6" />
         </button>
       )}

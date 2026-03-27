@@ -16,8 +16,8 @@ export default function BottomNav() {
   const { t } = useLanguage();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border/50 bg-surface/95 backdrop-blur-md pb-safe">
-      <div className="flex items-center justify-around h-12">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border/50 bg-surface/95 backdrop-blur-md" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="flex items-center justify-around h-14">
         {tabs.map(({ path, icon: Icon, labelKey }) => {
           const active = pathname === path;
           return (

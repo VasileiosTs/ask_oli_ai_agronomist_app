@@ -87,7 +87,7 @@ export default function History() {
   const toggle = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
   return (
-    <div className="flex h-[calc(100dvh-96px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
+    <div className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       {/* Header */}
       <div className="border-b border-border/50 px-4 py-4">
         <div className="flex items-center gap-2">

@@ -45,7 +45,18 @@
 }
 
 @layer utilities {
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+}
+
+/* Prevent mobile browser zoom on input focus */
+@media (max-width: 640px) {
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* Fill safe area background on notch devices */
+html {
+  background-color: var(--background);
 }
 
 /* Prose overrides for AI message bubbles */
