@@ -16,6 +16,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const History = lazy(() => import('./pages/History'));
 const Fields = lazy(() => import('./pages/Fields'));
 const SharedDiagnosis = lazy(() => import('./pages/SharedDiagnosis'));
+const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 
 const NotFound = () => {
   const { t } = useLanguage();
@@ -109,6 +110,9 @@ function AppRoutes() {
       <Route path="/d/:shareId" element={<SharedDiagnosis />} />
       <Route path="/legal/privacy" element={<Privacy />} />
       <Route path="/legal/terms" element={<Terms />} />
+
+      {/* Admin */}
+      <Route path="/admin/metrics" element={<AdminMetrics />} />
 
       {/* Auth — only for unauthenticated users */}
       <Route

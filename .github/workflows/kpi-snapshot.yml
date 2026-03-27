@@ -1,0 +1,20 @@
+name: Daily KPI Snapshot
+
+on:
+  schedule:
+    # Run at 00:10 UTC daily (5 min after pg_cron as backup)
+    - cron: '10 0 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger KPI snapshot
+        run: |
+          curl -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/kpi-snapshot" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -d '{"date": "'$(date -u +%Y-%m-%d)'"}'
