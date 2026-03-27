@@ -86,6 +86,7 @@ export interface T {
   fieldName: string; fieldCrop: string; fieldLocation: string;
   fieldSize: string; fieldMedium: string; fieldSoil: string; fieldIrrigation: string;
   fieldDelete: string; fieldSave: string; fieldSaving: string;
+  fieldOptionLabels: Record<string, string>;
   statusHealthy: string; statusWarning: string; statusCritical: string;
   guestFieldsTitle: string; guestFieldsBody: string;
   // History
@@ -216,6 +217,11 @@ const el: T = {
   fieldName: 'Όνομα *', fieldCrop: 'Καλλιέργεια', fieldLocation: 'Τοποθεσία',
   fieldSize: 'Έκταση (ha)', fieldMedium: 'Μέσο Καλλιέργειας', fieldSoil: 'Τύπος Εδάφους', fieldIrrigation: 'Άρδευση',
   fieldDelete: 'Διαγραφή', fieldSave: 'Αποθήκευσε', fieldSaving: 'Αποθήκευση...',
+  fieldOptionLabels: {
+    soil: 'Έδαφος', hydro: 'Υδροπονία', container: 'Γλάστρα', greenhouse: 'Θερμοκήπιο',
+    argillous: 'Αργιλώδες', sandy: 'Αμμώδες', loamy: 'Πηλώδες', silty: 'Ιλυώδες', peaty: 'Τυρφώδες', chalky: 'Ασβεστώδες',
+    drip: 'Σταγόνες', sprinkler: 'Ψεκαστήρες', furrow: 'Αυλάκι', flood: 'Κατάκλυση', 'rain-fed': 'Βροχή',
+  },
   statusHealthy: 'Υγιές', statusWarning: 'Προσοχή', statusCritical: 'Κρίσιμο',
   guestFieldsTitle: 'Δημιουργία Λογαριασμού',
   guestFieldsBody: 'Συνδέσου για να αποθηκεύεις τα χωράφια σου και να έχεις προστατευμένη μνήμη.',
@@ -363,6 +369,11 @@ const en: T = {
   fieldName: 'Name *', fieldCrop: 'Crop', fieldLocation: 'Location',
   fieldSize: 'Size (ha)', fieldMedium: 'Growing Medium', fieldSoil: 'Soil Type', fieldIrrigation: 'Irrigation',
   fieldDelete: 'Delete', fieldSave: 'Save', fieldSaving: 'Saving...',
+  fieldOptionLabels: {
+    soil: 'Soil', hydro: 'Hydroponic', container: 'Container', greenhouse: 'Greenhouse',
+    argillous: 'Clay', sandy: 'Sandy', loamy: 'Loamy', silty: 'Silty', peaty: 'Peaty', chalky: 'Chalky',
+    drip: 'Drip', sprinkler: 'Sprinkler', furrow: 'Furrow', flood: 'Flood', 'rain-fed': 'Rain-fed',
+  },
   statusHealthy: 'Healthy', statusWarning: 'Warning', statusCritical: 'Critical',
   guestFieldsTitle: 'Create an Account',
   guestFieldsBody: 'Sign in to save your fields and keep your farming history protected.',

@@ -110,23 +110,23 @@ export async function streamChatCompletion(
   }
 
   try {
-    const { data, error, response } = await supabase.functions.invoke('chat', {
-      body: request,
-      timeout: 70000,
+    // Use raw fetch for SSE streaming — supabase.functions.invoke buffers the
+    // entire response body before returning, which breaks real-time token streaming.
+    const functionUrl = `${supabaseUrl}/functions/v1/chat`;
+    const streamResponse = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabasePublicKey,
+      },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(70000),
     });
 
-    if (error) {
-      if (response) {
-        const errorMessage = await readErrorMessage(response);
-        throw createStreamError(errorMessage, response.status);
-      }
-
-      throw createStreamError(error.message);
-    }
-
-    const streamResponse = data instanceof Response ? data : response;
-    if (!streamResponse) {
-      throw createStreamError('Chat function did not return a response.');
+    if (!streamResponse.ok) {
+      const errorMessage = await readErrorMessage(streamResponse);
+      throw createStreamError(errorMessage, streamResponse.status);
     }
 
     if (!streamResponse.body) {

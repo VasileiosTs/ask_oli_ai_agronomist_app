@@ -143,7 +143,7 @@ export default function Fields() {
                       {field.crop_type && <p className="mt-0.5 text-sm text-muted">{field.crop_type}</p>}
                       <div className="mt-2 flex flex-wrap gap-2">
                         {field.size_ha && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{field.size_ha} ha</span>}
-                        {field.growing_medium && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{field.growing_medium}</span>}
+                        {field.growing_medium && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{t.fieldOptionLabels[field.growing_medium] || field.growing_medium}</span>}
                       </div>
                     </div>
                     <button onClick={() => openEdit(field)} className="flex-shrink-0 rounded-full p-2 text-muted hover:bg-muted/10 hover:text-foreground transition-colors">
@@ -195,7 +195,7 @@ export default function Fields() {
                       <button key={o} onClick={() => setForm(f => ({ ...f, [key]: f[key] === o ? '' : o }))}
                         className={clsx('rounded-full border px-3 py-1.5 text-sm transition-colors',
                           form[key] === o ? 'border-primary bg-primary/10 text-primary' : 'border-border/50 bg-surface text-muted hover:text-foreground')}>
-                        {o}
+                        {t.fieldOptionLabels[o] || o}
                       </button>
                     ))}
                   </div>
