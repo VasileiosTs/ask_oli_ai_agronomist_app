@@ -1,23 +1,73 @@
-// Oli Service Worker — PWA install + push notifications
-const CACHE_NAME = 'oli-v3';
+// Oli Service Worker — PWA install + push notifications + smart caching
+const CACHE_NAME = 'oli-v4';
+const SHELL_URLS = ['/offline.html'];
 
-// Install: skip waiting immediately, no pre-caching
-self.addEventListener('install', () => {
+// Install: cache offline fallback, then activate immediately
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
+  );
   self.skipWaiting();
 });
 
-// Activate: delete ALL old caches to prevent stale assets
+// Activate: delete old versioned caches, keep current
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.map((key) => caches.delete(key)))
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
     )
   );
   self.clients.claim();
 });
 
-// Do NOT intercept fetch — let the browser handle all requests normally.
-// This prevents stale HTML/JS/CSS from being served after deploys.
+// Fetch strategy:
+// - HTML navigations: network-first, fall back to offline page
+// - Hashed assets (/assets/*): cache-first (immutable, content-hashed by Vite)
+// - Everything else: network-only (API calls, etc.)
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Only handle same-origin requests
+  if (url.origin !== self.location.origin) return;
+
+  // HTML navigation requests — always go to network first
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          return response;
+        })
+        .catch(() => {
+          return caches.match('/offline.html');
+        })
+    );
+    return;
+  }
+
+  // Vite hashed assets (e.g. /assets/index-abc123.js) — cache-first
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything else (API calls, etc.) — network only, no interception
+});
 
 // ── PUSH NOTIFICATIONS ──
 self.addEventListener('push', (event) => {
