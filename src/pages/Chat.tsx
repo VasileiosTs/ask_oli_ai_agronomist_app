@@ -133,6 +133,55 @@ export default function Chat() {
     }
   };
 
+  const buildConversationTitle = (rawText: string) => {
+    const cleaned = rawText
+      .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+      .trim();
+
+    return cleaned.slice(0, 80) || 'New conversation';
+  };
+
+  const recoverConversationLink = async (
+    userText: string,
+    fieldId: string | null,
+    userMessageDbId: string | null,
+    assistantMessageDbId: string | null,
+  ) => {
+    if (!appUserId || (!userMessageDbId && !assistantMessageDbId)) {
+      return null;
+    }
+
+    const { data: conversation, error: conversationError } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: appUserId,
+        field_id: fieldId,
+        title: buildConversationTitle(userText),
+      })
+      .select('id')
+      .single();
+
+    if (conversationError || !conversation?.id) {
+      console.error('Failed to repair missing conversation link:', conversationError);
+      return null;
+    }
+
+    const messageIds = [userMessageDbId, assistantMessageDbId].filter((value): value is string => Boolean(value));
+
+    if (messageIds.length > 0) {
+      const { error: messageUpdateError } = await supabase
+        .from('chat_messages')
+        .update({ conversation_id: conversation.id })
+        .in('id', messageIds);
+
+      if (messageUpdateError) {
+        console.error('Failed to attach messages to repaired conversation:', messageUpdateError);
+      }
+    }
+
+    return conversation.id;
+  };
+
   const handleStarMessage = async (msg: Message) => {
     if (!appUserId || !msg.db_id) return;
 
@@ -658,8 +707,18 @@ export default function Chat() {
         setMessageCount(completion.messageCountMonth);
       }
 
-      if (completion.conversationId && completion.conversationId !== currentConversationId) {
-        setActiveConversationId(completion.conversationId);
+      let resolvedConversationId = completion.conversationId;
+      if (!resolvedConversationId && !currentConversationId) {
+        resolvedConversationId = await recoverConversationLink(
+          userText,
+          completion.fieldId ?? currentActiveFieldId ?? null,
+          completion.userMessageId ?? latestUserMessage?.db_id ?? null,
+          completion.assistantMessageId ?? null,
+        );
+      }
+
+      if (resolvedConversationId && resolvedConversationId !== currentConversationId) {
+        setActiveConversationId(resolvedConversationId);
       }
 
       if (completion.fieldId && completion.fieldId !== currentActiveFieldId) {

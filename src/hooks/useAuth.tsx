@@ -130,6 +130,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let initialResolved = false;
+    let restoredFromStorage = false;
+
+    const hydrateFromStoredSession = () => {
+      const storedSession = readStoredSession();
+      if (!storedSession?.user) {
+        return false;
+      }
+
+      restoredFromStorage = true;
+      initialResolved = true;
+      setSession(storedSession);
+      setUser(storedSession.user);
+      fetchProfile(storedSession.user.id, {
+        retries: 4,
+        delayMs: 250,
+        preserveExisting: true,
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+      return true;
+    };
+
+    hydrateFromStoredSession();
 
     // Step 1: getSession() processes the URL hash from magic links
     // and returns the current session (existing or just-authed).
@@ -139,13 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        await fetchProfile(session.user.id, { preserveExisting: restoredFromStorage });
+      } else if (!restoredFromStorage) {
+        setProfile(null);
       }
       if (!cancelled) setLoading(false);
     }).catch((err) => {
       console.error('getSession failed:', err);
-      initialResolved = true;
-      if (!cancelled) setLoading(false);
+      if (!restoredFromStorage) {
+        initialResolved = true;
+        if (!cancelled) setLoading(false);
+      }
     });
 
     // Step 2: onAuthStateChange handles all future auth events.

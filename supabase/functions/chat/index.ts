@@ -841,7 +841,7 @@ async function createConversation(
   appUserId: string,
   fieldId: string | null,
   latestMessageText: string,
-): Promise<ConversationRow | null> {
+): Promise<string | null> {
   const { data, error } = await supabaseAdmin
     .from('conversations')
     .insert({
@@ -852,12 +852,12 @@ async function createConversation(
     .select('id, field_id, title')
     .single();
 
-  if (error || !data) {
-    console.error('Failed to create conversation:', error?.message);
+  if (error || !data?.id) {
+    console.error('Failed to create conversation:', error?.message ?? 'Conversation insert returned no id');
     return null;
   }
 
-  return data as ConversationRow;
+  return data.id as string;
 }
 
 async function updateConversationFieldLink(
@@ -1494,19 +1494,23 @@ Return ONLY the greeting text, nothing else.`;
       }
 
       if (!effectiveConversationId) {
-        const createdConversation = await createConversation(
+        const createdConversationId = await createConversation(
           supabaseAdmin,
           appUser.id,
           effectiveFieldId,
           latestUserMessage.content,
         );
 
-        if (!createdConversation) {
+        if (!createdConversationId) {
           return jsonResponse({ error: 'Failed to create conversation' }, 500);
         }
 
-        effectiveConversationId = createdConversation.id;
+        effectiveConversationId = createdConversationId;
         conversationCreatedByFunction = true;
+      }
+
+      if (!effectiveConversationId) {
+        return jsonResponse({ error: 'Conversation setup failed' }, 500);
       }
 
       if (body.userMessageId) {
