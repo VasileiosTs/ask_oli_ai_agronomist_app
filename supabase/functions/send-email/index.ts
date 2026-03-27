@@ -16,6 +16,7 @@ const ALLOWED_ORIGINS = [
   "https://codex-ask-oli-app.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://127.0.0.1:3000",
 ];
 
 function getCorsHeaders(req: Request) {
@@ -32,6 +33,31 @@ function getCorsHeaders(req: Request) {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function isValidEmail(email: string): boolean {
   return typeof email === "string" && EMAIL_REGEX.test(email) && email.length <= 254;
+}
+
+async function listAllAuthUsers(supabase: ReturnType<typeof createClient>) {
+  const allUsers: Array<{ id: string; email?: string | null }> = [];
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.error("Failed to list auth users:", error);
+      break;
+    }
+
+    const batch = data?.users ?? [];
+    allUsers.push(...batch.map((user) => ({ id: user.id, email: user.email })));
+
+    if (batch.length < perPage) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return allUsers;
 }
 
 // ── Send via Resend ──
@@ -408,10 +434,10 @@ serve(async (req) => {
 
       // Get auth emails
       const authIds = (users || []).map(u => u.auth_id).filter(Boolean);
-      const { data: { users: authUsers } = { users: [] } } = await supabase.auth.admin.listUsers();
+      const authUsers = await listAllAuthUsers(supabase);
       const emailMap: Record<string, { email: string; name: string }> = {};
       for (const u of (users || [])) {
-        const authUser = (authUsers || []).find((a: any) => a.id === u.auth_id);
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (authUser?.email) {
           emailMap[u.id] = { email: authUser.email, name: u.name || "Farmer" };
         }
@@ -453,11 +479,11 @@ serve(async (req) => {
       }
 
       // Get auth emails
-      const { data: { users: authUsers } = { users: [] } } = await supabase.auth.admin.listUsers();
+      const authUsers = await listAllAuthUsers(supabase);
 
       let sent = 0;
       for (const u of users) {
-        const authUser = (authUsers || []).find((a: any) => a.id === u.auth_id);
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
 
         // Count weekly stats
@@ -523,11 +549,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ sent: 0 }), { headers });
       }
 
-      const { data: { users: authUsers } = { users: [] } } = await supabase.auth.admin.listUsers();
+      const authUsers = await listAllAuthUsers(supabase);
 
       let sent = 0;
       for (const u of allUsers) {
-        const authUser = (authUsers || []).find((a: any) => a.id === u.auth_id);
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
         const tpl = onboardingDripEmail(u.name || "Farmer", u.day, u.lang || "en");
         const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
@@ -552,11 +578,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ sent: 0 }), { headers });
       }
 
-      const { data: { users: authUsers } = { users: [] } } = await supabase.auth.admin.listUsers();
+      const authUsers = await listAllAuthUsers(supabase);
 
       let sent = 0;
       for (const u of users) {
-        const authUser = (authUsers || []).find((a: any) => a.id === u.auth_id);
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
 
         // Check last message date

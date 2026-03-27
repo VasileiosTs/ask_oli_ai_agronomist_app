@@ -824,6 +824,42 @@ async function fetchOwnedConversation(
   return data as ConversationRow;
 }
 
+function buildInitialConversationTitle(rawText: string): string {
+  const cleaned = rawText
+    .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+    .trim();
+
+  if (!cleaned) {
+    return 'New conversation';
+  }
+
+  return cleaned.slice(0, 80);
+}
+
+async function createConversation(
+  supabaseAdmin: any,
+  appUserId: string,
+  fieldId: string | null,
+  latestMessageText: string,
+): Promise<ConversationRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('conversations')
+    .insert({
+      user_id: appUserId,
+      field_id: fieldId,
+      title: buildInitialConversationTitle(latestMessageText),
+    })
+    .select('id, field_id, title')
+    .single();
+
+  if (error || !data) {
+    console.error('Failed to create conversation:', error?.message);
+    return null;
+  }
+
+  return data as ConversationRow;
+}
+
 async function updateConversationFieldLink(
   supabaseAdmin: any,
   appUserId: string,
@@ -881,6 +917,42 @@ async function mergeMessageMetadata(
     .from('chat_messages')
     .update(updateData)
     .eq('id', messageId)
+    .eq('user_id', appUserId);
+}
+
+async function cleanupFailedChatAttempt(
+  supabaseAdmin: any,
+  appUserId: string,
+  userMessageId: string | null,
+  conversationId: string | null,
+  conversationCreatedByFunction: boolean,
+) {
+  if (userMessageId) {
+    await supabaseAdmin
+      .from('chat_messages')
+      .delete()
+      .eq('id', userMessageId)
+      .eq('user_id', appUserId);
+  }
+
+  if (!conversationCreatedByFunction || !conversationId) {
+    return;
+  }
+
+  const { count } = await supabaseAdmin
+    .from('chat_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', appUserId);
+
+  if ((count ?? 0) > 0) {
+    return;
+  }
+
+  await supabaseAdmin
+    .from('conversations')
+    .delete()
+    .eq('id', conversationId)
     .eq('user_id', appUserId);
 }
 
@@ -1292,37 +1364,8 @@ Return ONLY the greeting text, nothing else.`;
     const sameMonth = sameCalendarMonth(resetDate, now);
     const currentCount = sameMonth ? appUser.message_count_month ?? 0 : 0;
 
-    if (!sameMonth) {
-      await supabaseAdmin
-        .from('users')
-        .update({
-          message_count_month: 0,
-          message_reset_date: now.toISOString(),
-        })
-        .eq('id', appUser.id);
-    }
-
-    if ((appUser.tier ?? 'free') !== 'pro' && currentCount >= FREE_LIMIT) {
-      return jsonResponse(
-        {
-          error: 'Monthly message limit reached',
-          limit: FREE_LIMIT,
-        },
-        429,
-      );
-    }
-
-    // C3: Atomically increment message count immediately after free limit check (prevents TOCTOU race)
-    const nextMessageCount = currentCount + 1;
-    await supabaseAdmin
-      .from('users')
-      .update({
-        message_count_month: nextMessageCount,
-        message_reset_date: now.toISOString(),
-      })
-      .eq('id', appUser.id);
-
-    // C2: Burst rate limiting — max 1 message per 2 seconds per user
+    // Burst rate limiting should happen before we consume monthly quota or upload
+    // any more state for this request.
     const { data: lastMsg } = await supabaseAdmin
       .from('chat_messages')
       .select('created_at')
@@ -1335,9 +1378,35 @@ Return ONLY the greeting text, nothing else.`;
     if (lastMsg) {
       const elapsed = Date.now() - new Date(lastMsg.created_at).getTime();
       if (elapsed < 2000) {
-        return jsonResponse({ error: 'Please wait a moment before sending another message' }, 429);
+        return jsonResponse(
+          {
+            error: 'Please wait a moment before sending another message',
+            code: 'burst_rate_limit',
+          },
+          429,
+        );
       }
     }
+
+    if ((appUser.tier ?? 'free') !== 'pro' && currentCount >= FREE_LIMIT) {
+      return jsonResponse(
+        {
+          error: 'Monthly message limit reached',
+          code: 'monthly_limit',
+          limit: FREE_LIMIT,
+        },
+        429,
+      );
+    }
+
+    const nextMessageCount = currentCount + 1;
+    await supabaseAdmin
+      .from('users')
+      .update({
+        message_count_month: nextMessageCount,
+        message_reset_date: now.toISOString(),
+      })
+      .eq('id', appUser.id);
 
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
@@ -1378,138 +1447,13 @@ Return ONLY the greeting text, nothing else.`;
       fieldResolutionSource = 'single_field_default';
     }
 
-    let userMessageId: string;
-
-    if (body.userMessageId) {
-      const userMessageUpdate: Record<string, unknown> = {
-        conversation_id: effectiveConversationId,
-        field_id: effectiveFieldId,
-      };
-
-      if (attachmentPaths.length > 0) {
-        userMessageUpdate.image_urls = attachmentPaths;
-      }
-
-      const { data: updatedUserMessage, error: updateUserMessageError } = await supabaseAdmin
-        .from('chat_messages')
-        .update(userMessageUpdate)
-        .eq('id', body.userMessageId)
-        .eq('user_id', appUser.id)
-        .select('id')
-        .single();
-
-      if (updateUserMessageError || !updatedUserMessage) {
-        console.error('Failed to update user message:', updateUserMessageError?.message);
-        return jsonResponse(
-          {
-            error: 'Failed to process your message',
-          },
-          500,
-        );
-      }
-
-      userMessageId = updatedUserMessage.id;
-    } else {
-      const userMetadata =
-        attachmentPaths.length > 0
-          ? {
-              attachments: attachmentPaths,
-              source: 'edge-function',
-            }
-          : {
-              source: 'edge-function',
-            };
-
-      const { data: insertedUserMessage, error: insertUserMessageError } = await supabaseAdmin
-        .from('chat_messages')
-        .insert({
-          conversation_id: effectiveConversationId,
-          user_id: appUser.id,
-          field_id: effectiveFieldId,
-          role: 'user',
-          content: latestUserMessage.content,
-          metadata: userMetadata,
-          image_urls: attachmentPaths,
-        })
-        .select('id')
-        .single();
-
-      if (insertUserMessageError || !insertedUserMessage) {
-        console.error('Failed to insert user message:', insertUserMessageError?.message);
-        return jsonResponse(
-          {
-            error: 'Failed to save your message',
-          },
-          500,
-        );
-      }
-
-      userMessageId = insertedUserMessage.id;
-    }
-
+    let userMessageId: string | null = null;
+    let conversationCreatedByFunction = false;
     let extractionResult: ExtractionResult | null = null;
-
-    if (!effectiveFieldId) {
-      try {
-        extractionResult = await callGeminiExtraction(geminiApiKey, latestUserMessage.content);
-
-        let resolvedField = extractionResult.field_mention
-          ? await resolveSingleFieldByHint(
-              supabaseAdmin,
-              appUser.id,
-              extractionResult.field_mention,
-              typeof extractionResult.confidence === 'number' && extractionResult.confidence >= 0.7 ? 0.25 : 0.45,
-            )
-          : null;
-
-        if (!resolvedField && extractionResult.crop_type) {
-          resolvedField = await resolveSingleFieldByHint(
-            supabaseAdmin,
-            appUser.id,
-            extractionResult.crop_type,
-            fields.length === 1 ? 0.15 : 0.55,
-          );
-        }
-
-        if (resolvedField) {
-          effectiveFieldId = resolvedField.id;
-          fieldResolutionSource = 'message_extract';
-        }
-      } catch (error) {
-        console.error('Server-side field extraction failed', error);
-      }
-    }
-
-    const userMessageMetadata: Record<string, unknown> = {
-      field_context_source: 'backend',
-      field_resolution_source: fieldResolutionSource,
-    };
-
-    if (extractionResult) {
-      userMessageMetadata.extracted_context = extractionResult;
-    }
-
-    if (effectiveFieldId) {
-      userMessageMetadata.resolved_field_id = effectiveFieldId;
-      await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, effectiveFieldId);
-    }
-
-    await mergeMessageMetadata(
-      supabaseAdmin,
-      appUser.id,
-      userMessageId,
-      userMessageMetadata,
-      effectiveFieldId,
-      effectiveConversationId,
-    );
-
-    // Update last_active_at (message count already incremented above)
-    await supabaseAdmin
-      .from('users')
-      .update({
-        last_active_at: now.toISOString(),
-      })
-      .eq('id', appUser.id);
+    let serverContext: Awaited<ReturnType<typeof assembleServerFieldContext>>;
+    let aiResponse: AiResponseJson;
+    let assistantText = '';
+    let assistantMetadata: Record<string, unknown> = {};
 
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
@@ -1517,45 +1461,216 @@ Return ONLY the greeting text, nothing else.`;
       appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
     ].filter(Boolean).join('\n');
 
-    const serverContext = await assembleServerFieldContext(
-      supabaseAdmin,
-      appUser.id,
-      fields,
-      effectiveFieldId,
-      body.fieldContext ?? '',
-    );
+    try {
+      if (!effectiveFieldId) {
+        try {
+          extractionResult = await callGeminiExtraction(geminiApiKey, latestUserMessage.content);
 
-    effectiveFieldId = serverContext.activeFieldId;
+          let resolvedField = extractionResult.field_mention
+            ? await resolveSingleFieldByHint(
+                supabaseAdmin,
+                appUser.id,
+                extractionResult.field_mention,
+                typeof extractionResult.confidence === 'number' && extractionResult.confidence >= 0.7 ? 0.25 : 0.45,
+              )
+            : null;
 
-    if (effectiveFieldId) {
-      await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, effectiveFieldId);
+          if (!resolvedField && extractionResult.crop_type) {
+            resolvedField = await resolveSingleFieldByHint(
+              supabaseAdmin,
+              appUser.id,
+              extractionResult.crop_type,
+              fields.length === 1 ? 0.15 : 0.55,
+            );
+          }
+
+          if (resolvedField) {
+            effectiveFieldId = resolvedField.id;
+            fieldResolutionSource = 'message_extract';
+          }
+        } catch (error) {
+          console.error('Server-side field extraction failed', error);
+        }
+      }
+
+      if (!effectiveConversationId) {
+        const createdConversation = await createConversation(
+          supabaseAdmin,
+          appUser.id,
+          effectiveFieldId,
+          latestUserMessage.content,
+        );
+
+        if (!createdConversation) {
+          return jsonResponse({ error: 'Failed to create conversation' }, 500);
+        }
+
+        effectiveConversationId = createdConversation.id;
+        conversationCreatedByFunction = true;
+      }
+
+      if (body.userMessageId) {
+        const userMessageUpdate: Record<string, unknown> = {
+          conversation_id: effectiveConversationId,
+          field_id: effectiveFieldId,
+        };
+
+        if (attachmentPaths.length > 0) {
+          userMessageUpdate.image_urls = attachmentPaths;
+        }
+
+        const { data: updatedUserMessage, error: updateUserMessageError } = await supabaseAdmin
+          .from('chat_messages')
+          .update(userMessageUpdate)
+          .eq('id', body.userMessageId)
+          .eq('user_id', appUser.id)
+          .select('id')
+          .single();
+
+        if (updateUserMessageError || !updatedUserMessage) {
+          console.error('Failed to update user message:', updateUserMessageError?.message);
+          await cleanupFailedChatAttempt(
+            supabaseAdmin,
+            appUser.id,
+            null,
+            effectiveConversationId,
+            conversationCreatedByFunction,
+          );
+          return jsonResponse({ error: 'Failed to process your message' }, 500);
+        }
+
+        userMessageId = updatedUserMessage.id;
+      } else {
+        const userMetadata =
+          attachmentPaths.length > 0
+            ? {
+                attachments: attachmentPaths,
+                source: 'edge-function',
+              }
+            : {
+                source: 'edge-function',
+              };
+
+        const { data: insertedUserMessage, error: insertUserMessageError } = await supabaseAdmin
+          .from('chat_messages')
+          .insert({
+            conversation_id: effectiveConversationId,
+            user_id: appUser.id,
+            field_id: effectiveFieldId,
+            role: 'user',
+            content: latestUserMessage.content,
+            metadata: userMetadata,
+            image_urls: attachmentPaths,
+          })
+          .select('id')
+          .single();
+
+        if (insertUserMessageError || !insertedUserMessage) {
+          console.error('Failed to insert user message:', insertUserMessageError?.message);
+          await cleanupFailedChatAttempt(
+            supabaseAdmin,
+            appUser.id,
+            null,
+            effectiveConversationId,
+            conversationCreatedByFunction,
+          );
+          return jsonResponse({ error: 'Failed to save your message' }, 500);
+        }
+
+        userMessageId = insertedUserMessage.id;
+      }
+
+      const userMessageMetadata: Record<string, unknown> = {
+        field_context_source: 'backend',
+        field_resolution_source: fieldResolutionSource,
+      };
+
+      if (extractionResult) {
+        userMessageMetadata.extracted_context = extractionResult;
+      }
+
+      if (effectiveFieldId) {
+        userMessageMetadata.resolved_field_id = effectiveFieldId;
+        await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, effectiveFieldId);
+      }
+
       await mergeMessageMetadata(
         supabaseAdmin,
         appUser.id,
         userMessageId,
-        {
-          resolved_field_id: effectiveFieldId,
-          resolved_field_name: serverContext.activeFieldName,
-          field_context_source: 'backend',
-          field_resolution_source: fieldResolutionSource,
-        },
+        userMessageMetadata,
         effectiveFieldId,
         effectiveConversationId,
       );
+
+      await supabaseAdmin
+        .from('users')
+        .update({
+          last_active_at: now.toISOString(),
+        })
+        .eq('id', appUser.id);
+
+      serverContext = await assembleServerFieldContext(
+        supabaseAdmin,
+        appUser.id,
+        fields,
+        effectiveFieldId,
+        body.fieldContext ?? '',
+      );
+
+      effectiveFieldId = serverContext.activeFieldId;
+
+      if (effectiveFieldId) {
+        await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, effectiveFieldId);
+        await mergeMessageMetadata(
+          supabaseAdmin,
+          appUser.id,
+          userMessageId,
+          {
+            resolved_field_id: effectiveFieldId,
+            resolved_field_name: serverContext.activeFieldName,
+            field_context_source: 'backend',
+            field_resolution_source: fieldResolutionSource,
+          },
+          effectiveFieldId,
+          effectiveConversationId,
+        );
+      }
+
+      aiResponse = await generateValidatedResponse(
+        geminiApiKey,
+        requestMessages,
+        serverContext.fieldContext,
+        serverContext.hasActiveField,
+        growerContext,
+      );
+      assistantText = aiResponse.response_text;
+      assistantMetadata = buildAssistantMetadata(aiResponse);
+
+      if (!assistantText) {
+        await cleanupFailedChatAttempt(
+          supabaseAdmin,
+          appUser.id,
+          userMessageId,
+          effectiveConversationId,
+          conversationCreatedByFunction,
+        );
+        return jsonResponse({ error: 'Gemini returned an empty response' }, 502);
+      }
+    } catch (error) {
+      console.error('Chat preprocessing failed', error);
+      await cleanupFailedChatAttempt(
+        supabaseAdmin,
+        appUser.id,
+        userMessageId,
+        effectiveConversationId,
+        conversationCreatedByFunction,
+      );
+      return jsonResponse({ error: 'Failed to process your message' }, 500);
     }
 
-    const aiResponse = await generateValidatedResponse(
-      geminiApiKey,
-      requestMessages,
-      serverContext.fieldContext,
-      serverContext.hasActiveField,
-      growerContext,
-    );
-    const assistantText = aiResponse.response_text;
-    const assistantMetadata = buildAssistantMetadata(aiResponse);
-
-    if (!assistantText) {
-      return jsonResponse({ error: 'Gemini returned an empty response' }, 502);
+    if (!userMessageId) {
+      return jsonResponse({ error: 'Failed to save your message' }, 500);
     }
 
     const encoder = new TextEncoder();
@@ -1701,6 +1816,7 @@ Return ONLY the greeting text, nothing else.`;
           }
 
           sendEvent('done', {
+            conversationId: effectiveConversationId,
             assistantMessageId: insertedAssistantMessage.id,
             assistantText,
             messageCountMonth: nextMessageCount,

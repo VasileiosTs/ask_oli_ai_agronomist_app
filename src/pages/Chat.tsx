@@ -10,7 +10,7 @@ import ConversationSidebar from '../components/ConversationSidebar';
 import type { Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
-import { compressImage, cacheImage, getCachedImage, getCachedImages } from '../lib/imageCache';
+import { compressImage, cacheImage, getCachedImage, getCachedImages, deleteCachedImage } from '../lib/imageCache';
 import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 
@@ -90,6 +90,7 @@ export default function Chat() {
   const messagesRef = useRef(messages);
   /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
   const loadGenerationRef = useRef(0);
+  const lastSendAttemptRef = useRef(0);
 
   // Only use explicitly selected field — never auto-select.
   // Field context is inferred per-message via extraction, not forced globally.
@@ -114,6 +115,22 @@ export default function Chat() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const cleanupUploadedAssets = async (paths: string[]) => {
+    if (paths.length === 0) {
+      return;
+    }
+
+    await Promise.all(paths.map((path) => deleteCachedImage(path)));
+
+    const { error } = await supabase.storage
+      .from('chat_uploads')
+      .remove(paths);
+
+    if (error) {
+      console.error('Failed to clean up uploaded files:', error);
+    }
   };
 
   const handleStarMessage = async (msg: Message) => {
@@ -558,7 +575,6 @@ export default function Chat() {
     userText: string, 
     currentActiveFieldId: string | undefined, 
     currentConversationId: string | undefined,
-    dbMessageId?: string | null,
     base64Images?: InlineAttachment[],
     attachmentPaths?: string[]
   ) => {
@@ -569,6 +585,12 @@ export default function Chat() {
 
     setIsTyping(true);
 
+    const recentMessages = currentMessages.slice(-10);
+    const latestUserMessage = [...recentMessages].reverse().find((message) => message.role === 'user');
+    const latestUserMessageId = latestUserMessage?.id;
+    const latestInlineAttachments = base64Images ?? latestUserMessage?.inlineAttachments ?? [];
+    const latestAttachmentPaths = attachmentPaths ?? latestUserMessage?.attachmentPaths ?? [];
+
     try {
       const assistantMsgId = crypto.randomUUID();
       let messageAdded = false;
@@ -576,12 +598,6 @@ export default function Chat() {
       // Field and treatment history are assembled server-side so the backend
       // stays authoritative as we expand field memory.
       const fieldContext = '';
-
-      const recentMessages = currentMessages.slice(-10);
-      const latestUserMessage = [...recentMessages].reverse().find((message) => message.role === 'user');
-      const latestUserMessageId = latestUserMessage?.id;
-      const latestInlineAttachments = base64Images ?? latestUserMessage?.inlineAttachments ?? [];
-      const latestAttachmentPaths = attachmentPaths ?? latestUserMessage?.attachmentPaths ?? [];
 
       let streamedContent = '';
       const completion = await streamChatCompletion(
@@ -598,12 +614,13 @@ export default function Chat() {
           hasActiveField: !!currentActiveFieldId,
           fieldId: currentActiveFieldId || null,
           conversationId: currentConversationId || null,
-          userMessageId: dbMessageId || null,
+          userMessageId: null,
           attachmentPaths: latestAttachmentPaths,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           lang,
         },
         {
+          signal: controller.signal,
           onToken: (token) => {
             if (controller.signal.aborted) return;
             streamedContent += token;
@@ -641,6 +658,10 @@ export default function Chat() {
         setMessageCount(completion.messageCountMonth);
       }
 
+      if (completion.conversationId && completion.conversationId !== currentConversationId) {
+        setActiveConversationId(completion.conversationId);
+      }
+
       if (completion.fieldId && completion.fieldId !== currentActiveFieldId) {
         setActiveFieldId(completion.fieldId);
       }
@@ -650,11 +671,36 @@ export default function Chat() {
       const status = typeof error === 'object' && error !== null && 'status' in error
         ? Number((error as { status?: unknown }).status)
         : undefined;
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code)
+        : undefined;
+      const latestUserMessagePersisted = !!latestUserMessage?.db_id;
+
+      if (latestUserMessageId && !latestUserMessagePersisted && !controller.signal.aborted) {
+        dispatch({ type: 'filter', predicate: (msg) => msg.id !== latestUserMessageId });
+        setInput((currentInput) => currentInput || userText);
+      }
 
       if (status === 429) {
-        setShowPaywall(true);
+        if (!latestUserMessagePersisted && latestAttachmentPaths.length > 0) {
+          await cleanupUploadedAssets(latestAttachmentPaths);
+        }
+
         dispatch({ type: 'filter', predicate: (msg) => !(msg.role === 'assistant' && !msg.content) });
+        if (code === 'monthly_limit') {
+          setShowPaywall(true);
+        } else {
+          showToast(
+            lang === 'el'
+              ? 'Περίμενε ένα στιγμιότυπο πριν στείλεις νέο μήνυμα.'
+              : 'Please wait a moment before sending another message.',
+          );
+        }
         return;
+      }
+
+      if (typeof status === 'number' && !latestUserMessagePersisted && latestAttachmentPaths.length > 0) {
+        await cleanupUploadedAssets(latestAttachmentPaths);
       }
 
       dispatch({ type: 'update_by', predicate: (msg) => msg.role === 'assistant' && !msg.content, patch: { content: t.connectionError } });
@@ -680,6 +726,17 @@ export default function Chat() {
       trackEvent(Events.PAYWALL_HIT, { messageCount });
       return;
     }
+
+    const now = Date.now();
+    if (now - lastSendAttemptRef.current < 2000) {
+      showToast(
+        lang === 'el'
+          ? 'Περίμενε ένα στιγμιότυπο πριν στείλεις νέο μήνυμα.'
+          : 'Please wait a moment before sending another message.',
+      );
+      return;
+    }
+    lastSendAttemptRef.current = now;
 
     let uploadedPaths: string[] = [];
     let base64Images: { mimeType: string; data: string }[] = [];
@@ -769,46 +826,6 @@ export default function Chat() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
 
-    let currentConversationId = activeConversationId;
-    if (appUserId && !currentConversationId) {
-      const { data: conversationData, error: conversationError } = await supabase
-        .from('conversations')
-        .insert({
-          user_id: appUserId,
-          field_id: activeFieldId || null,
-          title: (messageText || 'New conversation').slice(0, 80),
-        })
-        .select('id')
-        .single();
-
-      if (conversationError) {
-        console.error('Failed to create conversation:', conversationError);
-        showToast(t.conversationCreateError);
-      } else if (conversationData?.id) {
-        currentConversationId = conversationData.id;
-        setActiveConversationId(conversationData.id);
-      }
-    }
-
-    let dbMessageId: string | null = null;
-    if (appUserId) {
-      const { data, error: insertError } = await supabase.from('chat_messages').insert({
-        conversation_id: currentConversationId || null,
-        user_id: appUserId,
-        role: 'user',
-        content: finalMessageText,
-        field_id: activeFieldId || null,
-        metadata: uploadedPaths.length > 0 ? { attachments: uploadedPaths } : null
-      }).select('id').single();
-
-      if (insertError) {
-        console.error('Failed to save message:', insertError);
-      } else if (data) {
-        dbMessageId = data.id;
-        dispatch({ type: 'update', id: newUserMsg.id, patch: { db_id: data.id } });
-      }
-    }
-
     // No extraction pipeline — the main Gemini call already returns crop_mentioned
     // in its response metadata. This saves a second API call per message.
     const currentActiveFieldId = activeFieldId;
@@ -817,8 +834,7 @@ export default function Chat() {
       [...messages, newUserMsg],
       finalMessageText,
       currentActiveFieldId,
-      currentConversationId,
-      dbMessageId,
+      activeConversationId,
       base64Images,
       uploadedPaths
     );
