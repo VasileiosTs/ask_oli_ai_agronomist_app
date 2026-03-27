@@ -4,10 +4,22 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../lib/LanguageContext';
 import { trackEvent, Events } from '../lib/analytics';
 
+interface InterventionData {
+  crop_mentioned?: string;
+  diagnosis_data?: {
+    problem?: string;
+    product_applied?: string;
+    dosage?: string;
+    application_method?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  initialData: any;
+  initialData: InterventionData;
   userId: string;
   fieldId: string | null;
   onSuccess: (interventionId: string) => void;
@@ -60,10 +72,11 @@ export function LogInterventionModal({ isOpen, onClose, initialData, userId, fie
       // VIO multi-step: first check-in at 3 days ("did you apply?")
       const followUp = new Date();
       followUp.setDate(followUp.getDate() + 3);
-      await supabase.from('interventions').update({
+      const { error: followUpError } = await supabase.from('interventions').update({
         follow_up_at: followUp.toISOString(),
         vio_step: 1,
       }).eq('id', interventionId);
+      if (followUpError) console.error('Failed to set follow-up:', followUpError);
     }
     trackEvent(Events.INTERVENTION_LOGGED, { withFollowUp: yes });
     onSuccess(interventionId!);

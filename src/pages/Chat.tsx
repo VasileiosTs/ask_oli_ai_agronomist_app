@@ -643,7 +643,9 @@ let streamedContent = '';
         if (matchingField) {
           setActiveFieldId(matchingField.id);
           if (activeConversationId) {
-            supabase.from('conversations').update({ field_id: matchingField.id }).eq('id', activeConversationId);
+            supabase.from('conversations').update({ field_id: matchingField.id }).eq('id', activeConversationId).then(({ error }) => {
+              if (error) console.error('Failed to link field to conversation:', error);
+            });
           }
         }
       }
@@ -807,7 +809,7 @@ let streamedContent = '';
 
     let dbMessageId: string | null = null;
     if (appUserId) {
-      const { data } = await supabase.from('chat_messages').insert({
+      const { data, error: insertError } = await supabase.from('chat_messages').insert({
         conversation_id: currentConversationId || null,
         user_id: appUserId,
         role: 'user',
@@ -815,8 +817,10 @@ let streamedContent = '';
         field_id: activeFieldId || null,
         metadata: uploadedPaths.length > 0 ? { attachments: uploadedPaths } : null
       }).select('id').single();
-      
-      if (data) {
+
+      if (insertError) {
+        console.error('Failed to save message:', insertError);
+      } else if (data) {
         dbMessageId = data.id;
         setMessages((prev) => prev.map(m => m.id === newUserMsg.id ? { ...m, db_id: data.id } : m));
       }

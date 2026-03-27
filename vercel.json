@@ -30,7 +30,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.googleapis.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://geocoding-api.open-meteo.com https://*.sentry.io https://*.ingest.de.sentry.io https://ipapi.co; frame-src 'self' https://accounts.google.com; object-src 'none'; base-uri 'self'"
+          "value": "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.googleapis.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://geocoding-api.open-meteo.com https://*.sentry.io https://*.ingest.de.sentry.io https://ipapi.co; frame-src 'self' https://accounts.google.com; object-src 'none'; base-uri 'self'"
         },
         {
           "key": "Cache-Control",

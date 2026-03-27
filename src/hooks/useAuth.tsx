@@ -34,14 +34,14 @@ const AuthContext = createContext<AuthContextValue>({
   refreshProfile: async () => {},
 });
 
+/** Fields that should never be stored in client-side state (L5). */
+const REDACTED_FIELDS = ['stripe_customer_id', 'stripe_subscription_id'] as const;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-
-  /** Fields that should never be stored in client-side state (L5). */
-  const REDACTED_FIELDS = ['stripe_customer_id'];
 
   const fetchProfile = async (authUserId: string): Promise<void> => {
     try {
@@ -70,28 +70,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let initialResolved = false;
 
     // Step 1: getSession() processes the URL hash from magic links
     // and returns the current session (existing or just-authed).
-    // This is the correct initial load pattern per Supabase docs.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
+      initialResolved = true;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchProfile(session.user.id);
       }
       if (!cancelled) setLoading(false);
+    }).catch((err) => {
+      console.error('getSession failed:', err);
+      initialResolved = true;
+      if (!cancelled) setLoading(false);
     });
 
-    // Step 2: onAuthStateChange handles all future auth events
-    // (sign in, sign out, token refresh) but we skip the initial
-    // INITIAL_SESSION event to avoid double-processing.
+    // Step 2: onAuthStateChange handles all future auth events.
+    // Skip INITIAL_SESSION to avoid double-processing with getSession().
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (cancelled) return;
-        // Skip the initial session event — getSession() already handled it
-        if (event === 'INITIAL_SESSION') return;
+        if (event === 'INITIAL_SESSION') {
+          // If getSession() hasn't resolved yet, handle it here as fallback
+          if (!initialResolved) {
+            initialResolved = true;
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user) {
+              await fetchProfile(session.user.id);
+            }
+            if (!cancelled) setLoading(false);
+          }
+          return;
+        }
 
         setSession(session);
         setUser(session?.user ?? null);
@@ -109,8 +124,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Safety net: if nothing resolves within 5s, stop the spinner
+    const timeout = setTimeout(() => {
+      if (!cancelled && !initialResolved) {
+        console.warn('Auth init timed out — forcing loading=false');
+        initialResolved = true;
+        setLoading(false);
+      }
+    }, 5000);
+
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);

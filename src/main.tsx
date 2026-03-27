@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
       // Check for updates every 5 minutes
-      setInterval(() => reg.update(), 5 * 60 * 1000);
+      setInterval(() => { reg.update().catch(() => {}); }, 5 * 60 * 1000);
     }).catch((err) => {
       console.warn('SW registration failed:', err);
     });

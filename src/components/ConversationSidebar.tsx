@@ -33,23 +33,27 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
     if (!appUserId) { setLoading(false); return; }
     setLoading(true);
     setPage(1);
-    supabase
-      .from('conversations').select('id, title, updated_at')
-      .eq('user_id', appUserId).order('updated_at', { ascending: false }).range(0, PAGE_SIZE - 1)
-      .then(({ data }) => { if (data) setConvs(data); setLoading(false); });
+    Promise.resolve(
+      supabase
+        .from('conversations').select('id, title, updated_at')
+        .eq('user_id', appUserId).order('updated_at', { ascending: false }).range(0, PAGE_SIZE - 1)
+    ).then(({ data }) => { if (data) setConvs(data); setLoading(false); })
+      .catch(() => { setLoading(false); });
   }, [appUserId, isOpen, activeId]);
 
   const loadMore = () => {
     if (!appUserId) return;
     const nextPage = page + 1;
-    supabase
-      .from('conversations').select('id, title, updated_at')
-      .eq('user_id', appUserId).order('updated_at', { ascending: false })
-      .range(page * PAGE_SIZE, nextPage * PAGE_SIZE - 1)
-      .then(({ data }) => {
+    Promise.resolve(
+      supabase
+        .from('conversations').select('id, title, updated_at')
+        .eq('user_id', appUserId).order('updated_at', { ascending: false })
+        .range(page * PAGE_SIZE, nextPage * PAGE_SIZE - 1)
+    ).then(({ data }) => {
         if (data && data.length > 0) setConvs(prev => [...prev, ...data]);
         setPage(nextPage);
-      });
+      })
+      .catch(() => {});
   };
 
   const filtered = useMemo(() => {
