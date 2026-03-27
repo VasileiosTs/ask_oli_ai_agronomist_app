@@ -97,6 +97,50 @@ export function compressImage(file: File): Promise<{ blob: Blob; base64: string;
       fallbackReader.readAsDataURL(file);
     };
 
+    // Prefer createImageBitmap with imageOrientation:'from-image' for correct EXIF orientation.
+    // Falls back to the Image() / FileReader approach for browsers that don't support it.
+    if (typeof createImageBitmap !== 'undefined') {
+      createImageBitmap(file, { imageOrientation: 'from-image' } as ImageBitmapOptions)
+        .then((bitmap) => {
+          try {
+            const MAX = 1000;
+            let w = bitmap.width, h = bitmap.height;
+            if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+            else        { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { bitmap.close(); fallback(); return; }
+            ctx.drawImage(bitmap, 0, 0, w, h);
+            bitmap.close();
+            canvas.toBlob(
+              (blob) => {
+                canvas.width = 0;
+                canvas.height = 0;
+                if (!blob) { fallback(); return; }
+                const fr = new FileReader();
+                fr.onloadend = () => {
+                  const b64 = (fr.result as string)?.split(',')[1];
+                  if (b64) {
+                    resolve({ blob, base64: b64, mimeType: 'image/jpeg' });
+                  } else {
+                    fallback();
+                  }
+                };
+                fr.onerror = () => fallback();
+                fr.readAsDataURL(blob);
+              },
+              'image/jpeg', 0.8
+            );
+          } catch {
+            fallback();
+          }
+        })
+        .catch(() => fallback());
+      return;
+    }
+
+    // Fallback: use Image() + FileReader (no EXIF orientation correction)
     const reader = new FileReader();
     reader.onloadend = () => {
       const src = reader.result as string;

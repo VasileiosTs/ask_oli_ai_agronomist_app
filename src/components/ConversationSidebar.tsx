@@ -26,15 +26,31 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     if (!appUserId) { setLoading(false); return; }
     setLoading(true);
+    setPage(1);
     supabase
       .from('conversations').select('id, title, updated_at')
-      .eq('user_id', appUserId).order('updated_at', { ascending: false }).limit(100)
+      .eq('user_id', appUserId).order('updated_at', { ascending: false }).range(0, PAGE_SIZE - 1)
       .then(({ data }) => { if (data) setConvs(data); setLoading(false); });
   }, [appUserId, isOpen, activeId]);
+
+  const loadMore = () => {
+    if (!appUserId) return;
+    const nextPage = page + 1;
+    supabase
+      .from('conversations').select('id, title, updated_at')
+      .eq('user_id', appUserId).order('updated_at', { ascending: false })
+      .range(page * PAGE_SIZE, nextPage * PAGE_SIZE - 1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setConvs(prev => [...prev, ...data]);
+        setPage(nextPage);
+      });
+  };
 
   const filtered = useMemo(() => {
     if (!query.trim()) return convs;
@@ -123,19 +139,29 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
             <p className="text-xs text-muted">{noResults}</p>
           </div>
         ) : (
-          filtered.map(c => (
-            <button key={c.id}
-              onClick={() => { onSelect(c.id); if (!desktop) onClose(); }}
-              className={clsx(
-                'w-full px-4 py-2.5 text-left transition-colors hover:bg-background/60 border-b border-border/20',
-                activeId === c.id && 'bg-background/80'
-              )}>
-              <p className="truncate text-sm font-medium text-foreground leading-snug">
-                {query ? highlightMatch(c.title || t.newChat, query) : (c.title || t.newChat)}
-              </p>
-              <p className="text-[11px] text-muted mt-0.5">{fmtDate(c.updated_at)}</p>
-            </button>
-          ))
+          <>
+            {filtered.map(c => (
+              <button key={c.id}
+                onClick={() => { onSelect(c.id); if (!desktop) onClose(); }}
+                className={clsx(
+                  'w-full px-4 py-2.5 text-left transition-colors hover:bg-background/60 border-b border-border/20',
+                  activeId === c.id && 'bg-background/80'
+                )}>
+                <p className="truncate text-sm font-medium text-foreground leading-snug">
+                  {query ? highlightMatch(c.title || t.newChat, query) : (c.title || t.newChat)}
+                </p>
+                <p className="text-[11px] text-muted mt-0.5">{fmtDate(c.updated_at)}</p>
+              </button>
+            ))}
+            {!query && convs.length === page * PAGE_SIZE && (
+              <button
+                onClick={loadMore}
+                className="w-full px-4 py-2.5 text-xs text-muted hover:text-foreground transition-colors text-center"
+              >
+                {lang === 'el' ? 'Φόρτωση περισσότερων' : 'Load more'}
+              </button>
+            )}
+          </>
         )}
       </div>
 

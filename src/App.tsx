@@ -1,19 +1,21 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider, useLanguage } from './lib/LanguageContext';
 import AppLayout from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import LoadingSpinner from './components/LoadingSpinner';
-import Auth from './pages/Auth';
-import AuthCallback from './pages/AuthCallback';
-import Landing from './pages/Landing';
-import Onboarding from './pages/Onboarding';
-import Chat from './pages/Chat';
-import Profile from './pages/Profile';
-import History from './pages/History';
-import Fields from './pages/Fields';
-import SharedDiagnosis from './pages/SharedDiagnosis';
 import { Leaf } from 'lucide-react';
+
+const Auth = lazy(() => import('./pages/Auth'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback'));
+const Landing = lazy(() => import('./pages/Landing'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Profile = lazy(() => import('./pages/Profile'));
+const History = lazy(() => import('./pages/History'));
+const Fields = lazy(() => import('./pages/Fields'));
+const SharedDiagnosis = lazy(() => import('./pages/SharedDiagnosis'));
 
 const NotFound = () => {
   const { t } = useLanguage();
@@ -100,6 +102,7 @@ function AppRoutes() {
   const needsOnboarding = !!(user && (!profile || !profile.onboarding_complete)); // signed in but onboarding incomplete
 
   return (
+    <Suspense fallback={<div className="flex h-[100dvh] items-center justify-center bg-background"><LoadingSpinner /></div>}>
     <Routes>
       {/* Always public */}
       <Route path="/auth/callback" element={<AuthCallback />} />
@@ -153,6 +156,7 @@ function AppRoutes() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
 

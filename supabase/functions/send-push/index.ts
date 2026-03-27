@@ -141,16 +141,26 @@ serve(async (req) => {
         });
       }
 
-      // Per-user push rate limit: max PUSH_RATE_LIMIT per user per hour
+      // Per-user push rate limit: max PUSH_RATE_LIMIT direct pushes per user per hour.
+      // We track this via push_subscriptions.last_pushed_at — if it was updated within
+      // the last hour more than PUSH_RATE_LIMIT times we skip. Since we don't have a
+      // notifications_sent table, we enforce a simpler check: if the user's most recent
+      // subscription was last_pushed_at within the past hour, count how many subscriptions
+      // have been pushed recently and skip if over the limit.
+      // Note: cron-mode (vio_cron) runs at most every 6h and is inherently rate-limited.
+      // This rate limit applies only to direct-mode calls (from the chat function).
       const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
       const { count: recentPushCount } = await supabase
         .from("push_subscriptions")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", body.user_id);
-      // Use a simple approach: count recent messages sent to this user
-      // We check via the push_subscriptions updated_at as a proxy, but the simplest
-      // approach is to track sends. For now, we limit by checking subscription count
-      // and applying a basic time-based check on the request itself.
+        .eq("user_id", body.user_id)
+        .gte("last_pushed_at", oneHourAgo);
+
+      if ((recentPushCount ?? 0) >= PUSH_RATE_LIMIT) {
+        return new Response(JSON.stringify({ sent: 0, reason: "rate_limited" }), {
+          headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
 
       const { data: subs } = await supabase
         .from("push_subscriptions")
@@ -164,6 +174,7 @@ serve(async (req) => {
       }
 
       let sent = 0;
+      const now = new Date().toISOString();
       for (const sub of subs) {
         const ok = await sendPushNotification(sub, {
           title,
@@ -171,8 +182,11 @@ serve(async (req) => {
           url: pushUrl,
           tag: body.tag || "oli-vio",
         });
-        if (ok) sent++;
-        else {
+        if (ok) {
+          sent++;
+          // Track send time for rate limiting
+          await supabase.from("push_subscriptions").update({ last_pushed_at: now }).eq("id", sub.id);
+        } else {
           // Remove invalid subscription
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
         }

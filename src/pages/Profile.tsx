@@ -349,7 +349,7 @@ export default function Profile() {
       {/* Edit Dialog */}
       {editOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-foreground">{t.editProfile}</h3>
               <button onClick={() => setEditOpen(false)} className="rounded-full p-1.5 text-muted hover:bg-muted/10"><X className="h-5 w-5" /></button>
@@ -390,7 +390,7 @@ export default function Profile() {
       {/* Delete Dialog */}
       {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl">
             <h3 className="mb-2 text-lg font-semibold text-red-400">{t.deleteAccount}</h3>
             <p className="mb-4 text-sm text-muted">{t.deleteConfirmText}</p>
             <input type="text" value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}

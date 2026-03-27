@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const lang = profile.language ?? body.lang ?? 'en';
     const tz = body.timezone || 'UTC';
-    const locale = lang === 'el' ? 'el-GR' : 'en-GB';
+    const locale = lang === 'el' ? 'el-GR' : 'en-US';
     const month = new Date().toLocaleString(locale, { month: 'long', timeZone: tz });
     const firstName = profile.name?.split(' ')[0] ?? '';
     const loc = profile.location || '';

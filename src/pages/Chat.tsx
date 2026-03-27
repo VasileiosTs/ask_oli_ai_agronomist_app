@@ -1,9 +1,7 @@
 /// <reference types="vite/client" />
 
 import { useState, useEffect, useRef } from 'react';
-import { Leaf, SquarePen, Paperclip, Mic, Send, Camera, Image, FileText, X, Star, ClipboardList, Share2, Menu } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
+import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
@@ -13,37 +11,16 @@ import { assembleFieldContext, Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage, getCachedImage } from '../lib/imageCache';
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, ALLOWED_FILE_ACCEPT, VIO_STEP2_DAYS } from "../lib/constants";
-
-interface MessageAttachment {
-  url: string;
-  mimeType: string;
-  name: string;
-}
-
-interface Message {
-  id: string;
-  db_id?: string;
-  role: 'user' | 'assistant';
-  content: string;
-  created_at: string;
-  isDisambiguation?: boolean;
-  originalText?: string;
-  originalDbId?: string;
-  attachments?: MessageAttachment[];
-  inlineAttachments?: InlineAttachment[];
-  attachmentPaths?: string[];
-  metadata?: any;
-  starred?: boolean;
-}
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import PushPrompt from '../components/PushPrompt';
-import MessageBubble from '../components/MessageBubble';
+import ChatInputBar from '../components/ChatInputBar';
+import MessageList, { Message } from '../components/MessageList';
+import FieldSelector from '../components/FieldSelector';
 
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
@@ -618,7 +595,6 @@ let streamedContent = '';
       );
 
       if (controller.signal.aborted) return;
-      setIsTyping(false);
 
       const finalContent = streamedContent || completion.assistantText;
       if (!messageAdded && finalContent) {
@@ -650,6 +626,9 @@ let streamedContent = '';
           return msg;
         })
       );
+
+      // Set isTyping false AFTER the final message content is finalized
+      setIsTyping(false);
 
       if (typeof completion.messageCountMonth === 'number') {
         setMessageCount(completion.messageCountMonth);
@@ -930,7 +909,7 @@ let streamedContent = '';
         };
         // Resolve stored image paths into displayable URLs
         if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
-          const attachments: MessageAttachment[] = [];
+          const attachments: NonNullable<Message['attachments']> = [];
           const uncached: string[] = [];
           // 1. Check IndexedDB cache for all paths first (instant, no network)
           for (const path of m.image_urls) {
@@ -969,110 +948,40 @@ let streamedContent = '';
     setSidebarLoading(false);
   };
 
-  const messagesListJsx = (
-    <div className="space-y-6">
-      {messages.map((msg, index) => (
-        <MessageBubble
-          key={msg.id}
-          msg={msg}
-          isFirstAiInSequence={msg.role !== 'user' && (index === 0 || messages[index - 1].role === 'user')}
-          t={t}
-          lang={lang}
-          onStar={handleStarMessage}
-          onFeedback={handleFeedback}
-          onLogIntervention={handleLogIntervention}
-          onShare={handleShare}
-          onVioApplyConfirm={handleVioApplyConfirm}
-          onOutcome={handleOutcome}
-        />
-      ))}
-      {isTyping && (
-        <div className="group flex w-full justify-start animate-fade-in">
-          <div className="w-6 flex-shrink-0 pt-3"><div className="h-2 w-2 rounded-full bg-primary/60" /></div>
-          <div className="flex max-w-[78%] flex-col gap-1">
-            <div className="flex items-center gap-1 rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface px-4 py-4">
-              <div className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted" style={{ animationDelay: '0ms' }} />
-              <div className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted" style={{ animationDelay: '150ms' }} />
-              <div className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
-        </div>
-      )}
-      <div ref={messagesEndRef} />
-    </div>
-  );
+  const messageListProps = {
+    messages,
+    isTyping,
+    t,
+    lang,
+    messagesEndRef,
+    onStar: handleStarMessage,
+    onFeedback: handleFeedback,
+    onLogIntervention: handleLogIntervention,
+    onShare: handleShare,
+    onVioApplyConfirm: handleVioApplyConfirm,
+    onOutcome: handleOutcome,
+  };
 
-  const inputBarJsx = (
-    <div className="border-t border-border/50 bg-surface/95 pb-safe md:pb-safe backdrop-blur-sm mb-12 md:mb-0">
-      {messageCount >= FREE_LIMIT - 3 && (
-        <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
-          {FREE_LIMIT - messageCount} {t.messagesLeft}
-        </div>
-      )}
-      {/* Field selector removed — field context is auto-detected per message.
-           Fields are still tracked in backend for data/AI improvement. */}
-      {attachments.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1">
-          {attachments.map((att, i) => (
-            <div key={i} className="relative h-16 w-16 flex-shrink-0">
-              {att.file.type.startsWith('image/') ? (
-                <img src={att.previewUrl} alt="preview" className="h-full w-full rounded-xl object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center rounded-xl bg-muted/20">
-                  <FileText className="h-8 w-8 text-muted" />
-                </div>
-              )}
-              <button onClick={() => removeAttachment(i)}
-                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="relative flex items-end gap-2 px-4 py-3">
-        {showAttachmentSheet && (
-          <div className="absolute bottom-full left-4 mb-2 w-52 rounded-xl bg-surface p-2 shadow-lg border border-border/50">
-            <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm hover:bg-muted/10 text-foreground"
-              onClick={() => { cameraInputRef.current?.click(); setShowAttachmentSheet(false); }}>
-              <Camera className="h-5 w-5 text-muted" />{t.takePhoto}
-            </button>
-            <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm hover:bg-muted/10 text-foreground"
-              onClick={() => { fileInputRef.current?.click(); setShowAttachmentSheet(false); }}>
-              <Image className="h-5 w-5 text-muted" />{t.choosePhoto}
-            </button>
-            <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm hover:bg-muted/10 text-foreground"
-              onClick={() => { fileInputRef.current?.click(); setShowAttachmentSheet(false); }}>
-              <FileText className="h-5 w-5 text-muted" />{t.uploadFile}
-            </button>
-          </div>
-        )}
-        <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileSelect} />
-        <input type="file" ref={fileInputRef} className="hidden" accept={ALLOWED_FILE_ACCEPT} multiple onChange={handleFileSelect} />
-        <button onClick={() => setShowAttachmentSheet(!showAttachmentSheet)} aria-label="Attach file"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground transition-colors">
-          <Paperclip className="h-5 w-5" />
-        </button>
-        <button onClick={toggleListening} aria-label="Voice input"
-          className={clsx("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors",
-            isListening ? "text-red-500 animate-pulse bg-red-500/10" : "text-muted hover:text-foreground")}>
-          <Mic className="h-5 w-5" />
-        </button>
-        <div className="relative flex-1">
-          <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
-            aria-label={t.inputPlaceholder}
-            placeholder={isListening ? t.listening : t.inputPlaceholder}
-            className="max-h-[120px] min-h-[40px] w-full resize-none rounded-[22px] border border-border/50 bg-background px-4 py-2.5 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            rows={1} />
-        </div>
-        <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"
-          className={clsx("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] transition-colors duration-150",
-            (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted/70" : "bg-primary text-white hover:bg-primary/90")}>
-          <Send className="h-5 w-5" />
-        </button>
-      </div>
-    </div>
-  );
+  const inputBarProps = {
+    input,
+    attachments,
+    isTyping,
+    isListening,
+    messageCount,
+    showAttachmentSheet,
+    t,
+    lang,
+    textareaRef,
+    fileInputRef,
+    cameraInputRef,
+    onInput: handleInput,
+    onKeyDown: handleKeyDown,
+    onSend: () => handleSend(),
+    onFileSelect: handleFileSelect,
+    onRemoveAttachment: removeAttachment,
+    onToggleListening: toggleListening,
+    onToggleAttachmentSheet: setShowAttachmentSheet,
+  };
 
   return (
     <div className="flex h-[100dvh] bg-background overflow-hidden">
@@ -1101,6 +1010,14 @@ let streamedContent = '';
             <Leaf className="h-[18px] w-[18px] text-primary" />
             <span className="text-[16px] font-medium text-primary">Oli</span>
           </div>
+          {fields.length > 0 && (
+            <FieldSelector
+              fields={fields}
+              activeFieldId={activeFieldId}
+              onSelectField={setActiveFieldId}
+              lang={lang}
+            />
+          )}
           <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
             <SquarePen className="h-5 w-5" />
           </button>
@@ -1185,7 +1102,7 @@ let streamedContent = '';
                 ))}
               </div>
             </div>
-            {inputBarJsx}
+            <ChatInputBar {...inputBarProps} />
           </div>
         )}
 
@@ -1198,13 +1115,13 @@ let streamedContent = '';
                   <div className="flex h-full items-center justify-center py-20">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
                   </div>
-                ) : messagesListJsx}
+                ) : <MessageList {...messageListProps} />}
               </div>
             </div>
             <div className="flex-shrink-0">
               <div className="mx-auto max-w-2xl md:px-2 md:pb-4">
                 <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
-                {inputBarJsx}
+                <ChatInputBar {...inputBarProps} />
               </div>
             </div>
           </div>

@@ -18,7 +18,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl">
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl">
         <button onClick={onClose}
           className="absolute right-4 top-4 rounded-full p-1 text-muted hover:bg-background hover:text-foreground transition-colors">
           <X className="h-5 w-5" />

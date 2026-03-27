@@ -107,7 +107,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-[#faf9f4] text-[#1b1c19] overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-      <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Bpsychology%2Bwarning%2Beco%2Bcoronavirus%2Bbug_report%2Bwater_drop%2Bscience%2Bassignment_turned_in%2Bchat_bubble&display=swap" rel="stylesheet" />
 
       {/* ── NAV ── */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl" style={{ boxShadow: '0 8px 32px 0 rgba(27,28,25,0.04)' }}>
