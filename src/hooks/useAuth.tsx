@@ -17,6 +17,13 @@ export interface UserProfile {
   [key: string]: unknown;
 }
 
+interface RefreshProfileOptions {
+  retries?: number;
+  delayMs?: number;
+  requireCompletedOnboarding?: boolean;
+  preserveExisting?: boolean;
+}
+
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
@@ -24,18 +31,37 @@ interface AuthContextValue {
   appUserId: string | null;
   loading: boolean;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (options?: RefreshProfileOptions) => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   session: null, user: null, profile: null,
   appUserId: null, loading: true,
   logout: async () => {},
-  refreshProfile: async () => {},
+  refreshProfile: async () => null,
 });
 
 /** Fields that should never be stored in client-side state (L5). */
 const REDACTED_FIELDS = ['stripe_customer_id', 'stripe_subscription_id'] as const;
+
+function readStoredSession(): Session | null {
+  try {
+    const raw = localStorage.getItem('oli-auth');
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Session | null;
+    if (!parsed?.access_token || !parsed?.user?.id) {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to read stored session fallback:', error);
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -43,22 +69,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (authUserId: string): Promise<void> => {
-    try {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', authUserId)
-        .maybeSingle();
-      if (data) {
-        // L5: Strip sensitive fields that the client never needs
-        for (const field of REDACTED_FIELDS) delete (data as Record<string, unknown>)[field];
+  const fetchProfile = async (
+    authUserId: string,
+    options: RefreshProfileOptions = {},
+  ): Promise<UserProfile | null> => {
+    const {
+      retries = 0,
+      delayMs = 250,
+      requireCompletedOnboarding = false,
+      preserveExisting = false,
+    } = options;
+
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_id', authUserId)
+          .maybeSingle();
+
+        if (error) {
+          lastError = error;
+        } else if (data && (!requireCompletedOnboarding || !!data.onboarding_complete)) {
+          for (const field of REDACTED_FIELDS) {
+            delete (data as Record<string, unknown>)[field];
+          }
+          const sanitizedProfile = data as UserProfile;
+          setProfile(sanitizedProfile);
+          return sanitizedProfile;
+        }
+      } catch (error) {
+        lastError = error;
       }
-      setProfile((data as UserProfile | null) ?? null);
-    } catch (e) {
-      console.error('fetchProfile error:', e);
+
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    if (lastError) {
+      console.error('fetchProfile error:', lastError);
+    }
+
+    if (!preserveExisting) {
       setProfile(null);
     }
+
+    return null;
   };
 
   const logout = async () => {
@@ -71,6 +130,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let initialResolved = false;
+    let restoredFromStorage = false;
+
+    const hydrateFromStoredSession = () => {
+      const storedSession = readStoredSession();
+      if (!storedSession?.user) {
+        return false;
+      }
+
+      restoredFromStorage = true;
+      initialResolved = true;
+      setSession(storedSession);
+      setUser(storedSession.user);
+      fetchProfile(storedSession.user.id, {
+        retries: 4,
+        delayMs: 250,
+        preserveExisting: true,
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+      return true;
+    };
+
+    hydrateFromStoredSession();
 
     // Step 1: getSession() processes the URL hash from magic links
     // and returns the current session (existing or just-authed).
@@ -80,13 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        await fetchProfile(session.user.id, { preserveExisting: restoredFromStorage });
+      } else if (!restoredFromStorage) {
+        setProfile(null);
       }
       if (!cancelled) setLoading(false);
     }).catch((err) => {
       console.error('getSession failed:', err);
-      initialResolved = true;
-      if (!cancelled) setLoading(false);
+      if (!restoredFromStorage) {
+        initialResolved = true;
+        if (!cancelled) setLoading(false);
+      }
     });
 
     // Step 2: onAuthStateChange handles all future auth events.
@@ -108,6 +194,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        if (!initialResolved) {
+          initialResolved = true;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -127,6 +217,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Safety net: if nothing resolves within 5s, stop the spinner
     const timeout = setTimeout(() => {
       if (!cancelled && !initialResolved) {
+        const storedSession = readStoredSession();
+        if (storedSession?.user) {
+          console.warn('Auth init timed out — using persisted session fallback');
+          initialResolved = true;
+          setSession(storedSession);
+          setUser(storedSession.user);
+          fetchProfile(storedSession.user.id, {
+            retries: 4,
+            delayMs: 250,
+            preserveExisting: true,
+          }).finally(() => {
+            if (!cancelled) setLoading(false);
+          });
+          return;
+        }
+
         console.warn('Auth init timed out — forcing loading=false');
         initialResolved = true;
         setLoading(false);
@@ -174,8 +280,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [session, resetInactivityTimer]);
 
-  const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+  const refreshProfile = async (options?: RefreshProfileOptions) => {
+    if (!user) {
+      return null;
+    }
+
+    return await fetchProfile(user.id, {
+      preserveExisting: true,
+      ...options,
+    });
   };
 
   return (

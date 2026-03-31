@@ -1,4 +1,4 @@
-import { supabase, supabasePublicKey, supabaseUrl } from './supabase';
+import { getAccessTokenWithFallback, supabasePublicKey, supabaseUrl } from './supabase';
 
 export interface InlineAttachment {
   mimeType: string;
@@ -34,19 +34,22 @@ export interface ChatFunctionMetadata {
 }
 
 export interface ChatFunctionDonePayload {
+  conversationId: string | null;
   assistantMessageId: string | null;
   assistantText: string;
   messageCountMonth: number | null;
   metadata?: ChatFunctionMetadata;
   userMessageId?: string | null;
+  fieldId?: string | null;
 }
 
 type StreamCallbacks = {
   onToken?: (text: string) => void;
+  signal?: AbortSignal;
 };
 
-function createStreamError(message: string, status?: number) {
-  return Object.assign(new Error(message), { status });
+function createStreamError(message: string, status?: number, code?: string) {
+  return Object.assign(new Error(message), { status, code });
 }
 
 function parseSseEvent(rawEvent: string): { event: string; data: string } | null {
@@ -75,14 +78,17 @@ function parseSseEvent(rawEvent: string): { event: string; data: string } | null
   };
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
+async function readErrorPayload(response: Response): Promise<{ message: string; code?: string }> {
   const contentType = response.headers.get('content-type') || '';
 
   if (contentType.includes('application/json')) {
     try {
       const payload = await response.json();
       if (payload && typeof payload.error === 'string') {
-        return payload.error;
+        return {
+          message: payload.error,
+          code: typeof payload.code === 'string' ? payload.code : undefined,
+        };
       }
     } catch (error) {
       console.error('Failed to parse chat function error JSON:', error);
@@ -90,7 +96,7 @@ async function readErrorMessage(response: Response): Promise<string> {
   }
 
   const text = await response.text();
-  return text || `Chat request failed with status ${response.status}`;
+  return { message: text || `Chat request failed with status ${response.status}` };
 }
 
 export async function streamChatCompletion(
@@ -101,11 +107,9 @@ export async function streamChatCompletion(
     throw createStreamError('Supabase environment variables are missing.');
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const accessToken = await getAccessTokenWithFallback();
 
-  if (!session?.access_token) {
+  if (!accessToken) {
     throw createStreamError('You need to sign in to use chat.', 401);
   }
 
@@ -117,16 +121,18 @@ export async function streamChatCompletion(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'apikey': supabasePublicKey,
       },
       body: JSON.stringify(request),
-      signal: AbortSignal.timeout(70000),
+      signal: callbacks.signal && typeof AbortSignal.any === 'function'
+        ? AbortSignal.any([AbortSignal.timeout(70000), callbacks.signal])
+        : callbacks.signal ?? AbortSignal.timeout(70000),
     });
 
     if (!streamResponse.ok) {
-      const errorMessage = await readErrorMessage(streamResponse);
-      throw createStreamError(errorMessage, streamResponse.status);
+      const { message, code } = await readErrorPayload(streamResponse);
+      throw createStreamError(message, streamResponse.status, code);
     }
 
     if (!streamResponse.body) {
@@ -137,6 +143,8 @@ export async function streamChatCompletion(
     const decoder = new TextDecoder();
     let buffer = '';
     let donePayload: ChatFunctionDonePayload | null = null;
+    let metaConversationId: string | null = null;
+    let metaUserMessageId: string | null = null;
 
     const handleEvent = (rawEvent: string) => {
       const parsed = parseSseEvent(rawEvent);
@@ -149,6 +157,12 @@ export async function streamChatCompletion(
         payload = JSON.parse(parsed.data) as Record<string, unknown>;
       } catch {
         console.warn('Failed to parse SSE data:', parsed.data);
+        return;
+      }
+
+      if (parsed.event === 'meta') {
+        metaConversationId = typeof payload.conversationId === 'string' ? payload.conversationId : null;
+        metaUserMessageId = typeof payload.userMessageId === 'string' ? payload.userMessageId : null;
         return;
       }
 
@@ -167,11 +181,13 @@ export async function streamChatCompletion(
 
       if (parsed.event === 'done') {
         donePayload = {
+          conversationId: typeof payload.conversationId === 'string' ? payload.conversationId : metaConversationId,
           assistantMessageId: typeof payload.assistantMessageId === 'string' ? payload.assistantMessageId : null,
           assistantText: typeof payload.assistantText === 'string' ? payload.assistantText : '',
           messageCountMonth: typeof payload.messageCountMonth === 'number' ? payload.messageCountMonth : null,
           metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
-          userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : null,
+          userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : metaUserMessageId,
+          fieldId: typeof payload.fieldId === 'string' ? payload.fieldId : null,
         };
       }
     };
@@ -245,8 +261,8 @@ export async function guestChatCompletion(
   });
 
   if (!response.ok) {
-    const errorMessage = await readErrorMessage(response);
-    throw createStreamError(errorMessage, response.status);
+    const { message: errorMessage, code } = await readErrorPayload(response);
+    throw createStreamError(errorMessage, response.status, code);
   }
 
   const data = await response.json();

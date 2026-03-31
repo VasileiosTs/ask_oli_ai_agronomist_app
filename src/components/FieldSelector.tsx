@@ -11,10 +11,6 @@ export interface FieldSelectorProps {
 
 /**
  * FieldSelector — a header popover for choosing the active field context.
- *
- * Currently not rendered in Chat.tsx because field context is auto-detected
- * per message from AI response metadata. This component is extracted here so
- * it can be re-enabled in the chat header whenever needed.
  */
 export default function FieldSelector({
   fields,

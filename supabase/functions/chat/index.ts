@@ -45,6 +45,55 @@ interface ExtractionResult {
   intervention_hint: string | null;
 }
 
+interface FieldContextRow {
+  id: string;
+  user_id: string;
+  name: string;
+  crop_type: string | null;
+  location: string | null;
+  size_ha: number | null;
+  soil_type: string | null;
+  irrigation_type: string | null;
+  growing_medium: string | null;
+  last_diagnosis: string | null;
+  last_intervention_at: string | null;
+  crop_count: number | null;
+  intervention_count: number | null;
+  pending_follow_up_count: number | null;
+  conversation_count: number | null;
+  recent_diagnoses: string[] | null;
+}
+
+interface InterventionContextRow {
+  id: string;
+  field_id: string | null;
+  diagnosis: string | null;
+  problem: string | null;
+  product_applied: string | null;
+  product: string | null;
+  dosage: string | null;
+  application_method: string | null;
+  outcome: string | null;
+  outcome_score: number | null;
+  follow_up_at: string | null;
+  applied_at: string | null;
+  date: string | null;
+}
+
+interface MemorySnapshotRow {
+  id: string;
+  field_id: string | null;
+  summary: string | null;
+  snapshot: Record<string, unknown> | null;
+  created_at: string;
+}
+
+interface ConversationRow {
+  id: string;
+  field_id: string | null;
+  title: string;
+}
+
 interface ChatRequestBody {
   mode?: 'chat' | 'extract' | 'greeting' | 'guest';
   messages?: ChatMessageInput[];
@@ -509,6 +558,498 @@ function buildAssistantMetadata(aiResponse: AiResponseJson): Record<string, unkn
   return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
+function formatFieldContextBlock(field: FieldContextRow): string {
+  const parts = [
+    `Field: ${field.name}`,
+    `Crop: ${field.crop_type || 'N/A'}`,
+    field.size_ha != null ? `Size: ${field.size_ha}ha` : null,
+    field.soil_type ? `Soil: ${field.soil_type}` : null,
+    field.irrigation_type ? `Irrigation: ${field.irrigation_type}` : null,
+    field.growing_medium ? `Medium: ${field.growing_medium}` : null,
+    `Last issue: ${field.last_diagnosis || 'None'}`,
+    field.intervention_count ? `Interventions: ${field.intervention_count}` : null,
+    field.pending_follow_up_count ? `Pending follow-ups: ${field.pending_follow_up_count}` : null,
+  ].filter(Boolean);
+
+  return parts.join(' | ');
+}
+
+function formatInterventionContext(item: InterventionContextRow, fieldName?: string): string {
+  const date = item.applied_at?.split('T')[0] || item.date || '?';
+  const problem = item.diagnosis || item.problem || 'Unknown issue';
+  const treatment = item.product_applied || item.product || 'No product recorded';
+  const dosage = item.dosage ? ` ${item.dosage}` : '';
+  const method = item.application_method ? ` (${item.application_method})` : '';
+  const fieldPrefix = fieldName ? `${fieldName} | ` : '';
+
+  let status: string;
+  if (item.outcome) {
+    status = `Outcome: ${item.outcome}`;
+    if (item.outcome_score) {
+      status += ` (${item.outcome_score}/5)`;
+    }
+  } else if (item.follow_up_at) {
+    status = `Pending follow-up (${item.follow_up_at.split('T')[0]})`;
+  } else {
+    status = 'No follow-up set';
+  }
+
+  return `- ${fieldPrefix}${date}: ${problem} -> ${treatment}${dosage}${method} -> ${status}`;
+}
+
+async function fetchFieldContextRows(supabaseAdmin: any, appUserId: string): Promise<FieldContextRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('field_context_view')
+    .select('*')
+    .eq('user_id', appUserId)
+    .order('created_at', { ascending: true });
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data as FieldContextRow[];
+}
+
+async function fetchContextInterventions(
+  supabaseAdmin: any,
+  appUserId: string,
+  fieldId?: string | null,
+  limit = 5,
+): Promise<InterventionContextRow[]> {
+  const columns =
+    'id, field_id, diagnosis, problem, product_applied, product, dosage, ' +
+    'application_method, outcome, outcome_score, follow_up_at, applied_at, date';
+
+  let query = supabaseAdmin
+    .from('interventions')
+    .select(columns)
+    .eq('user_id', appUserId)
+    .order('applied_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (fieldId) {
+    query = query.eq('field_id', fieldId);
+  }
+
+  const { data, error } = await query;
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  const interventions = data as InterventionContextRow[];
+  if (!fieldId || interventions.length >= limit) {
+    return interventions;
+  }
+
+  const { data: backfill } = await supabaseAdmin
+    .from('interventions')
+    .select(columns)
+    .eq('user_id', appUserId)
+    .neq('field_id', fieldId)
+    .order('applied_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit - interventions.length);
+
+  if (Array.isArray(backfill)) {
+    const seen = new Set(interventions.map((item) => item.id));
+    for (const item of backfill as InterventionContextRow[]) {
+      if (!seen.has(item.id)) {
+        interventions.push(item);
+      }
+    }
+  }
+
+  return interventions;
+}
+
+async function fetchPendingFollowUps(
+  supabaseAdmin: any,
+  appUserId: string,
+  fieldId?: string | null,
+  limit = 5,
+): Promise<InterventionContextRow[]> {
+  const columns =
+    'id, field_id, diagnosis, problem, product_applied, product, dosage, ' +
+    'application_method, outcome, outcome_score, follow_up_at, applied_at, date';
+
+  let query = supabaseAdmin
+    .from('interventions')
+    .select(columns)
+    .eq('user_id', appUserId)
+    .is('outcome', null)
+    .not('follow_up_at', 'is', null)
+    .order('follow_up_at', { ascending: true })
+    .limit(limit);
+
+  if (fieldId) {
+    query = query.eq('field_id', fieldId);
+  }
+
+  const { data, error } = await query;
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  const followUps = data as InterventionContextRow[];
+  if (!fieldId || followUps.length >= limit) {
+    return followUps;
+  }
+
+  const { data: backfill } = await supabaseAdmin
+    .from('interventions')
+    .select(columns)
+    .eq('user_id', appUserId)
+    .is('outcome', null)
+    .not('follow_up_at', 'is', null)
+    .neq('field_id', fieldId)
+    .order('follow_up_at', { ascending: true })
+    .limit(limit - followUps.length);
+
+  if (Array.isArray(backfill)) {
+    const seen = new Set(followUps.map((item) => item.id));
+    for (const item of backfill as InterventionContextRow[]) {
+      if (!seen.has(item.id)) {
+        followUps.push(item);
+      }
+    }
+  }
+
+  return followUps;
+}
+
+async function fetchLatestMemorySnapshot(
+  supabaseAdmin: any,
+  appUserId: string,
+  fieldId?: string | null,
+): Promise<MemorySnapshotRow | null> {
+  let query = supabaseAdmin
+    .from('memory_snapshots')
+    .select('id, field_id, summary, snapshot, created_at')
+    .eq('user_id', appUserId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (fieldId) {
+    query = query.eq('field_id', fieldId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+
+  return data as MemorySnapshotRow;
+}
+
+async function assembleServerFieldContext(
+  supabaseAdmin: any,
+  appUserId: string,
+  fields: FieldContextRow[],
+  activeFieldId?: string | null,
+  fallbackFieldContext = '',
+) {
+  const [interventions, pendingFollowUps, latestSnapshot] = await Promise.all([
+    fetchContextInterventions(supabaseAdmin, appUserId, activeFieldId),
+    fetchPendingFollowUps(supabaseAdmin, appUserId, activeFieldId),
+    fetchLatestMemorySnapshot(supabaseAdmin, appUserId, activeFieldId),
+  ]);
+
+  const fieldMap = new Map(fields.map((field) => [field.id, field]));
+  const sections: string[] = [];
+  const activeField =
+    (activeFieldId ? fields.find((field) => field.id === activeFieldId) : null) ??
+    (fields.length === 1 ? fields[0] : null);
+
+  if (activeField) {
+    sections.push(`ACTIVE FIELD:\n${formatFieldContextBlock(activeField)}`);
+
+    if (Array.isArray(activeField.recent_diagnoses) && activeField.recent_diagnoses.length > 0) {
+      sections.push(`RECENT DIAGNOSES:\n- ${activeField.recent_diagnoses.join('\n- ')}`);
+    }
+  } else if (fields.length > 1) {
+    sections.push(
+      `USER HAS ${fields.length} FIELDS:\n${fields.map((field) => formatFieldContextBlock(field)).join('\n')}\n(No specific field selected for this conversation.)`,
+    );
+  } else if (fields.length === 1) {
+    sections.push(`USER FIELD:\n${formatFieldContextBlock(fields[0])}`);
+  }
+
+  if (interventions.length > 0) {
+    const lines = interventions.map((item) =>
+      formatInterventionContext(
+        item,
+        !activeFieldId && item.field_id ? fieldMap.get(item.field_id)?.name : undefined,
+      ),
+    );
+    sections.push(`TREATMENT HISTORY (last ${interventions.length}):\n${lines.join('\n')}`);
+  }
+
+  if (pendingFollowUps.length > 0) {
+    const lines = pendingFollowUps.map((item) => {
+      const problem = item.diagnosis || item.problem || 'treatment';
+      const product = item.product_applied || item.product || '';
+      const date = item.applied_at?.split('T')[0] || item.date || '?';
+      const dueDate = item.follow_up_at?.split('T')[0] || '?';
+      const fieldLabel =
+        !activeFieldId && item.field_id ? `${fieldMap.get(item.field_id)?.name || 'Field'} | ` : '';
+
+      return `- ${fieldLabel}${problem}${product ? ` (${product})` : ''} from ${date} -> check due ${dueDate}`;
+    });
+
+    sections.push(`PENDING FOLLOW-UPS (${pendingFollowUps.length}):\n${lines.join('\n')}`);
+  }
+
+  if (latestSnapshot?.summary) {
+    sections.push(`LATEST MEMORY SNAPSHOT:\n- ${latestSnapshot.summary}`);
+  }
+
+  const fieldContext = sections.length > 0
+    ? sections.join('\n\n')
+    : fallbackFieldContext || 'No field data or treatment history on record yet.';
+
+  return {
+    fieldContext,
+    activeFieldId: activeField?.id ?? activeFieldId ?? null,
+    activeFieldName: activeField?.name ?? null,
+    hasActiveField: Boolean(activeField?.id ?? activeFieldId),
+    recentInterventions: interventions,
+    pendingFollowUps,
+  };
+}
+
+async function fetchOwnedConversation(
+  supabaseAdmin: any,
+  appUserId: string,
+  conversationId?: string | null,
+): Promise<ConversationRow | null> {
+  if (!conversationId) {
+    return null;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('conversations')
+    .select('id, field_id, title')
+    .eq('id', conversationId)
+    .eq('user_id', appUserId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as ConversationRow;
+}
+
+function buildInitialConversationTitle(rawText: string): string {
+  const cleaned = rawText
+    .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+    .trim();
+
+  if (!cleaned) {
+    return 'New conversation';
+  }
+
+  return cleaned.slice(0, 80);
+}
+
+async function createConversation(
+  supabaseAdmin: any,
+  appUserId: string,
+  fieldId: string | null,
+  latestMessageText: string,
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('conversations')
+    .insert({
+      user_id: appUserId,
+      field_id: fieldId,
+      title: buildInitialConversationTitle(latestMessageText),
+    })
+    .select('id, field_id, title')
+    .single();
+
+  if (error || !data?.id) {
+    console.error('Failed to create conversation:', error?.message ?? 'Conversation insert returned no id');
+    return null;
+  }
+
+  return data.id as string;
+}
+
+async function updateConversationFieldLink(
+  supabaseAdmin: any,
+  appUserId: string,
+  conversationId: string | null | undefined,
+  fieldId: string | null,
+) {
+  if (!conversationId || !fieldId) {
+    return;
+  }
+
+  await supabaseAdmin
+    .from('conversations')
+    .update({ field_id: fieldId })
+    .eq('id', conversationId)
+    .eq('user_id', appUserId);
+}
+
+async function mergeMessageMetadata(
+  supabaseAdmin: any,
+  appUserId: string,
+  messageId: string,
+  patch: Record<string, unknown>,
+  fieldId?: string | null,
+  conversationId?: string | null,
+) {
+  const { data: existing } = await supabaseAdmin
+    .from('chat_messages')
+    .select('metadata')
+    .eq('id', messageId)
+    .eq('user_id', appUserId)
+    .maybeSingle();
+
+  const updateData: Record<string, unknown> = {};
+
+  if (Object.keys(patch).length > 0) {
+    updateData.metadata = {
+      ...((existing?.metadata as Record<string, unknown> | null) ?? {}),
+      ...patch,
+    };
+  }
+
+  if (typeof fieldId !== 'undefined') {
+    updateData.field_id = fieldId;
+  }
+
+  if (typeof conversationId !== 'undefined') {
+    updateData.conversation_id = conversationId;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return;
+  }
+
+  await supabaseAdmin
+    .from('chat_messages')
+    .update(updateData)
+    .eq('id', messageId)
+    .eq('user_id', appUserId);
+}
+
+async function cleanupFailedChatAttempt(
+  supabaseAdmin: any,
+  appUserId: string,
+  userMessageId: string | null,
+  conversationId: string | null,
+  conversationCreatedByFunction: boolean,
+) {
+  if (userMessageId) {
+    await supabaseAdmin
+      .from('chat_messages')
+      .delete()
+      .eq('id', userMessageId)
+      .eq('user_id', appUserId);
+  }
+
+  if (!conversationCreatedByFunction || !conversationId) {
+    return;
+  }
+
+  const { count } = await supabaseAdmin
+    .from('chat_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', appUserId);
+
+  if ((count ?? 0) > 0) {
+    return;
+  }
+
+  await supabaseAdmin
+    .from('conversations')
+    .delete()
+    .eq('id', conversationId)
+    .eq('user_id', appUserId);
+}
+
+function buildSnapshotSummary(aiResponse: AiResponseJson): string | null {
+  const diagnosis = aiResponse.diagnosis_data?.problem || aiResponse.crop_mentioned || null;
+  const severity = aiResponse.diagnosis_data?.severity || null;
+  const product =
+    aiResponse.diagnosis_data?.product_applied ||
+    aiResponse.diagnosis_data?.chemical_treatments?.[0] ||
+    aiResponse.diagnosis_data?.organic_treatments?.[0] ||
+    null;
+
+  if (!diagnosis && !product) {
+    return null;
+  }
+
+  return [
+    diagnosis || 'Agronomy follow-up',
+    severity ? `severity ${severity}` : null,
+    product ? `suggested ${product}` : null,
+  ].filter(Boolean).join(' | ');
+}
+
+async function persistFieldMemorySnapshot(
+  supabaseAdmin: any,
+  appUserId: string,
+  fieldId: string | null,
+  userMessageId: string,
+  assistantMessageId: string,
+  aiResponse: AiResponseJson,
+  assistantText: string,
+  recentInterventions: InterventionContextRow[],
+  pendingFollowUps: InterventionContextRow[],
+) {
+  if (!fieldId) {
+    return null;
+  }
+
+  const summary = buildSnapshotSummary(aiResponse);
+  const snapshot = {
+    intent: aiResponse.intent,
+    crop_mentioned: aiResponse.crop_mentioned,
+    field_scope: aiResponse.field_scope,
+    diagnosis_data: aiResponse.diagnosis_data,
+    assistant_text_excerpt: assistantText.slice(0, 600),
+    recent_interventions: recentInterventions.slice(0, 3).map((item) => ({
+      id: item.id,
+      diagnosis: item.diagnosis || item.problem,
+      product: item.product_applied || item.product,
+      outcome: item.outcome,
+      applied_at: item.applied_at || item.date,
+    })),
+    pending_follow_ups: pendingFollowUps.slice(0, 3).map((item) => ({
+      id: item.id,
+      diagnosis: item.diagnosis || item.problem,
+      due_at: item.follow_up_at,
+    })),
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('memory_snapshots')
+    .insert({
+      user_id: appUserId,
+      field_id: fieldId,
+      summary,
+      snapshot,
+      source_message_ids: [userMessageId, assistantMessageId],
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    console.error('Failed to persist memory snapshot', error);
+    return null;
+  }
+
+  return data.id as string;
+}
+
 function sameCalendarMonth(a: Date | null, b: Date): boolean {
   if (!a) {
     return false;
@@ -552,6 +1093,34 @@ async function resolveFieldCandidates(supabaseAdmin: any, appUserId: string, fie
     name: field.name,
     confidence: null,
   }));
+}
+
+async function resolveSingleFieldByHint(
+  supabaseAdmin: any,
+  appUserId: string,
+  hint: string,
+  minConfidence = 0.35,
+) {
+  const candidates = await resolveFieldCandidates(supabaseAdmin, appUserId, hint);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const [bestCandidate, secondCandidate] = candidates;
+  const bestConfidence = typeof bestCandidate.confidence === 'number' ? bestCandidate.confidence : null;
+  const secondConfidence = typeof secondCandidate?.confidence === 'number' ? secondCandidate.confidence : null;
+
+  if (bestConfidence != null && bestConfidence >= minConfidence) {
+    if (secondConfidence == null || bestConfidence - secondConfidence >= 0.08) {
+      return bestCandidate;
+    }
+  }
+
+  if (candidates.length === 1) {
+    return bestCandidate;
+  }
+
+  return null;
 }
 
 async function applyExtractedFieldContext(
@@ -745,7 +1314,7 @@ Deno.serve(async (req) => {
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, name, location, primary_crop, tier, message_count_month, message_reset_date')
+      .select('id, name, location, language, primary_crop, tier, message_count_month, message_reset_date')
       .eq('auth_id', user.id)
       .single();
 
@@ -883,37 +1452,8 @@ Return ONLY the greeting text, nothing else.`;
     const sameMonth = sameCalendarMonth(resetDate, now);
     const currentCount = sameMonth ? appUser.message_count_month ?? 0 : 0;
 
-    if (!sameMonth) {
-      await supabaseAdmin
-        .from('users')
-        .update({
-          message_count_month: 0,
-          message_reset_date: now.toISOString(),
-        })
-        .eq('id', appUser.id);
-    }
-
-    if ((appUser.tier ?? 'free') !== 'pro' && currentCount >= FREE_LIMIT) {
-      return jsonResponse(
-        {
-          error: 'Monthly message limit reached',
-          limit: FREE_LIMIT,
-        },
-        429,
-      );
-    }
-
-    // C3: Atomically increment message count immediately after free limit check (prevents TOCTOU race)
-    const nextMessageCount = currentCount + 1;
-    await supabaseAdmin
-      .from('users')
-      .update({
-        message_count_month: nextMessageCount,
-        message_reset_date: now.toISOString(),
-      })
-      .eq('id', appUser.id);
-
-    // C2: Burst rate limiting — max 1 message per 2 seconds per user
+    // Burst rate limiting should happen before we consume monthly quota or upload
+    // any more state for this request.
     const { data: lastMsg } = await supabaseAdmin
       .from('chat_messages')
       .select('created_at')
@@ -926,13 +1466,47 @@ Return ONLY the greeting text, nothing else.`;
     if (lastMsg) {
       const elapsed = Date.now() - new Date(lastMsg.created_at).getTime();
       if (elapsed < 2000) {
-        return jsonResponse({ error: 'Please wait a moment before sending another message' }, 429);
+        return jsonResponse(
+          {
+            error: 'Please wait a moment before sending another message',
+            code: 'burst_rate_limit',
+          },
+          429,
+        );
       }
     }
+
+    if ((appUser.tier ?? 'free') !== 'pro' && currentCount >= FREE_LIMIT) {
+      return jsonResponse(
+        {
+          error: 'Monthly message limit reached',
+          code: 'monthly_limit',
+          limit: FREE_LIMIT,
+        },
+        429,
+      );
+    }
+
+    const nextMessageCount = currentCount + 1;
+    await supabaseAdmin
+      .from('users')
+      .update({
+        message_count_month: nextMessageCount,
+        message_reset_date: now.toISOString(),
+      })
+      .eq('id', appUser.id);
 
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
       .filter((value) => value.startsWith(`${user.id}/`));
+
+    const ownedConversation = body.conversationId
+      ? await fetchOwnedConversation(supabaseAdmin, appUser.id, body.conversationId)
+      : null;
+
+    if (body.conversationId && !ownedConversation) {
+      return jsonResponse({ error: 'Invalid conversation for this user' }, 403);
+    }
 
     if (body.fieldId) {
       const { data: fieldRecord, error: fieldError } = await supabaseAdmin
@@ -947,82 +1521,27 @@ Return ONLY the greeting text, nothing else.`;
       }
     }
 
-    let userMessageId: string;
+    const fields = await fetchFieldContextRows(supabaseAdmin, appUser.id);
+    let effectiveConversationId = ownedConversation?.id ?? body.conversationId ?? null;
+    let effectiveFieldId: string | null = body.fieldId ?? ownedConversation?.field_id ?? null;
+    let fieldResolutionSource = body.fieldId
+      ? 'request'
+      : ownedConversation?.field_id
+        ? 'conversation'
+        : 'none';
 
-    if (body.userMessageId) {
-      const userMessageUpdate: Record<string, unknown> = {
-        conversation_id: body.conversationId ?? null,
-        field_id: body.fieldId ?? null,
-      };
-
-      if (attachmentPaths.length > 0) {
-        userMessageUpdate.image_urls = attachmentPaths;
-      }
-
-      const { data: updatedUserMessage, error: updateUserMessageError } = await supabaseAdmin
-        .from('chat_messages')
-        .update(userMessageUpdate)
-        .eq('id', body.userMessageId)
-        .eq('user_id', appUser.id)
-        .select('id')
-        .single();
-
-      if (updateUserMessageError || !updatedUserMessage) {
-        console.error('Failed to update user message:', updateUserMessageError?.message);
-        return jsonResponse(
-          {
-            error: 'Failed to process your message',
-          },
-          500,
-        );
-      }
-
-      userMessageId = updatedUserMessage.id;
-    } else {
-      const userMetadata =
-        attachmentPaths.length > 0
-          ? {
-              attachments: attachmentPaths,
-              source: 'edge-function',
-            }
-          : {
-              source: 'edge-function',
-            };
-
-      const { data: insertedUserMessage, error: insertUserMessageError } = await supabaseAdmin
-        .from('chat_messages')
-        .insert({
-          conversation_id: body.conversationId ?? null,
-          user_id: appUser.id,
-          field_id: body.fieldId ?? null,
-          role: 'user',
-          content: latestUserMessage.content,
-          metadata: userMetadata,
-          image_urls: attachmentPaths,
-        })
-        .select('id')
-        .single();
-
-      if (insertUserMessageError || !insertedUserMessage) {
-        console.error('Failed to insert user message:', insertUserMessageError?.message);
-        return jsonResponse(
-          {
-            error: 'Failed to save your message',
-          },
-          500,
-        );
-      }
-
-      userMessageId = insertedUserMessage.id;
+    if (!effectiveFieldId && fields.length === 1) {
+      effectiveFieldId = fields[0].id;
+      fieldResolutionSource = 'single_field_default';
     }
 
-    // Update last_active_at (message count already incremented above)
-    await supabaseAdmin
-      .from('users')
-      .update({
-        last_active_at: now.toISOString(),
-      })
-      .eq('id', appUser.id);
+    let userMessageId: string | null = null;
+    let conversationCreatedByFunction = false;
+    let extractionResult: ExtractionResult | null = null;
+    let serverContext: Awaited<ReturnType<typeof assembleServerFieldContext>>;
+    let aiResponse: AiResponseJson;
+    let assistantText = '';
+    let assistantMetadata: Record<string, unknown> = {};
 
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
@@ -1030,22 +1549,264 @@ Return ONLY the greeting text, nothing else.`;
       appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
     ].filter(Boolean).join('\n');
 
-    const aiResponse = await generateValidatedResponse(
-      geminiApiKey,
-      requestMessages,
-      body.fieldContext ?? '',
-      Boolean(body.hasActiveField),
-      growerContext,
-    );
-    const assistantText = aiResponse.response_text;
-    const assistantMetadata = buildAssistantMetadata(aiResponse);
+    try {
+      if (!effectiveFieldId) {
+        try {
+          extractionResult = await callGeminiExtraction(geminiApiKey, latestUserMessage.content);
 
-    if (!assistantText) {
-      return jsonResponse({ error: 'Gemini returned an empty response' }, 502);
+          let resolvedField = extractionResult.field_mention
+            ? await resolveSingleFieldByHint(
+                supabaseAdmin,
+                appUser.id,
+                extractionResult.field_mention,
+                typeof extractionResult.confidence === 'number' && extractionResult.confidence >= 0.7 ? 0.25 : 0.45,
+              )
+            : null;
+
+          if (!resolvedField && extractionResult.crop_type) {
+            resolvedField = await resolveSingleFieldByHint(
+              supabaseAdmin,
+              appUser.id,
+              extractionResult.crop_type,
+              fields.length === 1 ? 0.15 : 0.55,
+            );
+          }
+
+          if (resolvedField) {
+            effectiveFieldId = resolvedField.id;
+            fieldResolutionSource = 'message_extract';
+          }
+        } catch (error) {
+          console.error('Server-side field extraction failed', error);
+        }
+      }
+
+      if (!effectiveConversationId) {
+        const createdConversationId = await createConversation(
+          supabaseAdmin,
+          appUser.id,
+          effectiveFieldId,
+          latestUserMessage.content,
+        );
+
+        if (!createdConversationId) {
+          return jsonResponse({ error: 'Failed to create conversation' }, 500);
+        }
+
+        effectiveConversationId = createdConversationId;
+        conversationCreatedByFunction = true;
+      }
+
+      if (!effectiveConversationId) {
+        return jsonResponse({ error: 'Conversation setup failed' }, 500);
+      }
+
+      if (body.userMessageId) {
+        const userMessageUpdate: Record<string, unknown> = {
+          conversation_id: effectiveConversationId,
+          field_id: effectiveFieldId,
+        };
+
+        if (attachmentPaths.length > 0) {
+          userMessageUpdate.image_urls = attachmentPaths;
+        }
+
+        const { data: updatedUserMessage, error: updateUserMessageError } = await supabaseAdmin
+          .from('chat_messages')
+          .update(userMessageUpdate)
+          .eq('id', body.userMessageId)
+          .eq('user_id', appUser.id)
+          .select('id')
+          .single();
+
+        if (updateUserMessageError || !updatedUserMessage) {
+          console.error('Failed to update user message:', updateUserMessageError?.message);
+          await cleanupFailedChatAttempt(
+            supabaseAdmin,
+            appUser.id,
+            null,
+            effectiveConversationId,
+            conversationCreatedByFunction,
+          );
+          return jsonResponse({ error: 'Failed to process your message' }, 500);
+        }
+
+        userMessageId = updatedUserMessage.id;
+      } else {
+        const userMetadata =
+          attachmentPaths.length > 0
+            ? {
+                attachments: attachmentPaths,
+                source: 'edge-function',
+              }
+            : {
+                source: 'edge-function',
+              };
+
+        const { data: insertedUserMessage, error: insertUserMessageError } = await supabaseAdmin
+          .from('chat_messages')
+          .insert({
+            conversation_id: effectiveConversationId,
+            user_id: appUser.id,
+            field_id: effectiveFieldId,
+            role: 'user',
+            content: latestUserMessage.content,
+            metadata: userMetadata,
+            image_urls: attachmentPaths,
+          })
+          .select('id')
+          .single();
+
+        if (insertUserMessageError || !insertedUserMessage) {
+          console.error('Failed to insert user message:', insertUserMessageError?.message);
+          await cleanupFailedChatAttempt(
+            supabaseAdmin,
+            appUser.id,
+            null,
+            effectiveConversationId,
+            conversationCreatedByFunction,
+          );
+          return jsonResponse({ error: 'Failed to save your message' }, 500);
+        }
+
+        userMessageId = insertedUserMessage.id;
+      }
+
+      const userMessageMetadata: Record<string, unknown> = {
+        field_context_source: 'backend',
+        field_resolution_source: fieldResolutionSource,
+      };
+
+      if (extractionResult) {
+        userMessageMetadata.extracted_context = extractionResult;
+      }
+
+      if (effectiveFieldId) {
+        userMessageMetadata.resolved_field_id = effectiveFieldId;
+        await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, effectiveFieldId);
+      }
+
+      await mergeMessageMetadata(
+        supabaseAdmin,
+        appUser.id,
+        userMessageId,
+        userMessageMetadata,
+        effectiveFieldId,
+        effectiveConversationId,
+      );
+
+      await supabaseAdmin
+        .from('users')
+        .update({
+          last_active_at: now.toISOString(),
+        })
+        .eq('id', appUser.id);
+
+      serverContext = await assembleServerFieldContext(
+        supabaseAdmin,
+        appUser.id,
+        fields,
+        effectiveFieldId,
+        body.fieldContext ?? '',
+      );
+
+      effectiveFieldId = serverContext.activeFieldId;
+
+      if (effectiveFieldId) {
+        await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, effectiveFieldId);
+        await mergeMessageMetadata(
+          supabaseAdmin,
+          appUser.id,
+          userMessageId,
+          {
+            resolved_field_id: effectiveFieldId,
+            resolved_field_name: serverContext.activeFieldName,
+            field_context_source: 'backend',
+            field_resolution_source: fieldResolutionSource,
+          },
+          effectiveFieldId,
+          effectiveConversationId,
+        );
+      }
+
+      aiResponse = await generateValidatedResponse(
+        geminiApiKey,
+        requestMessages,
+        serverContext.fieldContext,
+        serverContext.hasActiveField,
+        growerContext,
+      );
+      assistantText = aiResponse.response_text;
+      assistantMetadata = buildAssistantMetadata(aiResponse);
+
+      if (!assistantText) {
+        await cleanupFailedChatAttempt(
+          supabaseAdmin,
+          appUser.id,
+          userMessageId,
+          effectiveConversationId,
+          conversationCreatedByFunction,
+        );
+        return jsonResponse({ error: 'Gemini returned an empty response' }, 502);
+      }
+    } catch (error) {
+      console.error('Chat preprocessing failed', error);
+      await cleanupFailedChatAttempt(
+        supabaseAdmin,
+        appUser.id,
+        userMessageId,
+        effectiveConversationId,
+        conversationCreatedByFunction,
+      );
+      return jsonResponse({ error: 'Failed to process your message' }, 500);
+    }
+
+    if (!userMessageId) {
+      return jsonResponse({ error: 'Failed to save your message' }, 500);
     }
 
     const encoder = new TextEncoder();
     const chunks = splitIntoChunks(assistantText);
+    let finalFieldId = effectiveFieldId;
+    let finalFieldName = serverContext.activeFieldName;
+
+    if (!finalFieldId && aiResponse.crop_mentioned) {
+      const resolvedFromAi = await resolveSingleFieldByHint(
+        supabaseAdmin,
+        appUser.id,
+        aiResponse.crop_mentioned,
+        fields.length === 1 ? 0.15 : 0.55,
+      );
+
+      if (resolvedFromAi) {
+        finalFieldId = resolvedFromAi.id;
+        finalFieldName = resolvedFromAi.name;
+        fieldResolutionSource = 'ai_crop_match';
+
+        await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, finalFieldId);
+        await mergeMessageMetadata(
+          supabaseAdmin,
+          appUser.id,
+          userMessageId,
+          {
+            resolved_field_id: finalFieldId,
+            resolved_field_name: finalFieldName,
+            field_context_source: 'backend',
+            field_resolution_source: fieldResolutionSource,
+          },
+          finalFieldId,
+          effectiveConversationId,
+        );
+      }
+    }
+
+    const finalAssistantMetadata = {
+      ...(assistantMetadata ?? {}),
+      field_context_source: 'backend',
+      field_resolution_source: fieldResolutionSource,
+      ...(finalFieldId ? { resolved_field_id: finalFieldId } : {}),
+      ...(finalFieldName ? { resolved_field_name: finalFieldName } : {}),
+    };
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -1055,7 +1816,7 @@ Return ONLY the greeting text, nothing else.`;
 
         try {
           sendEvent('meta', {
-            conversationId: body.conversationId ?? null,
+            conversationId: effectiveConversationId,
             userMessageId,
           });
 
@@ -1067,13 +1828,13 @@ Return ONLY the greeting text, nothing else.`;
           const { data: insertedAssistantMessage, error: insertAssistantMessageError } = await supabaseAdmin
             .from('chat_messages')
             .insert({
-              conversation_id: body.conversationId ?? null,
+              conversation_id: effectiveConversationId,
               user_id: appUser.id,
-              field_id: body.fieldId ?? null,
+              field_id: finalFieldId,
               role: 'assistant',
               content: assistantText,
               metadata: {
-                ...(assistantMetadata ?? {}),
+                ...finalAssistantMetadata,
                 model: GEMINI_MODEL,
                 source: 'edge-function',
                 reply_to_message_id: userMessageId,
@@ -1088,13 +1849,25 @@ Return ONLY the greeting text, nothing else.`;
 
           // C3: Message count already incremented before Gemini call (atomic, no TOCTOU race)
 
+          await persistFieldMemorySnapshot(
+            supabaseAdmin,
+            appUser.id,
+            finalFieldId,
+            userMessageId,
+            insertedAssistantMessage.id,
+            aiResponse,
+            assistantText,
+            serverContext.recentInterventions,
+            serverContext.pendingFollowUps,
+          );
+
           // Set conversation title — use AI-detected crop + problem for meaningful labels
-          if (body.conversationId) {
+          if (effectiveConversationId) {
             // C4: Owner check — only update conversations belonging to this user
             const { data: convo } = await supabaseAdmin
               .from('conversations')
               .select('title')
-              .eq('id', body.conversationId)
+              .eq('id', effectiveConversationId)
               .eq('user_id', appUser.id)
               .single();
             if (convo && (!convo.title || convo.title === 'New conversation')) {
@@ -1128,18 +1901,20 @@ Return ONLY the greeting text, nothing else.`;
               await supabaseAdmin
                 .from('conversations')
                 .update({ title })
-                .eq('id', body.conversationId)
+                .eq('id', effectiveConversationId)
                 .eq('user_id', appUser.id)
                 .or('title.is.null,title.eq.New conversation');
             }
           }
 
           sendEvent('done', {
+            conversationId: effectiveConversationId,
             assistantMessageId: insertedAssistantMessage.id,
             assistantText,
             messageCountMonth: nextMessageCount,
-            metadata: assistantMetadata,
+            metadata: finalAssistantMetadata,
             userMessageId,
+            fieldId: finalFieldId,
           });
           controller.close();
         } catch (error) {
