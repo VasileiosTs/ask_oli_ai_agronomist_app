@@ -1,38 +1,35 @@
-// PostHog analytics wrapper
-// Replace POSTHOG_KEY with your actual key from posthog.com
-
-import posthog from 'posthog-js';
+// PostHog analytics wrapper — posthog-js is dynamically imported so it
+// doesn't end up in the static module graph of the landing page.
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || '';
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com';
 
-let initialized = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let ph: any = null;
 
-export function initAnalytics() {
-  if (initialized || !POSTHOG_KEY || !import.meta.env.PROD) return;
+export async function initAnalytics() {
+  if (ph || !POSTHOG_KEY || !import.meta.env.PROD) return;
+  const { default: posthog } = await import('posthog-js');
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
     capture_pageview: true,
     capture_pageleave: true,
     persistence: 'localStorage',
-    autocapture: false, // we track events manually for precision
+    autocapture: false,
   });
-  initialized = true;
+  ph = posthog;
 }
 
 export function identifyUser(userId: string, properties?: Record<string, unknown>) {
-  if (!initialized) return;
-  posthog.identify(userId, properties);
+  ph?.identify(userId, properties);
 }
 
 export function trackEvent(event: string, properties?: Record<string, unknown>) {
-  if (!initialized) return;
-  posthog.capture(event, properties);
+  ph?.capture(event, properties);
 }
 
 export function resetAnalytics() {
-  if (!initialized) return;
-  posthog.reset();
+  ph?.reset();
 }
 
 // Predefined events for consistency

@@ -74,6 +74,16 @@ export default function Chat() {
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
 
+  // ── Offline detection ──
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
   // ── Guest mode state ──
   const guestQuery = searchParams.get('q');
   const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery);
@@ -1268,6 +1278,14 @@ export default function Chat() {
         </header>
 
         {/* Desktop: no top header — sidebar owns all navigation */}
+
+        {/* ── OFFLINE BANNER ── */}
+        {!isOnline && (
+          <div className="flex items-center justify-center gap-2 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <span>●</span>
+            <span>{lang === 'el' ? 'Δεν υπάρχει σύνδεση — τα μηνύματα δεν αποστέλλονται' : 'No internet connection — messages cannot be sent'}</span>
+          </div>
+        )}
 
         {/* ── DESKTOP WELCOME (no messages) ── */}
         {messages.length === 0 && (

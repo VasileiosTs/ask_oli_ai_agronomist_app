@@ -8,6 +8,8 @@ import App from './App.tsx';
 import './index.css';
 
 initSentry();
+// analytics.ts uses dynamic import for posthog-js internally, so this call
+// doesn't add posthog to the initial JS bundle — it only loads when PROD + key set.
 initAnalytics();
 
 // Register service worker for PWA install + push notifications

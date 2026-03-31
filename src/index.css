@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Self-hosted fonts — avoids 7 Google Fonts network requests (~400ms) */
+@import "@fontsource/plus-jakarta-sans/300.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/noto-serif/400.css";
+@import "@fontsource/noto-serif/600.css";
+@import "@fontsource/noto-serif/700.css";
+
 @theme {
   --color-background: var(--background);
   --color-surface: var(--surface);

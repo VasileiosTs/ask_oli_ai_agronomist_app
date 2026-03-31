@@ -87,10 +87,10 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-[#faf9f4] text-[#1b1c19] overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <link rel="preload" href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" as="style" onLoad={(e) => { (e.target as HTMLLinkElement).rel = 'stylesheet'; }} />
+      {/* Plus Jakarta Sans + Noto Serif are self-hosted via fontsource (index.css) */}
+      {/* Material Symbols has no npm equivalent — one CDN request for icons only */}
       <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Bscience%2Bassignment_turned_in&display=swap" as="style" onLoad={(e) => { (e.target as HTMLLinkElement).rel = 'stylesheet'; }} />
       <noscript>
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Bscience%2Bassignment_turned_in&display=swap" rel="stylesheet" />
       </noscript>
 
