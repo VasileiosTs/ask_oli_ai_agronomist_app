@@ -1476,23 +1476,37 @@ Return ONLY the greeting text, nothing else.`;
       }
     }
 
-    if ((appUser.tier ?? 'free') !== 'pro' && currentCount >= FREE_LIMIT) {
-      return jsonResponse(
-        {
-          error: 'Monthly message limit reached',
-          code: 'monthly_limit',
-          limit: FREE_LIMIT,
-        },
-        429,
-      );
+    // For pro users skip the limit. For free users the limit check AND increment
+    // happen atomically inside the SQL function (FOR UPDATE lock) so two
+    // concurrent requests can never both slip past the quota.
+    let nextMessageCount: number;
+    if ((appUser.tier ?? 'free') !== 'pro') {
+      const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
+        p_user_id: appUser.id,
+        p_now: now.toISOString(),
+        p_limit: FREE_LIMIT,
+      });
+      // -1 means the function detected limit exceeded (inside the lock)
+      if (countResult === -1) {
+        return jsonResponse(
+          {
+            error: 'Monthly message limit reached',
+            code: 'monthly_limit',
+            limit: FREE_LIMIT,
+          },
+          429,
+        );
+      }
+      nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
+    } else {
+      // Pro users: just increment, no limit
+      const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
+        p_user_id: appUser.id,
+        p_now: now.toISOString(),
+        p_limit: 999999,
+      });
+      nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
     }
-
-    // Atomic increment to prevent race conditions with concurrent requests
-    const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
-      p_user_id: appUser.id,
-      p_now: now.toISOString(),
-    });
-    const nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
 
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
