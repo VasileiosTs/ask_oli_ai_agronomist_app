@@ -213,3 +213,45 @@ export async function streamChatCompletion(
     throw error;
   }
 }
+
+// ── Guest chat (unauthenticated, single message, no streaming) ──
+
+export interface GuestChatResponse {
+  assistantText: string;
+  metadata?: ChatFunctionMetadata;
+}
+
+export async function guestChatCompletion(
+  message: string,
+  lang?: string,
+): Promise<GuestChatResponse> {
+  if (!supabaseUrl || !supabasePublicKey) {
+    throw createStreamError('Supabase environment variables are missing.');
+  }
+
+  const functionUrl = `${supabaseUrl}/functions/v1/chat`;
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': supabasePublicKey,
+    },
+    body: JSON.stringify({
+      mode: 'guest',
+      messages: [{ role: 'user', content: message }],
+      lang,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const errorMessage = await readErrorMessage(response);
+    throw createStreamError(errorMessage, response.status);
+  }
+
+  const data = await response.json();
+  return {
+    assistantText: typeof data.assistantText === 'string' ? data.assistantText : '',
+    metadata: data.metadata as ChatFunctionMetadata | undefined,
+  };
+}

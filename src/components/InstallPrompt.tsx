@@ -7,8 +7,9 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const SESSION_COUNT_KEY = 'oli_install_sessions';
 const DISMISS_KEY = 'oli_install_dismissed';
-const DISMISS_DAYS = 7;
+const DISMISS_HOURS = 24;
 
 /** Detect iOS Safari (not in standalone mode) */
 function isIosSafari(): boolean {
@@ -32,8 +33,22 @@ function wasDismissed(): boolean {
   if (!raw) return false;
   const ts = parseInt(raw, 10);
   if (isNaN(ts)) return false;
-  const daysSince = (Date.now() - ts) / (1000 * 60 * 60 * 24);
-  return daysSince < DISMISS_DAYS;
+  const hoursSince = (Date.now() - ts) / (1000 * 60 * 60);
+  return hoursSince < DISMISS_HOURS;
+}
+
+/** Increment session count and return the new value */
+function incrementSessionCount(): number {
+  // Use sessionStorage flag to only count once per browser session
+  if (sessionStorage.getItem('oli_install_counted')) {
+    return parseInt(localStorage.getItem(SESSION_COUNT_KEY) || '0', 10);
+  }
+  sessionStorage.setItem('oli_install_counted', '1');
+
+  const current = parseInt(localStorage.getItem(SESSION_COUNT_KEY) || '0', 10);
+  const next = current + 1;
+  localStorage.setItem(SESSION_COUNT_KEY, next.toString());
+  return next;
 }
 
 export default function InstallPrompt() {
@@ -43,28 +58,35 @@ export default function InstallPrompt() {
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    // Don't show if already installed or recently dismissed
-    if (isInstalledPwa() || wasDismissed()) return;
+    if (isInstalledPwa()) return;
 
-    // iOS Safari: show custom instructions
-    if (isIosSafari()) {
-      const timer = setTimeout(() => {
-        setIsIos(true);
-        setShow(true);
-      }, 30000); // 30 seconds
-      return () => clearTimeout(timer);
-    }
-
-    // Android / Desktop Chrome / Edge: capture native install prompt
+    // Capture native install prompt (Android/Desktop)
     const handler = (e: Event) => {
       e.preventDefault();
       deferredPromptRef.current = e as BeforeInstallPromptEvent;
-      // Show our custom UI after a delay
-      setTimeout(() => setShow(true), 30000);
     };
-
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+
+    // Check session count: show on 1st login and every 3rd session
+    const sessionCount = incrementSessionCount();
+    const shouldShow = sessionCount === 1 || sessionCount % 3 === 0;
+
+    if (!shouldShow || wasDismissed()) {
+      return () => window.removeEventListener('beforeinstallprompt', handler);
+    }
+
+    // Delay showing the prompt
+    const timer = setTimeout(() => {
+      if (isIosSafari()) {
+        setIsIos(true);
+      }
+      setShow(true);
+    }, 15000); // 15 seconds
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -131,7 +153,7 @@ export default function InstallPrompt() {
               </div>
               <p>
                 {lang === 'el' ? (
-                  <>Πάτα <strong>Κοινοποίηση</strong> <span className="inline-block align-middle">⬆</span> και μετά <strong>"Προσθήκη στην οθόνη Αφ."</strong></>
+                  <>Tap <strong>Share</strong> <span className="inline-block align-middle">⬆</span> then <strong>"Add to Home Screen"</strong></>
                 ) : (
                   <>Tap <strong>Share</strong> <span className="inline-block align-middle">⬆</span> then <strong>"Add to Home Screen"</strong></>
                 )}

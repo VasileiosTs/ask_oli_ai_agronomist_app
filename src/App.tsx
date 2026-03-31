@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider, useLanguage } from './lib/LanguageContext';
 import AppLayout from './components/AppLayout';
+import BottomNav from './components/BottomNav';
 import { useAuth } from './hooks/useAuth';
 import LoadingSpinner from './components/LoadingSpinner';
 import { Leaf } from 'lucide-react';
@@ -87,6 +88,32 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 1000 * 60 * 5 } },
 });
 
+/** Allows /chat in guest mode when ?q= is present; otherwise enforces auth */
+function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boolean; needsOnboarding: boolean }) {
+  const [searchParams] = useSearchParams();
+  const hasGuestQuery = searchParams.has('q');
+
+  if (authenticated) {
+    return (
+      <div className="flex h-[100dvh] w-full flex-col bg-background text-foreground">
+        <Chat />
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  // Guest mode: allow if ?q= param is present (no bottom nav)
+  if (hasGuestQuery) {
+    return <Chat />;
+  }
+
+  return <Navigate to="/" replace />;
+}
+
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
 
@@ -144,6 +171,9 @@ function AppRoutes() {
         }
       />
 
+      {/* Chat — accessible in guest mode (?q=) without auth */}
+      <Route path="/chat" element={<ChatRouteGuard authenticated={authenticated} needsOnboarding={needsOnboarding} />} />
+
       {/* Protected routes — require completed profile */}
       <Route
         element={
@@ -152,7 +182,6 @@ function AppRoutes() {
           <Navigate to="/" replace />
         }
       >
-        <Route path="/chat" element={<Chat />} />
         <Route path="/history" element={<History />} />
         <Route path="/fields" element={<Fields />} />
         <Route path="/profile" element={<Profile />} />

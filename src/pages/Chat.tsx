@@ -1,14 +1,16 @@
 /// <reference types="vite/client" />
 
 import { useState, useEffect, useRef, useReducer } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
+import LoginModal from '../components/LoginModal';
 import InstallPrompt from '../components/InstallPrompt';
 import ConversationSidebar from '../components/ConversationSidebar';
 import { assembleFieldContext, Field } from '../lib/fieldContext';
-import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
+import { InlineAttachment, streamChatCompletion, guestChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage, getCachedImage, getCachedImages } from '../lib/imageCache';
 import clsx from 'clsx';
@@ -55,18 +57,28 @@ function messagesReducer(state: Message[], action: MsgAction): Message[] {
   }
 }
 
+// ── Guest session storage keys ──
+const GUEST_SESSION_KEY = 'oli_guest_messages';
+
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
   const { t, lang } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   const [messages, dispatch] = useReducer(messagesReducer, []);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
+
+  // ── Guest mode state ──
+  const guestQuery = searchParams.get('q');
+  const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery);
+  const [guestMessageSent, setGuestMessageSent] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
@@ -553,10 +565,148 @@ export default function Chat() {
     });
   };
 
+  // ── Guest chat: send one unauthenticated message ──
+  const sendGuestMessage = async (text: string) => {
+    setGuestMessageSent(true);
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    dispatch({ type: 'append', message: userMsg });
+    setIsTyping(true);
+
+    try {
+      const result = await guestChatCompletion(text, lang);
+
+      const assistantMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: result.assistantText,
+        created_at: new Date().toISOString(),
+        metadata: result.metadata,
+      };
+      dispatch({ type: 'append', message: assistantMsg });
+
+      // Persist in sessionStorage so it survives onboarding redirect
+      sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify({
+        userText: text,
+        assistantText: result.assistantText,
+        metadata: result.metadata,
+      }));
+
+      trackEvent(Events.MESSAGE_SENT, { guest: true });
+    } catch {
+      dispatch({ type: 'append', message: {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: lang === 'el'
+          ? 'Κάτι πήγε στραβά. Δοκίμασε ξανά.'
+          : 'Something went wrong. Please try again.',
+        created_at: new Date().toISOString(),
+      }});
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  // Auto-send guest query from ?q= param
+  useEffect(() => {
+    if (!guestQuery || !isGuestMode || guestMessageSent) return;
+
+    const text = decodeURIComponent(guestQuery);
+    // Clear the ?q= param to prevent re-send on re-render
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('q');
+    setSearchParams(newParams, { replace: true });
+
+    sendGuestMessage(text);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestQuery, isGuestMode]);
+
+  // Migrate guest messages after login + onboarding
+  useEffect(() => {
+    if (!appUserId) return;
+
+    const raw = sessionStorage.getItem(GUEST_SESSION_KEY);
+    if (!raw) return;
+
+    sessionStorage.removeItem(GUEST_SESSION_KEY);
+    setIsGuestMode(false);
+
+    let guestData: { userText: string; assistantText: string; metadata?: Record<string, unknown> };
+    try {
+      guestData = JSON.parse(raw);
+    } catch {
+      return;
+    }
+
+    (async () => {
+      // Create conversation
+      const { data: conv } = await supabase.from('conversations').insert({
+        user_id: appUserId,
+        title: guestData.userText.slice(0, 50) + ' – ' + new Date().toLocaleString('en', { month: 'short', year: 'numeric' }),
+      }).select('id').single();
+
+      if (conv?.id) {
+        setActiveConversationId(conv.id);
+
+        // Insert user message
+        await supabase.from('chat_messages').insert({
+          conversation_id: conv.id,
+          user_id: appUserId,
+          role: 'user',
+          content: guestData.userText,
+        });
+
+        // Insert assistant message
+        await supabase.from('chat_messages').insert({
+          conversation_id: conv.id,
+          user_id: appUserId,
+          role: 'assistant',
+          content: guestData.assistantText,
+          metadata: { ...(guestData.metadata ?? {}), source: 'guest-migration' },
+        });
+      }
+
+      // Count the guest message (increment message_count_month by 1)
+      const currentCount = profile?.message_count_month ?? 0;
+      await supabase.from('users').update({
+        message_count_month: currentCount + 1,
+        message_reset_date: new Date().toISOString(),
+      }).eq('id', appUserId);
+      setMessageCount(currentCount + 1);
+
+      // Re-load messages for the new conversation
+      if (conv?.id) {
+        const { data: msgs } = await supabase.from('chat_messages')
+          .select('id, role, content, created_at, metadata, starred, image_urls')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: true });
+
+        if (msgs) {
+          dispatch({ type: 'set', messages: msgs.map(m => ({
+            id: m.id,
+            db_id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            created_at: m.created_at,
+            metadata: m.metadata as Record<string, unknown> | undefined,
+            starred: m.starred,
+            attachments: m.image_urls?.map((u: string) => ({ url: u, type: 'image' as const })),
+          }))});
+        }
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUserId]);
+
   const sendMessageToAI = async (
-    currentMessages: Message[], 
-    userText: string, 
-    currentActiveFieldId: string | undefined, 
+    currentMessages: Message[],
+    userText: string,
+    currentActiveFieldId: string | undefined,
     currentConversationId: string | undefined,
     dbMessageId?: string | null,
     base64Images?: InlineAttachment[],
@@ -682,6 +832,13 @@ let streamedContent = '';
   const handleSend = async (text: string = input) => {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
+
+    // Guest mode: gate 2nd message with login modal
+    if (isGuestMode) {
+      setShowLoginModal(true);
+      trackEvent(Events.PAYWALL_HIT, { guest: true });
+      return;
+    }
 
     if (!appUserId) {
       showToast(t.profileSyncing);
@@ -987,17 +1144,21 @@ let streamedContent = '';
   return (
     <div className="flex h-[100dvh] bg-background overflow-hidden">
 
-      {/* ── DESKTOP: permanent sidebar ── */}
-      <div className="hidden md:block flex-shrink-0">
-        <ConversationSidebar isOpen={true} onClose={() => {}} desktop={true}
-          activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
-      </div>
+      {/* ── DESKTOP: permanent sidebar (hidden in guest mode) ── */}
+      {!isGuestMode && (
+        <div className="hidden md:block flex-shrink-0">
+          <ConversationSidebar isOpen={true} onClose={() => {}} desktop={true}
+            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
+        </div>
+      )}
 
-      {/* ── MOBILE: slide-over sidebar ── */}
-      <div className="md:hidden">
-        <ConversationSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
-          activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
-      </div>
+      {/* ── MOBILE: slide-over sidebar (hidden in guest mode) ── */}
+      {!isGuestMode && (
+        <div className="md:hidden">
+          <ConversationSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
+            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
+        </div>
+      )}
 
       {/* ── MAIN AREA ── */}
       <div className="flex flex-1 flex-col min-w-0">
@@ -1005,23 +1166,37 @@ let streamedContent = '';
         {/* Mobile header */}
         <header className="md:hidden flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="text-muted hover:text-foreground transition-colors">
-              <Menu className="h-5 w-5" />
-            </button>
+            {!isGuestMode && (
+              <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="text-muted hover:text-foreground transition-colors">
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
             <Leaf className="h-[18px] w-[18px] text-primary" />
             <span className="text-[16px] font-medium text-primary">Oli</span>
           </div>
-          {fields.length > 0 && (
-            <FieldSelector
-              fields={fields}
-              activeFieldId={activeFieldId}
-              onSelectField={setActiveFieldId}
-              lang={lang}
-            />
+          {isGuestMode ? (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
+              style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}
+            >
+              {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
+            </button>
+          ) : (
+            <>
+              {fields.length > 0 && (
+                <FieldSelector
+                  fields={fields}
+                  activeFieldId={activeFieldId}
+                  onSelectField={setActiveFieldId}
+                  lang={lang}
+                />
+              )}
+              <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
+                <SquarePen className="h-5 w-5" />
+              </button>
+            </>
           )}
-          <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
-            <SquarePen className="h-5 w-5" />
-          </button>
         </header>
 
         {/* Desktop: no top header — sidebar owns all navigation */}
@@ -1131,7 +1306,8 @@ let streamedContent = '';
       </div>
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
-      <InstallPrompt />
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {!isGuestMode && <InstallPrompt />}
 
       {logModalData && user && (
         <LogInterventionModal

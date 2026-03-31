@@ -16,6 +16,8 @@ interface DiagnosisData {
   problem: string | null;
   cause: string | null;
   severity: 'low' | 'medium' | 'high' | null;
+  confidence_score: number | null;
+  missing_pillars: string[] | null;
   product_applied: string | null;
   product_category: string | null;
   dosage: string | null;
@@ -44,7 +46,7 @@ interface ExtractionResult {
 }
 
 interface ChatRequestBody {
-  mode?: 'chat' | 'extract' | 'greeting';
+  mode?: 'chat' | 'extract' | 'greeting' | 'guest';
   messages?: ChatMessageInput[];
   message?: string;
   messageId?: string | null;
@@ -107,7 +109,7 @@ function buildSystemPrompt(fieldContext: string, growerContext = ''): string {
 
 BEHAVIOUR RULES (follow strictly):
 1. Answer the question FIRST. Never ask a clarifying question before giving an answer.
-2. Ask AT MOST ONE question per response, and only if essential.
+2. Ask AT MOST ONE follow-up question per response, and only if essential for narrowing down a diagnosis.
 3. Be specific. Give exact product names, dosages, and timings when relevant.
 4. Always check for phytotoxicity before recommending any product.
 5. If photos or documents are attached, carefully analyze EVERYTHING visible in the image — leaf color, spots, texture, shape, soil, pests. Describe what you observe in detail before giving advice.
@@ -119,8 +121,22 @@ BEHAVIOUR RULES (follow strictly):
 11. When diagnosing diseases, pests or deficiencies, always populate both organic_treatments AND chemical_treatments as separate arrays.
 12. CRITICAL: Pest, disease and deficiency advice must be agronomically accurate for the specific crop stated. Never suggest a pest or disease that does not affect that crop. If unsure whether a condition affects a crop, say so.
 
+DIAGNOSTIC WORKFLOW — THE FIVE PILLARS:
+For every diagnosis query, internally assess your confidence across these five pillars:
+1. THE VICTIM — Do you know the plant species/variety? (A spot on tomato = blight; on rose = black spot.)
+2. THE SYMPTOMS — Do you see or know the color, texture, pattern of spread? (Nutrient deficiency vs. pathogen.)
+3. THE TIMELINE — When did it start? What is the season/growth stage? (Pests have lifecycles; fungi need specific conditions.)
+4. THE ENVIRONMENT — Soil type, recent weather, irrigation method? (Drought stress often looks like disease.)
+5. THE EVIDENCE — For photos: is the subject close enough to see detail? Can you see leaf structure, spots, or just "greenery"?
+
+HOW TO USE YOUR CONFIDENCE (set confidence_score 0-100 in diagnosis_data, list gaps in missing_pillars):
+- Score > 80: Give the full diagnosis + treatment plan + prevention tips.
+- Score 50-80: Give your top 2-3 possibilities, explain what differentiates them, and ask ONE targeted question to break the tie. Include a safe interim action if possible ("While I narrow this down, avoid fertilizing — if it's root rot, nitrogen will stress the plant further.").
+- Score < 50: Do NOT commit to a specific diagnosis. Describe what you observe, explain what you need to narrow it down, and ask for better evidence. For photos: tell the farmer exactly what close-up shots you need ("a single leaf, top and underside" or "the transition zone where healthy tissue meets the problem").
+
 IMAGE ANALYSIS RULES:
 - ALWAYS attempt to identify the plant and any issues visible, even if the image is blurry, partial, or low quality.
+- If the subject occupies less than ~40% of the frame or you can only see "greenery" without leaf detail, set confidence_score low and ask for close-ups. Be instructive: tell the farmer exactly what to photograph.
 - If you can identify the plant with reasonable confidence, state it. If confidence is low, say so but STILL provide your best assessment rather than rejecting.
 - NEVER refuse to analyze an image of a plant. Even if you are uncertain, provide observations and a "low confidence" note.
 - Treat EVERY image as a genuine plant photo unless it is clearly not a plant at all (e.g. a car, a person).
@@ -131,8 +147,17 @@ CONTEXT INDEPENDENCE:
 - If the user uploads a lemon leaf photo but field context says "olive tree", trust the PHOTO over the field context.
 - Field context is background information, not a constraint.
 
-FIELD CONTEXT:
-${fieldContext || 'No field data on record yet.'}
+MEMORY & TREATMENT HISTORY:
+- The farmer's treatment history is provided below. USE IT to give smarter advice.
+- If the farmer reports a problem you've seen before in their history, reference it: "I see you dealt with this before..."
+- If a recent treatment didn't work (outcome: same/worse), suggest a DIFFERENT approach.
+- If a treatment worked before (outcome: better), you can recommend it again for similar issues.
+- If there's a pending follow-up, ask about it naturally: "How did the [treatment] work out?"
+- NEVER repeat the raw history back to the farmer. Weave it naturally into your advice.
+- If the history shows repeated issues on the same field, flag it as a possible systemic problem.
+
+FIELD & HISTORY CONTEXT:
+${fieldContext || 'No field data or treatment history on record yet.'}
 ${growerContext ? `GROWER CONTEXT:\n${growerContext}` : ''}
 
 RESPONSE FORMAT (internal JSON — extract response_text for display):
@@ -256,6 +281,8 @@ function buildResponseSchema() {
           problem: { type: 'STRING', nullable: true },
           cause: { type: 'STRING', nullable: true },
           severity: { type: 'STRING', enum: ['low', 'medium', 'high'], nullable: true },
+          confidence_score: { type: 'INTEGER', nullable: true },
+          missing_pillars: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
           product_applied: { type: 'STRING', nullable: true },
           product_category: { type: 'STRING', nullable: true },
           dosage: { type: 'STRING', nullable: true },
@@ -598,6 +625,57 @@ async function applyExtractedFieldContext(
   };
 }
 
+// ── Guest mode rate limiting (in-memory, per-isolate) ──
+const _guestRateMap = new Map<string, { count: number; resetAt: number }>();
+const GUEST_RATE_LIMIT = 5;
+const GUEST_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const GUEST_MAX_IPS = 10_000;
+
+function checkGuestRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = _guestRateMap.get(ip);
+  if (entry && now < entry.resetAt) {
+    if (entry.count >= GUEST_RATE_LIMIT) return false;
+    entry.count++;
+    return true;
+  }
+  // Evict oldest if at capacity
+  if (_guestRateMap.size >= GUEST_MAX_IPS) {
+    const firstKey = _guestRateMap.keys().next().value;
+    if (firstKey) _guestRateMap.delete(firstKey);
+  }
+  _guestRateMap.set(ip, { count: 1, resetAt: now + GUEST_RATE_WINDOW_MS });
+  return true;
+}
+
+async function handleGuestChat(
+  geminiApiKey: string,
+  body: ChatRequestBody,
+): Promise<Response> {
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  const latestMessage = messages[messages.length - 1];
+  if (!latestMessage || latestMessage.role !== 'user' || !latestMessage.content?.trim()) {
+    return jsonResponse({ error: 'Guest mode requires a user message' }, 400);
+  }
+
+  const sanitized = sanitizeUserInput(latestMessage.content.trim());
+  if (sanitized.length > 2000) {
+    return jsonResponse({ error: 'Message too long' }, 400);
+  }
+
+  const systemPrompt = buildSystemPrompt('No field data or treatment history on record yet.');
+  const guestMessages: ChatMessageInput[] = [{ role: 'user', content: sanitized }];
+
+  const aiResponse = await callGemini(geminiApiKey, guestMessages, systemPrompt);
+  const assistantText = cleanAssistantText(aiResponse.response_text);
+  const metadata = buildAssistantMetadata(aiResponse);
+
+  return jsonResponse({
+    assistantText,
+    metadata,
+  });
+}
+
 Deno.serve(async (req) => {
   // Set request-scoped CORS headers
   _reqCorsHeaders = getCorsHeaders(req);
@@ -616,6 +694,25 @@ Deno.serve(async (req) => {
     const supabaseUrl = requiredEnv('SUPABASE_URL');
     const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const geminiApiKey = requiredEnv('GEMINI_API_KEY');
+
+    // ── Guest mode: parse body early to check mode before auth ──
+    const rawBody = await req.text();
+    let body: ChatRequestBody;
+    try {
+      body = JSON.parse(rawBody) as ChatRequestBody;
+    } catch {
+      return jsonResponse({ error: 'Invalid JSON body' }, 400);
+    }
+
+    if (body.mode === 'guest') {
+      const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || req.headers.get('cf-connecting-ip')
+        || 'unknown';
+      if (!checkGuestRateLimit(clientIp)) {
+        return jsonResponse({ error: 'Guest rate limit exceeded. Sign up for free to continue.' }, 429);
+      }
+      return await handleGuestChat(geminiApiKey, body);
+    }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -643,7 +740,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const body = (await req.json()) as ChatRequestBody;
+    // body already parsed above (before auth check, to support guest mode)
     const mode = body.mode === 'extract' ? 'extract' : body.mode === 'greeting' ? 'greeting' : 'chat';
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
