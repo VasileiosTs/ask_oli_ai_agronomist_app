@@ -90,13 +90,14 @@ export default function Chat() {
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
-  const [logModalData, setLogModalData] = useState<any | null>(null);
+  const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const attachmentsRef = useRef(attachments);
   const messagesRef = useRef(messages);
@@ -462,6 +463,7 @@ export default function Chat() {
         .limit(1)
         .then(({ data: due }) => {
           if (!due || due.length === 0) return;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const item = due[0] as any;
           const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
           const step = item.vio_step ?? 1;
@@ -533,12 +535,14 @@ export default function Chat() {
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = lang === 'el' ? 'el-GR' : 'en-US';
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -551,6 +555,7 @@ export default function Chat() {
         }
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
         setIsListening(false);
@@ -1121,6 +1126,7 @@ export default function Chat() {
     if (data) {
       // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
       const blobUrlsCreated: string[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const messages: Message[] = await Promise.all(data.map(async (m: any) => {
         const base: Message = {
           id: m.id, db_id: m.id, role: m.role, content: m.content,
@@ -1377,7 +1383,7 @@ export default function Chat() {
           onClose={() => setLogModalData(null)}
           initialData={logModalData}
           userId={appUserId || user.id}
-          fieldId={logModalData.field_id}
+          fieldId={logModalData.field_id as string | undefined}
           onSuccess={async (id) => {
             showToast(t.interventionLogged);
             const msg = messages.find(m => m.id === logModalData.msg_id);

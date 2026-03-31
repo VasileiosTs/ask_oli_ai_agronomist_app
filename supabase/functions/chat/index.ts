@@ -1487,14 +1487,12 @@ Return ONLY the greeting text, nothing else.`;
       );
     }
 
-    const nextMessageCount = currentCount + 1;
-    await supabaseAdmin
-      .from('users')
-      .update({
-        message_count_month: nextMessageCount,
-        message_reset_date: now.toISOString(),
-      })
-      .eq('id', appUser.id);
+    // Atomic increment to prevent race conditions with concurrent requests
+    const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
+      p_user_id: appUser.id,
+      p_now: now.toISOString(),
+    });
+    const nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
 
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
       .filter((value): value is string => typeof value === 'string' && value.length > 0)

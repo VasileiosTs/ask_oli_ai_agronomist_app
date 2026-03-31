@@ -142,6 +142,7 @@ export default function Landing() {
               type="text"
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
+              aria-label={lang === 'el' ? 'Περίγραψε τι βλέπεις στο χωράφι' : 'Describe what you see in your field'}
               placeholder={lang === 'el' ? 'Περίγραψε τι βλέπεις στο χωράφι...' : 'Describe what you see in your field...'}
               className="w-full rounded-full px-6 py-4 pr-14 text-[15px] bg-white border border-[#e3e3de] focus:border-[#194121] focus:outline-none focus:ring-2 focus:ring-[#194121]/15 transition-all"
               style={{ boxShadow: '0 4px 20px rgba(25,65,33,0.08)' }}
@@ -184,6 +185,7 @@ export default function Landing() {
       {/* ── FEATURES (compact) ── */}
       <section className="py-16 bg-[#f5f4ef]">
         <div className="max-w-5xl mx-auto px-6">
+          <h2 className="sr-only">{lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {FEATURES(lang).map((f, i) => (
               <div key={i} className="bg-white rounded-2xl p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>

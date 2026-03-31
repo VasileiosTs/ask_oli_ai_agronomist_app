@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider, useLanguage } from './lib/LanguageContext';
@@ -91,7 +91,8 @@ const queryClient = new QueryClient({
 /** Allows /chat in guest mode when ?q= is present; otherwise enforces auth */
 function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boolean; needsOnboarding: boolean }) {
   const [searchParams] = useSearchParams();
-  const hasGuestQuery = searchParams.has('q');
+  // Remember guest entry so Chat clearing ?q= doesn't unmount us
+  const [guestEntry] = useState(() => searchParams.has('q'));
 
   if (authenticated) {
     return (
@@ -106,8 +107,8 @@ function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boo
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Guest mode: allow if ?q= param is present (no bottom nav)
-  if (hasGuestQuery) {
+  // Guest mode: allow if ?q= param was present on mount (no bottom nav)
+  if (guestEntry || searchParams.has('q')) {
     return <Chat />;
   }
 
