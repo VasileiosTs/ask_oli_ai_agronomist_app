@@ -13,11 +13,21 @@ interface MessageAttachment {
 
 export interface MessageMetadata {
   diagnosis_data?: {
+    problem?: string;
+    cause?: string;
+    severity?: string;
+    product_applied?: string;
+    dosage?: string;
+    application_method?: string;
     organic_treatments?: string[];
     chemical_treatments?: string[];
   };
+  crop_mentioned?: string;
+  intervention_id?: string;
+  share_id?: string;
   is_follow_up?: boolean;
   follow_up_intervention_id?: string;
+  vio_step?: number;
   vio_step_type?: 'apply_check' | 'outcome_check';
   feedback?: 'positive' | 'negative';
 }

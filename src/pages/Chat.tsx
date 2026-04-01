@@ -478,7 +478,7 @@ export default function Chat() {
           const step = item.vio_step ?? 1;
 
           let followUpContent: string;
-          let vioStepType: string;
+          let vioStepType: 'apply_check' | 'outcome_check';
 
           if (step <= 1) {
             // Step 1: Did you apply the treatment?

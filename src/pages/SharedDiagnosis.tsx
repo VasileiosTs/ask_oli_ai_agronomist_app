@@ -22,6 +22,10 @@ interface SharedDiagnosisData {
   cause?: string;
   crop_type?: string;
   severity?: string;
+  product_applied?: string;
+  product?: string;
+  dosage?: string;
+  application_method?: string;
   organic_treatments?: string[];
   chemical_treatments?: string[];
   notes?: string;
