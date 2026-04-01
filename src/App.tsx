@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider, useLanguage } from './lib/LanguageContext';
@@ -115,6 +115,33 @@ function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boo
   return <Navigate to="/" replace />;
 }
 
+function UpdateBanner() {
+  const [show, setShow] = useState(false);
+  const { lang } = useLanguage();
+
+  useEffect(() => {
+    const handler = () => setShow(true);
+    window.addEventListener('sw-update', handler);
+    return () => window.removeEventListener('sw-update', handler);
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between gap-3 bg-primary px-4 py-2.5 shadow-lg">
+      <span className="text-sm font-medium text-white">
+        {lang === 'el' ? 'Νέα έκδοση διαθέσιμη' : 'New version available'}
+      </span>
+      <button
+        onClick={() => window.location.reload()}
+        className="rounded-full bg-white/25 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/35"
+      >
+        {lang === 'el' ? 'Ενημέρωση' : 'Update'}
+      </button>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
 
@@ -132,6 +159,7 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<div className="flex h-[100dvh] items-center justify-center bg-background"><LoadingSpinner /></div>}>
+    <UpdateBanner />
     <Routes>
       {/* Always public */}
       <Route path="/auth/callback" element={<AuthCallback />} />
