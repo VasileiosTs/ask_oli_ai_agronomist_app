@@ -35,12 +35,27 @@ export default {
         bounce: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-25%)' },
-        }
+        },
+        // Oli logo "thinking" — slow continuous rotation with subtle scale pulse
+        oliThink: {
+          '0%':   { transform: 'rotate(0deg)   scale(1)' },
+          '25%':  { transform: 'rotate(90deg)  scale(1.08)' },
+          '50%':  { transform: 'rotate(180deg) scale(1)' },
+          '75%':  { transform: 'rotate(270deg) scale(1.08)' },
+          '100%': { transform: 'rotate(360deg) scale(1)' },
+        },
+        // Individual dot fade for "Thinking..." text
+        thinkDot: {
+          '0%, 60%, 100%': { opacity: '0' },
+          '30%':            { opacity: '1' },
+        },
       },
       animation: {
         fadeIn: 'fadeIn 0.3s ease-in-out',
         'fade-in': 'fadeInUp 200ms ease-out forwards',
         'bounce-dot': 'bounce 1s infinite',
+        'oli-think': 'oliThink 2s ease-in-out infinite',
+        'think-dot': 'thinkDot 1.4s ease-in-out infinite',
       },
     },
   },

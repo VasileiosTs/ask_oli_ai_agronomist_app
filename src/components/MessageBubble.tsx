@@ -3,6 +3,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import type { T } from '../lib/i18n';
+import OliLogo from './OliLogo';
 
 interface MessageAttachment {
   url: string;
@@ -50,8 +51,10 @@ export default function MessageBubble({
   return (
     <div className={clsx("group flex w-full animate-fade-in", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className="w-6 flex-shrink-0 pt-3">
-          {isFirstAiInSequence && <div className="h-2 w-2 rounded-full bg-primary/60" />}
+        <div className="flex-shrink-0 pt-1 mr-2.5">
+          {isFirstAiInSequence
+            ? <OliLogo size={22} bg="#0D1117" />
+            : <div className="w-[22px]" />}
         </div>
       )}
       <div className="flex max-w-[78%] flex-col gap-1">
