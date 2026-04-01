@@ -13,12 +13,53 @@ const detectImperial = (): boolean => {
   } catch { return false; }
 };
 
+// ── Phone demo data ───────────────────────────────────────────────────────────
+
+type PhoneDemo =
+  | { type: 'disease'; user: string; disease: string; confidence: number; organic: string; chemical: string; followup: string }
+  | { type: 'advice';  user: string; answer: string; icon: string };
+
+const PHONE_DEMOS = (lang: string): PhoneDemo[] => [
+  {
+    type: 'disease',
+    user: lang === 'el'
+      ? 'Τα φύλλα της ντομάτας έχουν καστανούς κύκλους με κίτρινο περίγραμμα.'
+      : 'My tomato leaves have brown rings with a yellow border.',
+    disease:    lang === 'el' ? 'Εναλτερίωση Ντομάτας' : 'Early Blight (Alternaria)',
+    confidence: 92,
+    organic:  'Bordeaux mixture 200g/100L',
+    chemical: 'Mancozeb 80% WP 250g/100L',
+    followup: lang === 'el' ? 'Θα σε ρωτήσω σε 3 και 7 μέρες.' : "I'll check back at 3 and 7 days.",
+  },
+  {
+    type: 'advice',
+    user: lang === 'el'
+      ? 'Πότε κλαδεύω αμπέλια για καλύτερη παραγωγή;'
+      : 'When should I prune grapevines for better yield?',
+    icon: '✂️',
+    answer: lang === 'el'
+      ? 'Κλάδεψε κατά τον χειμερινό ύπνο (Ιαν–Μαρ). Άφησε 2–3 μάτια ανά βλαστό. Αφαίρεσε πρώτα το νεκρό ξύλο.'
+      : 'Prune during dormancy (Jan–Mar). Keep 2–3 buds per cane. Remove dead wood first.',
+  },
+  {
+    type: 'disease',
+    user: lang === 'el'
+      ? 'Λευκή σκόνη στα φύλλα του αμπελιού. Τι είναι;'
+      : 'White powder on my vine leaves. What is it?',
+    disease:    lang === 'el' ? 'Ωίδιο (Uncinula necator)' : 'Powdery Mildew',
+    confidence: 88,
+    organic:  lang === 'el' ? 'Θείο WP 80%, 300g/100L' : 'Sulphur WP 80%, 300g/100L',
+    chemical: 'Myclobutanil 12.5% EC, 40ml/100L',
+    followup: lang === 'el' ? 'Θα σε ρωτήσω σε 3 και 7 μέρες.' : "I'll check back at 3 and 7 days.",
+  },
+];
+
 // ── Static data ───────────────────────────────────────────────────────────────
 
 const STATS = (lang: string) => [
   { n: '450+', label: lang === 'el' ? 'Αναγνωρίσιμες ασθένειες' : 'Identifiable diseases' },
-  { n: '~8s',  label: lang === 'el' ? 'Μέσος χρόνος απάντησης'  : 'Avg. response time' },
-  { n: '24/7', label: lang === 'el' ? 'Πάντα διαθέσιμος'         : 'Always available' },
+  { n: '€0',   label: lang === 'el' ? 'Για να ξεκινήσεις, χωρίς κάρτα' : 'To start, no card needed' },
+  { n: '24/7', label: lang === 'el' ? 'Γεωπόνος στην τσέπη σου' : 'Agronomist in your pocket' },
 ];
 
 const HOW_IT_WORKS = (lang: string) => [
@@ -58,11 +99,11 @@ const FEATURES = (lang: string) => [
     accent: true,
   },
   {
-    icon: 'science',
-    title: lang === 'el' ? 'Διάγνωση και θεραπεία σε δευτερόλεπτα' : 'Diagnose and treat in seconds',
+    icon: 'language',
+    title: lang === 'el' ? 'Μιλά τη γλώσσα σου' : 'Works in your language',
     body: lang === 'el'
-      ? 'Ανέβασε φωτογραφία ή περίγραψε τι βλέπεις. Ο Oli αναγνωρίζει την ασθένεια και σου δίνει ακριβές βιολογικό και χημικό πλάνο, με συγκεκριμένο προϊόν και δοσολογία.'
-      : 'Upload a photo or describe what you see. Oli identifies the problem and gives you exact organic and chemical options with a specific product and dosage. No guessing.',
+      ? 'Ελληνικά, Αγγλικά και περισσότερες γλώσσες σύντομα. Ιδανικός για αγρότες σε όλη την Ευρώπη και μεταναστευτικές κοινότητες. Επιλέξτε γλώσσα από το προφίλ σας.'
+      : 'Greek, English and more languages coming. Built for farmers across Europe and immigrant farming communities. Set your preferred language from your profile.',
     accent: false,
   },
   {
@@ -262,16 +303,32 @@ const ROTATING_QUESTIONS = (lang: string, imperial: boolean): string[] =>
           'What crops should I plant after tomatoes?',
         ];
 
-// ── Phone Mockup ──────────────────────────────────────────────────────────────
+// ── Phone Mockup (animated — cycles through 3 demo conversations) ─────────────
 
 function PhoneMockup({ lang }: { lang: string }) {
-  const demo = DEMO_DISEASE(lang);
+  const demos = useMemo(() => PHONE_DEMOS(lang), [lang]);
+  const [demoIdx, setDemoIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setDemoIdx(i => (i + 1) % demos.length);
+        setVisible(true);
+      }, 400);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [demos.length]);
+
+  const demo = demos[demoIdx];
+
   return (
     <div className="relative mx-auto w-[220px] sm:w-[240px]" style={{ filter: 'drop-shadow(0 32px 64px rgba(25,65,33,0.22))' }}>
       {/* Phone frame */}
       <div className="relative rounded-[36px] bg-[#111] p-[3px]" style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset' }}>
         {/* Screen */}
-        <div className="rounded-[34px] overflow-hidden bg-[#faf9f4]" style={{ height: '460px' }}>
+        <div className="relative rounded-[34px] overflow-hidden bg-[#faf9f4]" style={{ height: '460px' }}>
           {/* Status bar */}
           <div className="flex items-center justify-between px-5 pt-3 pb-1 bg-white">
             <span className="text-[9px] font-semibold text-[#1b1c19]">9:41</span>
@@ -292,50 +349,79 @@ function PhoneMockup({ lang }: { lang: string }) {
               Online
             </span>
           </div>
-          {/* Messages */}
-          <div className="p-3 space-y-2.5 overflow-hidden">
+          {/* Messages — fades in/out on demo change */}
+          <div
+            className="p-3 space-y-2.5 overflow-hidden"
+            style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.35s ease' }}
+          >
             {/* User bubble */}
             <div className="flex justify-end">
               <div className="max-w-[80%] bg-[#194121] text-white rounded-xl rounded-tr-sm px-3 py-2 text-[10px] leading-relaxed">
-                {lang === 'el'
-                  ? 'Τα φύλλα της ντομάτας έχουν καστανούς κύκλους με κίτρινο περίγραμμα.'
-                  : 'My tomato leaves have brown rings with a yellow border.'}
+                {demo.user}
               </div>
             </div>
-            {/* Oli bubble */}
+            {/* Oli response */}
             <div className="flex gap-2 items-start">
               <div className="flex-shrink-0 w-5 h-5 rounded-full bg-[#194121]/10 flex items-center justify-center">
                 <Leaf className="w-2.5 h-2.5 text-[#194121]" />
               </div>
               <div className="flex-1 space-y-1.5">
-                <div className="bg-white rounded-xl rounded-tl-sm border border-[#e8e8e3] px-3 py-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold text-[#1b1c19]">{demo.disease}</span>
-                    <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">{demo.confidence}%</span>
+                {demo.type === 'disease' ? (
+                  <>
+                    <div className="bg-white rounded-xl rounded-tl-sm border border-[#e8e8e3] px-3 py-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-[#1b1c19]">{demo.disease}</span>
+                        <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">{demo.confidence}%</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <div className="bg-white rounded-lg border border-[#e8e8e3] px-2 py-1.5">
+                        <p className="text-[8px] font-bold text-emerald-700 mb-1">🌿 {lang === 'el' ? 'Βιολογικό' : 'Organic'}</p>
+                        <p className="text-[8px] text-[#3a4035] leading-tight">{demo.organic}</p>
+                      </div>
+                      <div className="bg-white rounded-lg border border-[#e8e8e3] px-2 py-1.5">
+                        <p className="text-[8px] font-bold text-blue-700 mb-1">🧪 {lang === 'el' ? 'Χημικό' : 'Chemical'}</p>
+                        <p className="text-[8px] text-[#3a4035] leading-tight">{demo.chemical}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2">
+                      <Clock className="w-2.5 h-2.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-[8px] text-amber-800 leading-tight">{demo.followup}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="bg-white rounded-xl rounded-tl-sm border border-[#e8e8e3] px-3 py-3">
+                    <p className="text-base mb-1.5 leading-none">{demo.icon}</p>
+                    <p className="text-[10px] text-[#1b1c19] leading-relaxed">{demo.answer}</p>
+                    <div className="flex items-center gap-1 mt-2">
+                      <Check className="w-2.5 h-2.5 text-emerald-600" />
+                      <span className="text-[8px] text-[#8a9280]">{lang === 'el' ? 'Βασισμένο σε αγρονομικά δεδομένα' : 'Based on agronomic data'}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="bg-white rounded-lg border border-[#e8e8e3] px-2 py-1.5">
-                    <p className="text-[8px] font-bold text-emerald-700 mb-1">🌿 {lang === 'el' ? 'Βιολογικό' : 'Organic'}</p>
-                    <p className="text-[8px] text-[#3a4035] leading-tight">{lang === 'el' ? 'Bordeaux mixture 200g/100L' : 'Bordeaux mixture 200g/100L'}</p>
-                  </div>
-                  <div className="bg-white rounded-lg border border-[#e8e8e3] px-2 py-1.5">
-                    <p className="text-[8px] font-bold text-blue-700 mb-1">🧪 {lang === 'el' ? 'Χημικό' : 'Chemical'}</p>
-                    <p className="text-[8px] text-[#3a4035] leading-tight">Mancozeb 80% WP 250g/100L</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2">
-                  <Clock className="w-2.5 h-2.5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-[8px] text-amber-800 leading-tight">{demo.followup}</p>
-                </div>
+                )}
               </div>
             </div>
-            {/* Input bar */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 bg-white rounded-full border border-[#deded8] px-3 py-2" style={{ boxShadow: '0 2px 8px rgba(25,65,33,0.08)' }}>
-              <span className="flex-1 text-[9px] text-[#8a9280]">{lang === 'el' ? 'Ρώτα τον Oli...' : 'Ask Oli...'}</span>
-              <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
-                <Send className="w-2.5 h-2.5 text-white" />
-              </div>
+          </div>
+          {/* Demo indicators */}
+          <div className="absolute bottom-[50px] left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+            {demos.map((_, i) => (
+              <div
+                key={i}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: i === demoIdx ? '14px' : '4px',
+                  height: '4px',
+                  background: '#194121',
+                  opacity: i === demoIdx ? 0.7 : 0.2,
+                }}
+              />
+            ))}
+          </div>
+          {/* Input bar */}
+          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 bg-white rounded-full border border-[#deded8] px-3 py-2" style={{ boxShadow: '0 2px 8px rgba(25,65,33,0.08)' }}>
+            <span className="flex-1 text-[9px] text-[#8a9280]">{lang === 'el' ? 'Ρώτα τον Oli...' : 'Ask Oli...'}</span>
+            <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
+              <Send className="w-2.5 h-2.5 text-white" />
             </div>
           </div>
         </div>
@@ -353,8 +439,8 @@ export default function Landing() {
   const isLoggedIn = !!(user && profile);
   const { lang, setLang } = useLanguage();
   const navigate = useNavigate();
-  const [chatInput, setChatInput]   = useState('');
-  const [demoTab, setDemoTab]       = useState<'disease' | 'planning'>('disease');
+  const [chatInput, setChatInput]         = useState('');
+  const [demoTab, setDemoTab]             = useState<'disease' | 'planning'>('disease');
   const [suggestionIdx, setSuggestionIdx] = useState(0);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
   const imperial = useMemo(() => detectImperial(), []);
@@ -409,8 +495,9 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-[#1b1c19] overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Bscience%2Bassignment_turned_in&display=swap" as="style" onLoad={(e) => { (e.target as HTMLLinkElement).rel = 'stylesheet'; }} />
-      <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Bscience%2Bassignment_turned_in&display=swap" rel="stylesheet" /></noscript>
+      {/* Load only the material symbols we actually use */}
+      <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Blanguage%2Bassignment_turned_in&display=swap" as="style" onLoad={(e) => { (e.target as HTMLLinkElement).rel = 'stylesheet'; }} />
+      <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Blanguage%2Bassignment_turned_in&display=swap" rel="stylesheet" /></noscript>
 
       {/* ── NAV ── */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-[#e8e8e3]">
@@ -492,7 +579,7 @@ export default function Landing() {
                   onClick={() => sendQuestion(rotatingQuestions[suggestionIdx])}
                   style={{ opacity: suggestionVisible ? 1 : 0, transition: 'opacity 0.35s ease' }}
                   className="inline-flex items-center gap-1.5 text-xs text-[#194121] bg-[#194121]/8 hover:bg-[#194121]/15 rounded-full px-3 py-1.5 transition-colors max-w-xs sm:max-w-sm text-left">
-                  <span className="flex-shrink-0 text-[#194121]/60">↩</span>
+                  <span className="flex-shrink-0 text-[#194121]/60">→</span>
                   <span className="truncate">{rotatingQuestions[suggestionIdx]}</span>
                 </button>
                 <p className="text-xs text-[#8a9280]">
@@ -501,60 +588,10 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right: phone mockup */}
+            {/* Right: animated phone mockup */}
             <div className="flex-shrink-0 flex justify-center lg:justify-end">
               <PhoneMockup lang={lang} />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── STATS BAR ── */}
-      <section className="py-8 bg-white border-b border-[#f0efea]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {STATS(lang).map((s, i) => (
-              <div key={i} className="flex flex-col items-center">
-                <div className="text-2xl sm:text-3xl font-bold text-[#194121] mb-0.5" style={{ fontFamily: "'Noto Serif', serif" }}>
-                  {s.n}
-                </div>
-                <p className="text-xs text-[#606659] leading-snug max-w-[110px]">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
-              {lang === 'el' ? 'Πώς λειτουργεί' : 'How it works'}
-            </p>
-            <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>
-              {lang === 'el' ? 'Τρία απλά βήματα' : 'Three simple steps'}
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 relative">
-            {/* Connector line — desktop only */}
-            <div className="hidden sm:block absolute top-8 left-[calc(16.67%+16px)] right-[calc(16.67%+16px)] h-px bg-[#e8e8e3]" />
-            {HOW_IT_WORKS(lang).map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <div key={i} className="flex flex-col items-center text-center relative">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 relative z-10 bg-white border-2 border-[#e8e8e3]"
-                    style={{ boxShadow: '0 4px 16px rgba(25,65,33,0.08)' }}>
-                    <Icon className="w-6 h-6 text-[#194121]" />
-                    <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#194121] text-white text-[10px] font-bold flex items-center justify-center">
-                      {step.step}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-[#1b1c19] mb-2 text-sm" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
-                  <p className="text-sm text-[#5a6053] leading-relaxed">{step.body}</p>
-                </div>
-              );
-            })}
           </div>
         </div>
       </section>
@@ -564,7 +601,7 @@ export default function Landing() {
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
-              {lang === 'el' ? 'Δες πώς λειτουργεί' : 'See how it works'}
+              {lang === 'el' ? 'Ο Oli σε δράση' : 'Oli in action'}
             </p>
             <p className="text-sm text-[#8a9280]">
               {lang === 'el'
@@ -707,36 +744,65 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section className="py-16 bg-[#f5f4ef]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <h2 className="sr-only">{lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {FEATURES(lang).map((f, i) => (
-              <div
-                key={i}
-                className={`rounded-2xl p-6 ${f.accent ? 'bg-[#194121] text-white' : 'bg-white'}`}
-                style={{ boxShadow: f.accent ? '0 8px 32px rgba(25,65,33,0.2)' : '0 2px 12px rgba(27,28,25,0.04)' }}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.accent ? 'bg-white/15' : 'bg-[#c0eec0]/30'}`}>
-                  <span className={`material-symbols-outlined ${f.accent ? 'text-white' : 'text-[#194121]'}`} style={{ fontSize: '22px' }}>{f.icon}</span>
+      {/* ── STATS BAR ── */}
+      <section className="py-8 bg-[#faf9f4] border-y border-[#f0efea]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            {STATS(lang).map((s, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <div className="text-2xl sm:text-3xl font-bold text-[#194121] mb-0.5" style={{ fontFamily: "'Noto Serif', serif" }}>
+                  {s.n}
                 </div>
-                <h3 className={`font-bold mb-1.5 ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
-                <p className={`text-sm leading-relaxed ${f.accent ? 'text-white/80' : 'text-[#5a6053]'}`}>{f.body}</p>
+                <p className="text-xs text-[#606659] leading-snug max-w-[120px]">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
+      {/* ── HOW IT WORKS ── */}
       <section className="py-16 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
+              {lang === 'el' ? 'Πώς λειτουργεί' : 'How it works'}
+            </p>
+            <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>
+              {lang === 'el' ? 'Τρία απλά βήματα' : 'Three simple steps'}
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 relative">
+            {/* Connector line — desktop only */}
+            <div className="hidden sm:block absolute top-8 left-[calc(16.67%+16px)] right-[calc(16.67%+16px)] h-px bg-[#e8e8e3]" />
+            {HOW_IT_WORKS(lang).map((step, i) => {
+              const Icon = step.icon;
+              return (
+                <div key={i} className="flex flex-col items-center text-center relative">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 relative z-10 bg-white border-2 border-[#e8e8e3]"
+                    style={{ boxShadow: '0 4px 16px rgba(25,65,33,0.08)' }}>
+                    <Icon className="w-6 h-6 text-[#194121]" />
+                    <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#194121] text-white text-[10px] font-bold flex items-center justify-center">
+                      {step.step}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-[#1b1c19] mb-2 text-sm" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
+                  <p className="text-sm text-[#5a6053] leading-relaxed">{step.body}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-10">
             {lang === 'el' ? 'Τι λένε οι αγρότες' : 'What farmers say'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {TESTIMONIALS(lang).map((t, i) => (
-              <div key={i} className="rounded-2xl border border-[#e8e8e3] p-6 bg-[#fafaf8]">
+              <div key={i} className="rounded-2xl border border-[#e8e8e3] p-6 bg-white">
                 <div className="flex gap-1 mb-4">
                   {[...Array(5)].map((_, j) => (
                     <svg key={j} className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
@@ -760,8 +826,29 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── FEATURES ── */}
+      <section className="py-16 bg-[#f5f4ef]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <h2 className="sr-only">{lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {FEATURES(lang).map((f, i) => (
+              <div
+                key={i}
+                className={`rounded-2xl p-6 ${f.accent ? 'bg-[#194121] text-white' : 'bg-white'}`}
+                style={{ boxShadow: f.accent ? '0 8px 32px rgba(25,65,33,0.2)' : '0 2px 12px rgba(27,28,25,0.04)' }}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.accent ? 'bg-white/15' : 'bg-[#c0eec0]/30'}`}>
+                  <span className={`material-symbols-outlined ${f.accent ? 'text-white' : 'text-[#194121]'}`} style={{ fontSize: '22px' }}>{f.icon}</span>
+                </div>
+                <h3 className={`font-bold mb-1.5 ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
+                <p className={`text-sm leading-relaxed ${f.accent ? 'text-white/80' : 'text-[#5a6053]'}`}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── PRICING ── */}
-      <section className="py-16 bg-[#faf9f4]">
+      <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
@@ -837,9 +924,9 @@ export default function Landing() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="py-16 px-4 sm:px-6 bg-white">
+      <section className="py-16 px-4 sm:px-6 bg-[#faf9f4]">
         <div
-          className="max-w-2xl mx-auto rounded-[2rem] p-8 sm:p-14 text-center text-white relative overflow-hidden"
+          className="max-w-2xl mx-auto rounded-[2rem] p-10 sm:p-16 text-center text-white relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 24px 64px rgba(25,65,33,0.25)' }}>
           <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
@@ -848,45 +935,27 @@ export default function Landing() {
           </h2>
           <p className="text-sm opacity-80 mb-8 max-w-sm mx-auto relative">
             {lang === 'el'
-              ? 'Ρώτα τον Oli τώρα. Χωρίς εγγραφή, χωρίς πιστωτική κάρτα.'
-              : 'Ask Oli now. No sign-up, no credit card.'}
+              ? 'Ο Oli είναι δωρεάν για να ξεκινήσεις. Χωρίς εγγραφή, χωρίς πιστωτική κάρτα.'
+              : 'Oli is free to start. No sign-up required, no credit card.'}
           </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const text = chatInput.trim();
-              navigate(text ? (isLoggedIn ? '/chat' : `/chat?q=${encodeURIComponent(text)}`) : '/chat');
-            }}
-            className="relative max-w-md mx-auto">
-            <input
-              type="text"
-              placeholder={lang === 'el' ? 'Γράψε την ερώτησή σου...' : 'Type your question...'}
-              aria-label={lang === 'el' ? 'Γράψε την ερώτησή σου' : 'Type your question'}
-              className="w-full rounded-full px-5 py-3.5 pr-12 text-sm bg-white/15 backdrop-blur border border-white/25 text-white placeholder:text-white/50 focus:outline-none focus:border-white/60 transition-all"
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const text = (e.target as HTMLInputElement).value.trim();
-                  navigate(text ? (isLoggedIn ? '/chat' : `/chat?q=${encodeURIComponent(text)}`) : '/chat');
-                }
-              }}
-            />
-            <button
-              type="submit"
-              aria-label={lang === 'el' ? 'Αποστολή' : 'Send'}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white flex items-center justify-center hover:bg-[#c0eec0] transition-all">
-              <Send className="h-3.5 w-3.5 text-[#194121]" />
-            </button>
-          </form>
+          <Link
+            to="/chat"
+            className="inline-flex items-center gap-2 bg-white text-[#194121] font-semibold px-8 py-3.5 rounded-full text-sm hover:bg-[#c0eec0] transition-all relative"
+            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+            <span>🌿</span>
+            {lang === 'el' ? 'Δοκίμασε τον Oli τώρα' : 'Try Oli now'}
+          </Link>
+          <p className="text-xs text-white/40 mt-4 relative">
+            {lang === 'el' ? 'Δωρεάν · Χωρίς πιστωτική κάρτα · Πάντα διαθέσιμος' : 'Free to start · No credit card · Available 24/7'}
+          </p>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-[#faf9f4] border-t border-[#e8e8e3] py-8">
+      <footer className="bg-white border-t border-[#e8e8e3] py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <OliLogo size={16} bg="#faf9f4" />
+            <OliLogo size={16} bg="#ffffff" />
             <span className="text-sm font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>Oli</span>
             <span className="text-xs text-[#8a9280]">&copy; 2026</span>
           </div>
