@@ -96,10 +96,10 @@ function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boo
 
   if (authenticated) {
     return (
-      <div className="flex h-[100dvh] w-full flex-col bg-background text-foreground">
+      <>
         <Chat />
         <BottomNav />
-      </div>
+      </>
     );
   }
 
