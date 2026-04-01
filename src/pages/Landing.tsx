@@ -9,33 +9,33 @@ import OliLogo from '../components/OliLogo';
 
 const STATS = (lang: string) => [
   { n: '450+', label: lang === 'el' ? 'Αναγνωρίσιμες ασθένειες' : 'Identifiable diseases' },
-  { n: '~8s', label: lang === 'el' ? 'Μέσος χρόνος διάγνωσης' : 'Avg. diagnosis time' },
-  { n: '100%', label: lang === 'el' ? 'Βιολογικό & χημικό πλάνο' : 'Organic & chemical plan' },
+  { n: '~8s', label: lang === 'el' ? 'Μέσος χρόνος απάντησης' : 'Avg. response time' },
+  { n: '24/7', label: lang === 'el' ? 'Πάντα διαθέσιμος, πάντα μαθαίνει' : 'Always available, always learning' },
 ];
 
 const FEATURES = (lang: string) => [
   {
     icon: 'photo_camera',
-    title: lang === 'el' ? 'Φωτογράφισε & πάρε διάγνωση' : 'Snap a photo, get a diagnosis',
+    title: lang === 'el' ? 'Ρώτα οτιδήποτε για τις καλλιέργειές σου' : 'Ask anything about your crops',
     body: lang === 'el'
-      ? 'Ανέβασε φωτογραφία ή γράψε τι βλέπεις. Σε δευτερόλεπτα ξέρεις τι έχει η καλλιέργειά σου.'
-      : 'Upload a photo or describe what you see. In seconds you know exactly what is wrong.',
+      ? 'Ασθένειες, πότισμα, λίπανση, κλάδεμα, σπορά — αν το ξέρει ένας έμπειρος γεωπόνος, το ξέρει και ο Oli. Δεν είναι απλώς εφαρμογή αναγνώρισης, είναι ο σύμβουλός σου.'
+      : 'Diseases, irrigation, fertilisation, pruning, planting schedules — if an experienced agronomist would know it, Oli knows it. Not just an ID app, your complete farming advisor.',
     accent: true,
   },
   {
     icon: 'science',
-    title: lang === 'el' ? 'Βιολογικό & Χημικό πλάνο' : 'Organic & Chemical plan',
+    title: lang === 'el' ? 'Διάγνωση & θεραπεία σε δευτερόλεπτα' : 'Diagnose & treat in seconds',
     body: lang === 'el'
-      ? 'Κάθε διάγνωση με δύο επιλογές θεραπείας. Συγκεκριμένο προϊόν και δοσολογία.'
-      : 'Every diagnosis with two treatment options. Exact product and dosage.',
+      ? 'Ανέβασε φωτογραφία ή περίγραψε τι βλέπεις. Ο Oli αναγνωρίζει την ασθένεια και σου δίνει ακριβές βιολογικό και χημικό πλάνο — συγκεκριμένο προϊόν και δοσολογία.'
+      : 'Upload a photo or describe what you see. Oli identifies the problem and gives you exact organic and chemical options — specific product and dosage, no guessing.',
     accent: false,
   },
   {
     icon: 'assignment_turned_in',
-    title: lang === 'el' ? 'Μνήμη & Follow-up' : 'Memory & Follow-up',
+    title: lang === 'el' ? 'Μαθαίνει τα χωράφια σου, παρακολουθεί' : 'Learns your fields, follows up',
     body: lang === 'el'
-      ? 'Θυμάται κάθε παρέμβαση. Σε ρωτά αν πέτυχε η θεραπεία μετά από 13 μέρες.'
-      : 'Remembers every treatment. Checks back in 13 days to confirm it worked.',
+      ? 'Ο Oli θυμάται κάθε καλλιέργεια και παρέμβαση. Σε ρωτά σε 3 και 7 μέρες αν η θεραπεία πέτυχε — και προσαρμόζεται ανάλογα.'
+      : 'Oli builds a memory of your fields and crops over time. Checks back at 3 and 7 days to confirm the treatment worked — and adjusts if it did not.',
     accent: false,
   },
 ];
@@ -57,6 +57,22 @@ const TESTIMONIALS = (lang: string) => [
     crop: lang === 'el' ? 'Κτηματίας, Κρήτη' : 'Vineyard owner, Crete',
     initial: 'Ν',
   },
+  {
+    quote: lang === 'el'
+      ? 'Ρώτησα πότε να κλαδέψω τα εσπεριδοειδή μου με βάση τις βροχοπτώσεις φέτος. Σε δευτερόλεπτα είχα συγκεκριμένο εβδομαδιαίο πρόγραμμα. Ο γεωπόνος μου χρεώνει 80€ η επίσκεψη για αυτό.'
+      : 'I asked when to prune my citrus trees based on this year\'s rainfall. In seconds I had a specific week-by-week plan. My agronomist charges €80 a visit for that.',
+    name: lang === 'el' ? 'Σταύρος Πετράκης' : 'Stavros Petrakis',
+    crop: lang === 'el' ? 'Εσπεριδοειδή, Λακωνία' : 'Citrus farmer, Laconia',
+    initial: 'Σ',
+  },
+  {
+    quote: lang === 'el'
+      ? '11 το βράδυ και βλέπω κάτι ανησυχητικό στα αμπέλια. Ρώτησα τον Oli και είχα σαφή απάντηση σε δευτερόλεπτα. Δοκίμασε να τηλεφωνήσεις τον γεωπόνο σου στις 11 το βράδυ.'
+      : '11pm and something looked wrong on the vines. I asked Oli and had a clear answer in seconds. Try calling your agronomist at 11pm.',
+    name: lang === 'el' ? 'Μαρία Ανδρέου' : 'Maria Andreou',
+    crop: lang === 'el' ? 'Αμπελοκαλλιεργήτρια, Νεμέα' : 'Vineyard owner, Nemea',
+    initial: 'Μ',
+  },
 ];
 
 // ── Chat demo data ─────────────────────────────────────────────────────────────
@@ -74,8 +90,8 @@ const DEMO = (lang: string) => ({
     ? 'Mancozeb 80% WP — 250g/100L νερό. Εφαρμογή κάθε 10–14 μέρες.'
     : 'Mancozeb 80% WP — 250g/100L water. Apply every 10–14 days.',
   followup: lang === 'el'
-    ? 'Θα σε ρωτήσω σε 13 μέρες αν βελτιώθηκε η κατάσταση.'
-    : "I'll check back in 13 days to see if the condition improved.",
+    ? 'Θα σε ρωτήσω σε 3 και 7 μέρες για να δω πώς πάει η θεραπεία.'
+    : "I'll check back at 3 days and 7 days to see how the treatment is working.",
 });
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -95,14 +111,14 @@ export default function Landing() {
       el.setAttribute('content', content);
     };
     if (lang === 'el') {
-      document.title = 'Oli — AI Γεωπόνος | Διάγνωση Καλλιεργειών';
-      setMeta('name', 'description', 'Φωτογράφισε τη σοδειά σου. Ο Oli σου λέει τι έχει, πόσο σοβαρό και τι ακριβώς να κάνεις — σε δευτερόλεπτα.');
-      setMeta('property', 'og:title', 'Oli — AI Γεωπόνος για Αγρότες');
+      document.title = 'Oli — Ο AI Γεωπόνος σου | 24/7 Συμβουλές Καλλιεργειών';
+      setMeta('name', 'description', 'Ο Oli είναι ο προσωπικός σου γεωπόνος — διάγνωση ασθενειών, σχέδια θεραπείας, συμβουλές για κλάδεμα, λίπανση, πότισμα. Πάντα διαθέσιμος, πάντα μαθαίνει.');
+      setMeta('property', 'og:title', 'Oli — Ο AI Γεωπόνος σου 24/7');
       setMeta('property', 'og:locale', 'el_GR');
     } else {
-      document.title = 'Oli — AI Agronomist | Crop Disease Diagnosis';
-      setMeta('name', 'description', 'Snap a photo of your crop. Oli tells you what is wrong, how serious it is, and exactly what to do — in seconds.');
-      setMeta('property', 'og:title', 'Oli — AI Agronomist for Farmers');
+      document.title = 'Oli — Your AI Agronomist | Farming Advice 24/7';
+      setMeta('name', 'description', 'Oli is your personal agronomist — diagnose crop diseases, get treatment plans, ask anything about farming. Always available, always learning your fields.');
+      setMeta('property', 'og:title', 'Oli — Your AI Agronomist, 24/7');
       setMeta('property', 'og:locale', 'en_US');
     }
     document.documentElement.lang = lang;
@@ -153,20 +169,26 @@ export default function Landing() {
       {/* ── HERO ── */}
       <section className="flex flex-col items-center justify-center px-6 pt-28 pb-16 bg-[#faf9f4]">
         <div className="max-w-2xl w-full text-center">
+          {/* Identity eyebrow */}
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-[#194121]/10 px-3 py-1 text-xs font-semibold text-[#194121] mb-5">
+            <span>🌿</span>
+            {lang === 'el' ? 'Ο AI Γεωπόνος σου · 24/7' : 'Your AI Agronomist · 24/7'}
+          </div>
+
           <h1
             className="text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.1] mb-5 tracking-tight"
             style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>
             {lang === 'el' ? (
-              <>Φωτογράφισε.<br />Μάθε τι έχει.</>
+              <>Ο γεωπόνος σου.<br />Πάντα μαζί σου.</>
             ) : (
-              <>Take a photo.<br />Know exactly what&apos;s wrong.</>
+              <>Your personal agronomist.<br />With you 24/7.</>
             )}
           </h1>
 
           <p className="text-base md:text-lg text-[#5a6053] mb-8 max-w-md mx-auto leading-relaxed">
             {lang === 'el'
-              ? 'Βιολογικό & χημικό πλάνο. Ακριβές προϊόν και δοσολογία. Follow-up σε 13 μέρες.'
-              : 'Organic & chemical plan. Exact product and dosage. Follow-up in 13 days.'}
+              ? 'Διάγνωση ασθενειών, σχέδια θεραπείας, συμβουλές για οτιδήποτε — από σπορά μέχρι συγκομιδή. Ο Oli μαθαίνει τις καλλιέργειές σου.'
+              : 'Diagnose diseases, plan treatments, get advice on anything — from planting to harvest. Oli learns your crops and gets smarter with every conversation.'}
           </p>
 
           {/* Chat input */}
@@ -199,9 +221,16 @@ export default function Landing() {
       {/* ── PRODUCT PROOF — chat demo ── */}
       <section className="py-16 bg-white">
         <div className="max-w-2xl mx-auto px-6">
-          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-8">
-            {lang === 'el' ? 'Δες πώς λειτουργεί' : 'See how it works'}
-          </p>
+          <div className="text-center mb-8">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
+              {lang === 'el' ? 'Δες πώς λειτουργεί' : 'See how it works'}
+            </p>
+            <p className="text-sm text-[#8a9280]">
+              {lang === 'el'
+                ? 'Ασθένειες, κλάδεμα, λίπανση, άρδευση — ρώτα ό,τι θέλεις'
+                : 'Diseases, pruning, fertilisation, irrigation — ask anything'}
+            </p>
+          </div>
 
           <div className="rounded-2xl border border-[#e8e8e3] bg-[#faf9f4] overflow-hidden" style={{ boxShadow: '0 8px 40px rgba(25,65,33,0.07)' }}>
             {/* Chat header */}
@@ -289,7 +318,7 @@ export default function Landing() {
           <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-10">
             {lang === 'el' ? 'Τι λένε οι αγρότες' : 'What farmers say'}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {TESTIMONIALS(lang).map((t, i) => (
               <div key={i} className="rounded-2xl border border-[#e8e8e3] p-6 bg-[#fafaf8]">
                 <div className="flex gap-1 mb-4">
