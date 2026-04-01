@@ -35,17 +35,21 @@ export default function LoginModal({ onClose }: Props) {
   };
 
   const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
+    setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+    if (error) setError(error.message);
   };
 
   const handleFacebook = async () => {
-    await supabase.auth.signInWithOAuth({
+    setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+    if (error) setError(error.message);
   };
 
   return (
@@ -102,6 +106,7 @@ export default function LoginModal({ onClose }: Props) {
           </div>
         ) : (
           <div className="space-y-4 animate-fade-in">
+            {error && <p className="px-2 text-xs text-center" style={{ color: '#ba1a1a' }}>{error}</p>}
             {/* OAuth */}
             <div className="space-y-3">
               <button onClick={handleGoogle}
@@ -149,7 +154,6 @@ export default function LoginModal({ onClose }: Props) {
                 className="w-full rounded-full px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#194121]/20"
                 style={{ background: '#f5f4ef', color: '#1b1c19', border: '1px solid #e3e3de' }}
               />
-              {error && <p className="px-2 text-xs" style={{ color: '#ba1a1a' }}>{error}</p>}
               <button
                 type="submit"
                 disabled={loading || !email.trim()}

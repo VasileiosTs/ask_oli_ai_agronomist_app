@@ -11,6 +11,17 @@ interface MessageAttachment {
   name: string;
 }
 
+export interface MessageMetadata {
+  diagnosis_data?: {
+    organic_treatments?: string[];
+    chemical_treatments?: string[];
+  };
+  is_follow_up?: boolean;
+  follow_up_intervention_id?: string;
+  vio_step_type?: 'apply_check' | 'outcome_check';
+  feedback?: 'positive' | 'negative';
+}
+
 export interface ChatMessage {
   id: string;
   db_id?: string;
@@ -18,7 +29,7 @@ export interface ChatMessage {
   content: string;
   created_at: string;
   attachments?: MessageAttachment[];
-  metadata?: any;
+  metadata?: MessageMetadata;
   starred?: boolean;
 }
 

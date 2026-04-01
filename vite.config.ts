@@ -1,10 +1,27 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import fs from 'fs';
+
+/** Rewrites the CACHE_NAME token in public/sw.js at build time so it auto-busts on every deploy. */
+function swVersionPlugin(): Plugin {
+  const cacheVersion = `oli-${Date.now()}`;
+  return {
+    name: 'sw-version',
+    writeBundle(options) {
+      const outDir = options.dir ?? 'dist';
+      const swPath = path.join(outDir, 'sw.js');
+      if (fs.existsSync(swPath)) {
+        const content = fs.readFileSync(swPath, 'utf-8');
+        fs.writeFileSync(swPath, content.replace('__SW_CACHE_VERSION__', cacheVersion));
+      }
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), swVersionPlugin()],
   test: {
     globals: true,
     environment: 'jsdom',

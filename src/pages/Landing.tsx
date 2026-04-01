@@ -29,7 +29,7 @@ const PHONE_DEMOS = (lang: string): PhoneDemo[] => [
     confidence: 92,
     organic:  'Bordeaux mixture 200g/100L',
     chemical: 'Mancozeb 80% WP 250g/100L',
-    followup: lang === 'el' ? 'Θα σε ρωτήσω σε 3 και 7 μέρες.' : "I'll check back at 3 and 7 days.",
+    followup: lang === 'el' ? 'Θα σε ρωτήσω για να δω πώς πάει η θεραπεία.' : "I'll follow up to see how the treatment is going.",
   },
   {
     type: 'advice',
@@ -50,7 +50,7 @@ const PHONE_DEMOS = (lang: string): PhoneDemo[] => [
     confidence: 88,
     organic:  lang === 'el' ? 'Θείο WP 80%, 300g/100L' : 'Sulphur WP 80%, 300g/100L',
     chemical: 'Myclobutanil 12.5% EC, 40ml/100L',
-    followup: lang === 'el' ? 'Θα σε ρωτήσω σε 3 και 7 μέρες.' : "I'll check back at 3 and 7 days.",
+    followup: lang === 'el' ? 'Θα σε ρωτήσω για να δω πώς πάει η θεραπεία.' : "I'll follow up to see how the treatment is going.",
   },
 ];
 
@@ -84,8 +84,8 @@ const HOW_IT_WORKS = (lang: string) => [
     icon: RefreshCw,
     title: lang === 'el' ? 'Ο Oli παρακολουθεί και μαθαίνει' : 'Oli follows up and learns',
     body: lang === 'el'
-      ? 'Θυμάται κάθε καλλιέργεια και παρέμβαση. Σε ρωτά σε 3 και 7 μέρες αν η θεραπεία πέτυχε.'
-      : 'It remembers every crop and treatment. Checks back at 3 and 7 days to confirm the treatment worked.',
+      ? 'Θυμάται κάθε καλλιέργεια και παρέμβαση. Παρακολουθεί σαν αληθινός γεωπόνος αν η θεραπεία πέτυχε.'
+      : 'It remembers every crop and treatment. Follows up like a real agronomist to confirm the treatment worked.',
   },
 ];
 
@@ -110,8 +110,8 @@ const FEATURES = (lang: string) => [
     icon: 'assignment_turned_in',
     title: lang === 'el' ? 'Μαθαίνει τα χωράφια σου, παρακολουθεί' : 'Learns your fields, follows up',
     body: lang === 'el'
-      ? 'Ο Oli θυμάται κάθε καλλιέργεια και παρέμβαση. Σε ρωτά σε 3 και 7 μέρες αν η θεραπεία πέτυχε και προσαρμόζεται ανάλογα.'
-      : 'Oli builds a memory of your fields and crops over time. It checks back at 3 and 7 days to confirm the treatment worked, and adjusts if it did not.',
+      ? 'Ο Oli θυμάται κάθε καλλιέργεια και παρέμβαση. Παρακολουθεί σαν αληθινός γεωπόνος αν η θεραπεία πέτυχε και προσαρμόζεται ανάλογα.'
+      : 'Oli builds a memory of your fields and crops over time. Follows up like a real agronomist to confirm the treatment worked, and adjusts if it did not.',
     accent: false,
   },
 ];
@@ -166,8 +166,8 @@ const DEMO_DISEASE = (lang: string) => ({
     ? 'Mancozeb 80% WP, 250g/100L νερό. Εφαρμογή κάθε 10 με 14 μέρες.'
     : 'Mancozeb 80% WP, 250g/100L water. Apply every 10 to 14 days.',
   followup: lang === 'el'
-    ? 'Θα σε ρωτήσω σε 3 και 7 μέρες για να δω πώς πάει η θεραπεία.'
-    : "I'll check back at 3 and 7 days to see how the treatment is going.",
+    ? 'Θα σε ρωτήσω για να δω πώς πάει η θεραπεία.'
+    : "I'll follow up to see how the treatment is going.",
 });
 
 const DEMO_PLANNING = (lang: string, imperial: boolean) => ({
@@ -904,8 +904,8 @@ export default function Landing() {
               </div>
               <ul className="space-y-2.5 mb-6">
                 {(lang === 'el'
-                  ? ['Απεριόριστες ερωτήσεις', 'Μνήμη χωραφιών και καλλιεργειών', 'Follow-up σε 3 και 7 μέρες', 'Σχεδιασμός φύτευσης και υπολογισμοί', 'Πρώτη πρόσβαση σε νέες λειτουργίες']
-                  : ['Unlimited questions', 'Field and crop memory', 'Follow-up at 3 and 7 days', 'Planting plans and calculations', 'Early access to new features']
+                  ? ['Απεριόριστες ερωτήσεις', 'Μνήμη χωραφιών και καλλιεργειών', 'Follow-up σαν αληθινός γεωπόνος', 'Σχεδιασμός φύτευσης και υπολογισμοί', 'Πρώτη πρόσβαση σε νέες λειτουργίες']
+                  : ['Unlimited questions', 'Field and crop memory', 'Follow-up like a real agronomist', 'Planting plans and calculations', 'Early access to new features']
                 ).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-white/90">
                     <Check className="w-4 h-4 text-white flex-shrink-0" />

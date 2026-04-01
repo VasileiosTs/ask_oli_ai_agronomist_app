@@ -237,8 +237,8 @@ export default function Chat() {
         id: `vio-applied-${Date.now()}`,
         role: 'assistant',
         content: lang === 'el'
-          ? 'Τέλεια! Θα σε ρωτήσω σε 3 μέρες αν βλέπεις βελτίωση.'
-          : "Great! I'll check back in 3 days to see if you notice any improvement.",
+          ? 'Τέλεια! Θα σε ρωτήσω σύντομα αν βλέπεις βελτίωση.'
+          : "Great! I'll follow up soon to see if you notice any improvement.",
         created_at: new Date().toISOString(),
       };
       dispatch({ type: 'replace', id: msgId, message: confirmMsg });
@@ -473,8 +473,7 @@ export default function Chat() {
         .limit(1)
         .then(({ data: due }) => {
           if (!due || due.length === 0) return;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const item = due[0] as any;
+          const item = due[0] as { id: string; crop_type: string | null; diagnosis: string | null; follow_up_at: string | null; field_id: string | null; vio_step: number | null; product_applied: string | null };
           const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
           const step = item.vio_step ?? 1;
 
@@ -1452,13 +1451,15 @@ export default function Chat() {
         </div>
       )}
 
-      {toastMessage && (
-        <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4">
-          <div className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">
-            {toastMessage}
+      <div role="status" aria-live="polite" aria-atomic="true" className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2">
+        {toastMessage && (
+          <div className="animate-in fade-in slide-in-from-bottom-4">
+            <div className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">
+              {toastMessage}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

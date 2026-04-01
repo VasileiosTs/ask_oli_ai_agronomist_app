@@ -92,11 +92,11 @@ export default function ChatInputBar({
         <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={onFileSelect} />
         <input type="file" ref={fileInputRef} className="hidden" accept={ALLOWED_FILE_ACCEPT} multiple onChange={onFileSelect} />
         <button onClick={() => onToggleAttachmentSheet(!showAttachmentSheet)} aria-label="Attach file"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground transition-colors">
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground transition-colors">
           <Paperclip className="h-5 w-5" />
         </button>
         <button onClick={onToggleListening} aria-label="Voice input"
-          className={clsx("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors",
+          className={clsx("flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full transition-colors",
             isListening ? "text-red-500 animate-pulse bg-red-500/10" : "text-muted hover:text-foreground")}>
           <Mic className="h-5 w-5" />
         </button>
@@ -108,7 +108,7 @@ export default function ChatInputBar({
             rows={1} />
         </div>
         <button onClick={onSend} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"
-          className={clsx("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] transition-colors duration-150",
+          className={clsx("flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[14px] transition-colors duration-150",
             (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted/70" : "bg-primary text-white hover:bg-primary/90")}>
           <Send className="h-5 w-5" />
         </button>

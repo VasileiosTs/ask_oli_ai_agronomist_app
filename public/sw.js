@@ -1,5 +1,6 @@
 // Oli Service Worker — PWA install + push notifications + smart caching
-const CACHE_NAME = 'oli-v6';
+// CACHE_NAME token is replaced at build time by vite.config.ts swVersionPlugin
+const CACHE_NAME = '__SW_CACHE_VERSION__';
 // Cache both the app shell (/) and the offline fallback
 const SHELL_URLS = ['/', '/offline.html'];
 
