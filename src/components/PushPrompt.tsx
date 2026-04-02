@@ -3,6 +3,7 @@ import { BellRing, X } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { usePushSubscription } from '../hooks/usePushSubscription';
 
+// Only permanently dismissed if user explicitly closes after seeing the prompt
 const DISMISS_KEY = 'oli_push_prompt_dismissed';
 
 interface Props {
@@ -16,8 +17,8 @@ export default function PushPrompt({ userId, messageCount }: Props) {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    // Show after first AI response (messageCount >= 2 means at least 1 exchange)
-    // Only if push is supported, not already subscribed, and not previously dismissed
+    // Show after first AI response (messageCount >= 2 = at least 1 full exchange)
+    // Re-show each session unless permanently dismissed or already enabled/denied
     const wasDismissed = localStorage.getItem(DISMISS_KEY);
     if (!wasDismissed && push.isSupported && !push.isSubscribed && push.permission !== 'denied' && messageCount >= 2) {
       setDismissed(false);
@@ -46,7 +47,7 @@ export default function PushPrompt({ userId, messageCount }: Props) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">{t.pushPromptTitle}</p>
           <p className="mt-0.5 text-xs text-muted">{t.pushPromptBody}</p>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3">
             <button
               onClick={handleEnable}
               disabled={push.loading}
@@ -54,15 +55,9 @@ export default function PushPrompt({ userId, messageCount }: Props) {
             >
               {t.pushPromptEnable}
             </button>
-            <button
-              onClick={handleDismiss}
-              className="rounded-full border border-border/50 bg-surface px-4 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground"
-            >
-              {t.pushPromptLater}
-            </button>
           </div>
         </div>
-        <button onClick={handleDismiss} className="flex-shrink-0 rounded-full p-1 text-muted hover:text-foreground">
+        <button onClick={handleDismiss} aria-label="Dismiss" className="flex-shrink-0 rounded-full p-1 text-muted hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
       </div>

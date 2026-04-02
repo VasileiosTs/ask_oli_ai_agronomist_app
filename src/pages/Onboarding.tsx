@@ -150,6 +150,7 @@ export default function Onboarding() {
       primary_crop: finalCrops.join(', '),
       language: lang,
       onboarding_complete: true,
+      notification_followup: true,
     };
     if (ageRange) payload.age_range = ageRange;
     if (referral) { payload.referred_by_share_id = referral; localStorage.removeItem('oli_referral'); }
