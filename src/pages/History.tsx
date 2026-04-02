@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, ChevronDown, ChevronUp, CheckCircle2, Clock, AlertTriangle, Leaf } from 'lucide-react';
+import { ClipboardList, ChevronDown, ChevronUp, CheckCircle2, Clock, AlertTriangle, Leaf, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import type { T } from '../lib/i18n';
 import clsx from 'clsx';
 
 interface Intervention {
@@ -33,7 +35,7 @@ function daysAgo(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-function VioStepBadge({ step, outcome, t }: { step: number | null; outcome: string | null; t: any }) {
+function VioStepBadge({ step, outcome, t }: { step: number | null; outcome: string | null; t: T }) {
   if (outcome) {
     const cfg: Record<string, { color: string; label: string }> = {
       better:  { color: 'text-green-400 bg-green-500/10 border-green-500/30', label: t.outcomeBetter },
@@ -53,7 +55,8 @@ function VioStepBadge({ step, outcome, t }: { step: number | null; outcome: stri
 
 export default function History() {
   const { appUserId } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const navigate = useNavigate();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: interventions = [], isLoading } = useQuery({
@@ -207,6 +210,13 @@ export default function History() {
                           {t.followUpPending}: {new Date(item.follow_up_at).toLocaleDateString()}
                         </div>
                       )}
+                      <button
+                        onClick={() => navigate('/chat')}
+                        className="mt-3 flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {lang === 'el' ? 'Ρώτα τον Oli' : 'Ask Oli about this'}
+                      </button>
                     </div>
                   )}
                 </div>

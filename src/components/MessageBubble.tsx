@@ -196,7 +196,7 @@ export default function MessageBubble({
               <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
             </button>
             <button onClick={() => onShare(msg)}
-              className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground">
+              className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary">
               <Share2 className="h-3.5 w-3.5" />{t.shareLabel}
             </button>
           </div>

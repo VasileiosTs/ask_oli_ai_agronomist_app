@@ -6,7 +6,7 @@ export const VIO_STEP1_DAYS = 3;         // days after logging → "did you appl
 export const VIO_STEP2_DAYS = 3;         // days after apply confirm → "any improvement?"
 export const MAX_ATTACHMENTS = 3;        // max files per message
 export const MAX_CONVERSATION_HISTORY = 10; // messages sent to AI context
-export const SIGNED_URL_EXPIRY = 3600;   // seconds (1 hour) for storage signed URLs
+export const SIGNED_URL_EXPIRY = 604800; // seconds (7 days) for storage signed URLs
 
 // Allowed MIME types for file uploads
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] as const;

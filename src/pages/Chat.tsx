@@ -84,6 +84,22 @@ export default function Chat() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
 
+  // ── Personalised greeting (non-blocking; shown in welcome state subtitle) ──
+  const [dynamicGreeting, setDynamicGreeting] = useState('');
+  const greetingFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!user || !profile || isGuestMode || greetingFetchedRef.current) return;
+    greetingFetchedRef.current = true;
+    supabase.functions.invoke('chat', { body: { mode: 'greeting' } })
+      .then(({ data, error }) => {
+        if (!error && typeof data?.greeting === 'string' && data.greeting.trim()) {
+          setDynamicGreeting(data.greeting.trim());
+        }
+      })
+      .catch(() => { /* fail silently — static subtitle is the fallback */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, !!profile]);
+
   // ── Guest mode state ──
   const guestQuery = searchParams.get('q');
   // oli_guest_used persists across reloads so the same browser can't get unlimited free messages
@@ -1326,7 +1342,7 @@ export default function Chat() {
                 <h1 className="text-4xl font-semibold text-primary">Oli</h1>
               </div>
               <p className="mb-1 text-center text-xl font-medium text-foreground">{t.welcomeTitle}</p>
-              <p className="mb-8 text-center text-sm text-muted">{t.welcomeSubtitle}</p>
+              <p className="mb-8 text-center text-sm text-muted">{dynamicGreeting || t.welcomeSubtitle}</p>
               <div className="mb-6 grid grid-cols-3 gap-4">
                 {[
                   { title: t.feature1Title, desc: t.feature1Desc, icon: '📷' },
@@ -1369,7 +1385,7 @@ export default function Chat() {
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
               <Leaf className="mb-3 h-10 w-10 text-primary" />
               <h1 className="mb-1 text-2xl font-semibold text-primary">Oli</h1>
-              <p className="text-sm text-muted mb-5">{t.chatSubtitle}</p>
+              <p className="text-sm text-muted mb-5">{dynamicGreeting || t.chatSubtitle}</p>
 
               {/* Quick feature hints */}
               <div className="flex gap-2 mb-5 flex-wrap justify-center">
