@@ -1,16 +1,8 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- VIO Push Notification Cron Job
 --
--- This migration sets up a pg_cron job that calls the send-push Edge Function
--- every 6 hours to deliver overdue VIO follow-up push notifications.
---
--- BEFORE RUNNING: Replace the two placeholders below with real values:
---   1. __YOUR_PROJECT_REF__  → your Supabase project ref (e.g. abcdefghijkl)
---      Find it in: Supabase dashboard → Settings → General → Reference ID
---   2. __YOUR_CRON_SECRET__  → value of CRON_SECRET env var on your Edge Function
---      Set it in: Supabase dashboard → Edge Functions → send-push → Secrets
---
--- Then paste into: Supabase dashboard → SQL Editor → Run
+-- Sets up a pg_cron job that calls the send-push Edge Function every 6 hours
+-- to deliver overdue VIO follow-up push notifications.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Enable required extensions (idempotent)
@@ -18,23 +10,26 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Remove old job if it exists (safe re-run)
-SELECT cron.unschedule('oli-vio-push-notifications')
-WHERE EXISTS (
-  SELECT 1 FROM cron.job WHERE jobname = 'oli-vio-push-notifications'
-);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'oli-vio-push-notifications') THEN
+    PERFORM cron.unschedule('oli-vio-push-notifications');
+  END IF;
+END
+$$;
 
 -- Schedule: every 6 hours at minute 0 (00:00, 06:00, 12:00, 18:00 UTC)
 SELECT cron.schedule(
   'oli-vio-push-notifications',
   '0 */6 * * *',
-  $$
+  $job$
   SELECT net.http_post(
-    url     := 'https://__YOUR_PROJECT_REF__.supabase.co/functions/v1/send-push',
+    url     := 'https://julraghuunmzqxcayict.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'x-cron-secret', '__YOUR_CRON_SECRET__'
+      'Content-Type', 'application/json',
+      'apikey',       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHJhZ2h1dW5tenF4Y2F5aWN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTQ1NDcsImV4cCI6MjA4OTU5MDU0N30.6EbPVZJD4d0IcbUwif9qgR2l89rUxmmGFY9w29f_dV4'
     ),
     body    := '{"mode":"vio_cron"}'::jsonb
   );
-  $$
+  $job$
 );
