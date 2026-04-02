@@ -1196,8 +1196,8 @@ async function applyExtractedFieldContext(
 
 // ── Guest mode rate limiting (in-memory, per-isolate) ──
 const _guestRateMap = new Map<string, { count: number; resetAt: number }>();
-const GUEST_RATE_LIMIT = 5;
-const GUEST_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const GUEST_RATE_LIMIT = 1;
+const GUEST_RATE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours per IP
 const GUEST_MAX_IPS = 10_000;
 
 function checkGuestRateLimit(ip: string): boolean {

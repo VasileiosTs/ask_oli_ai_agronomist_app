@@ -86,7 +86,9 @@ export default function Chat() {
 
   // ── Guest mode state ──
   const guestQuery = searchParams.get('q');
-  const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery);
+  // oli_guest_used persists across reloads so the same browser can't get unlimited free messages
+  const guestAlreadyUsed = !user && !!localStorage.getItem('oli_guest_used');
+  const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
   const [guestMessageSent, setGuestMessageSent] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   
@@ -677,6 +679,9 @@ export default function Chat() {
         metadata: result.metadata,
       }));
 
+      // Mark this browser as having used the guest quota — persists across reloads
+      localStorage.setItem('oli_guest_used', '1');
+
       trackEvent(Events.MESSAGE_SENT, { guest: true });
     } catch {
       dispatch({ type: 'append', message: {
@@ -692,8 +697,14 @@ export default function Chat() {
     }
   };
 
-  // Auto-send guest query from ?q= param
+  // Auto-send guest query from ?q= param, or show login if quota already used
   useEffect(() => {
+    if (!guestQuery || !user) {
+      // If guest quota already used and they arrive with ?q=, prompt login immediately
+      if (guestQuery && guestAlreadyUsed && !user) {
+        setShowLoginModal(true);
+      }
+    }
     if (!guestQuery || !isGuestMode || guestMessageSent) return;
 
     const text = decodeURIComponent(guestQuery);
@@ -709,6 +720,9 @@ export default function Chat() {
   // Migrate guest messages after login + onboarding
   useEffect(() => {
     if (!appUserId) return;
+
+    // User is now authenticated — clear the guest quota flag so it doesn't affect their experience
+    localStorage.removeItem('oli_guest_used');
 
     const raw = sessionStorage.getItem(GUEST_SESSION_KEY);
     if (!raw) return;
