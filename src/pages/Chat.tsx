@@ -1254,6 +1254,23 @@ export default function Chat() {
       {/* ── MAIN AREA ── */}
       <div className="flex flex-1 flex-col min-w-0">
 
+        {/* Desktop guest header — sign-in bar, only shown in guest mode on md+ */}
+        {isGuestMode && (
+          <header className="hidden md:flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-6">
+            <div className="flex items-center gap-2">
+              <Leaf className="h-[18px] w-[18px] text-primary" />
+              <span className="text-[16px] font-medium text-primary">Oli</span>
+            </div>
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
+              style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}
+            >
+              {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
+            </button>
+          </header>
+        )}
+
         {/* Mobile header */}
         <header className="md:hidden flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-4">
           <div className="flex items-center gap-3">
