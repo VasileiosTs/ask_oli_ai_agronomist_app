@@ -1233,7 +1233,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex h-[100dvh] bg-background overflow-hidden">
+    <div className="flex h-[100dvh] bg-background overflow-hidden pt-safe">
 
       {/* ── DESKTOP: permanent sidebar (hidden in guest mode) ── */}
       {!isGuestMode && (
@@ -1402,7 +1402,7 @@ export default function Chat() {
         {messages.length > 0 && (
           <div className="flex flex-1 flex-col min-h-0">
             <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
-              <div className="mx-auto max-w-2xl">
+              <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl' : 'max-w-2xl'}`}>
                 {sidebarLoading ? (
                   <div className="flex h-full items-center justify-center py-20">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
@@ -1411,7 +1411,7 @@ export default function Chat() {
               </div>
             </div>
             <div className="flex-shrink-0">
-              <div className="mx-auto max-w-2xl md:px-2 md:pb-4">
+              <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl md:px-4 md:pb-4' : 'max-w-2xl md:px-2 md:pb-4'}`}>
                 <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
                 <ChatInputBar {...inputBarProps} />
               </div>
