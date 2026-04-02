@@ -11,6 +11,7 @@ export interface T {
   step1Q: string; step1P: string;
   step2Q: string; step2P: string;
   step3Q: string; step3P: string;
+  step4Q: string; ageRanges: string[]; skipAge: string;
   next: string; letsGo: string; saving: string;
   crops: string[]; savingError: string;
   // Chat - empty state
@@ -137,6 +138,7 @@ const el: T = {
   step1Q: 'Πώς σε λένε;', step1P: 'π.χ. Γιάννης',
   step2Q: 'Πού καλλιεργείς;', step2P: 'Πόλη ή περιοχή',
   step3Q: 'Τι καλλιεργείς κυρίως;', step3P: 'π.χ. Ελιές, Τομάτες',
+  step4Q: 'Πόσο χρονών είσαι;', ageRanges: ['Κάτω από 30', '30–45', '46–60', 'Πάνω από 60'], skipAge: 'Προτιμώ να μην απαντήσω',
   next: 'Επόμενο', letsGo: 'Ξεκινάμε', saving: 'Αποθήκευση...',
   crops: ['Ελιές', 'Αμπελώνας', 'Τομάτα', 'Πορτοκάλια', 'Σιτάρι', 'Άλλο'],
   savingError: 'Δεν αποθηκεύτηκε το προφίλ. Δοκίμασε ξανά.',
@@ -289,6 +291,7 @@ const en: T = {
   step1Q: "What's your name?", step1P: 'e.g. John',
   step2Q: 'Where do you farm?', step2P: 'City or region',
   step3Q: 'What is your main crop?', step3P: 'e.g. Olives, Tomatoes',
+  step4Q: 'How old are you?', ageRanges: ['Under 30', '30–45', '46–60', 'Over 60'], skipAge: 'Prefer not to say',
   next: 'Next', letsGo: "Let's start", saving: 'Saving...',
   crops: ['Olives', 'Vineyard', 'Tomatoes', 'Oranges', 'Wheat', 'Other'],
   savingError: 'Could not save profile. Please try again.',
