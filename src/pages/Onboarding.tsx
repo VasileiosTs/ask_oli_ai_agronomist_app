@@ -53,20 +53,23 @@ export default function Onboarding() {
     setError(null);
 
     let lat = null, lon = null;
+    let geocodeTimeout: ReturnType<typeof setTimeout> | null = null;
     try {
       const geocodeController = new AbortController();
-      const geocodeTimeout = setTimeout(() => geocodeController.abort(), 3000);
+      geocodeTimeout = setTimeout(() => geocodeController.abort(), 3000);
       const res = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=el&format=json`,
         { signal: geocodeController.signal }
       );
-      clearTimeout(geocodeTimeout);
       const data = await res.json();
       if (data.results?.[0]) {
         lat = data.results[0].latitude;
         lon = data.results[0].longitude;
       }
     } catch { /* geocoding is optional — timeout or network failure is fine */ }
+    finally {
+      if (geocodeTimeout) clearTimeout(geocodeTimeout);
+    }
 
     // Check for referral from shared diagnosis
     const referral = localStorage.getItem('oli_referral');
@@ -78,6 +81,7 @@ export default function Onboarding() {
       location_lat: lat,
       location_lon: lon,
       primary_crop: finalCrops.join(', '),
+      language: lang,
       onboarding_complete: true,
     };
     if (referral) {
@@ -88,7 +92,9 @@ export default function Onboarding() {
     try {
       const { error: upsertError } = await supabase
         .from('users')
-        .upsert(payload, { onConflict: 'auth_id' });
+        .upsert(payload, { onConflict: 'auth_id' })
+        .select('id, onboarding_complete')
+        .single();
 
       if (upsertError) {
         console.error('Onboarding upsert error:', upsertError);
@@ -107,8 +113,24 @@ export default function Onboarding() {
         body: { mode: 'welcome', email: user.email, name: name.trim(), lang },
       }).catch(() => {});
 
-      // Refresh auth context so App.tsx routing sees the new profile
-      await refreshProfile();
+      // Refresh auth context with a short retry window so routing sees the
+      // just-written profile instead of briefly bouncing back into onboarding.
+      const refreshedProfile = await refreshProfile({
+        retries: 6,
+        delayMs: 250,
+        requireCompletedOnboarding: true,
+      });
+
+      if (!refreshedProfile?.onboarding_complete) {
+        setError(
+          lang === 'el'
+            ? 'Το προφίλ αποθηκεύτηκε αλλά δεν συγχρονίστηκε σωστά. Δοκίμασε ξανά σε λίγα δευτερόλεπτα.'
+            : 'Your profile was saved, but it did not sync yet. Please try again in a few seconds.',
+        );
+        setLoading(false);
+        return;
+      }
+
       navigate('/chat', { replace: true });
     } catch (err) {
       console.error('Onboarding failed:', err);

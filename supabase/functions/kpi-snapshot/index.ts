@@ -3,6 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const ALLOWED_ORIGINS = [
   'https://codex-ask-oli-app.vercel.app',
   'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
 ];
 
 function corsHeaders(origin: string | null) {

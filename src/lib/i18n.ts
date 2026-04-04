@@ -437,15 +437,13 @@ export async function detectLang(): Promise<Lang> {
   const legacy = localStorage.getItem('oli_lang') as Lang | null;
   if (legacy === 'el' || legacy === 'en') return legacy;
 
-  // Auto-detect from IP every time (no caching — stale 'en' was causing issues)
-  try {
-    const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2000) });
-    const data = await res.json();
-    const lang: Lang = (data.country_code === 'GR' || data.country_code === 'CY') ? 'el' : 'en';
-    return lang;
-  } catch {
-    // Fall back to browser language
-    const browserLang = navigator.language?.startsWith('el') ? 'el' : 'en';
-    return browserLang;
+  const browserLang = navigator.language?.toLowerCase() ?? '';
+  if (browserLang.startsWith('el')) return 'el';
+
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (timezone === 'Europe/Athens' || timezone === 'Asia/Nicosia') {
+    return 'el';
   }
+
+  return 'en';
 }

@@ -55,12 +55,21 @@ export default function Profile() {
     if (!appUserId) return;
     setSaving(true);
     let lat = null, lon = null;
+    let geocodeTimeout: ReturnType<typeof setTimeout> | null = null;
     if (editLocation !== currentProfile.location) {
       try {
-        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(editLocation)}&count=1&language=el&format=json`);
+        const controller = new AbortController();
+        geocodeTimeout = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(editLocation)}&count=1&language=el&format=json`,
+          { signal: controller.signal },
+        );
         const data = await res.json();
         if (data.results?.[0]) { lat = data.results[0].latitude; lon = data.results[0].longitude; }
       } catch { /* geocoding optional */ }
+      finally {
+        if (geocodeTimeout) clearTimeout(geocodeTimeout);
+      }
     }
     const updates: Record<string, unknown> = {
       name: editName.trim(),
@@ -68,7 +77,13 @@ export default function Profile() {
       primary_crop: editCrop.trim(),
     };
     if (lat !== null) { updates.location_lat = lat; updates.location_lon = lon; }
-    await supabase.from('users').update(updates).eq('id', appUserId);
+    const { error } = await supabase.from('users').update(updates).eq('id', appUserId);
+    if (error) {
+      console.error('Profile update failed:', error);
+      showToast(t.savingError);
+      setSaving(false);
+      return;
+    }
     await refreshProfile();
     setSaving(false);
     setEditOpen(false);
@@ -139,33 +154,26 @@ export default function Profile() {
   const deleteAccount = async () => {
     if (!appUserId || !user || deleteConfirm !== t.deleteConfirmWord) return;
     setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-account', {
+        body: {},
+      });
 
-    // 1. Delete storage files (GDPR)
-    const { data: files } = await supabase.storage
-      .from('chat_uploads')
-      .list(user.id, { limit: 1000 });
-    if (files && files.length > 0) {
-      await supabase.storage
-        .from('chat_uploads')
-        .remove(files.map(f => `${user.id}/${f.name}`));
+      if (error) {
+        throw error;
+      }
+
+      try {
+        await logout();
+      } catch (logoutError) {
+        console.warn('Local sign-out after account deletion failed:', logoutError);
+      }
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Delete account failed:', error);
+      showToast(lang === 'el' ? 'Η διαγραφή λογαριασμού απέτυχε. Δοκίμασε ξανά.' : 'Account deletion failed. Please try again.');
+      setDeleting(false);
     }
-
-    // 2. Delete ALL DB rows (H1: Complete GDPR deletion — all user tables)
-    await supabase.from('chat_messages').delete().eq('user_id', appUserId);
-    await supabase.from('interventions').delete().eq('user_id', appUserId);
-    await supabase.from('memory_snapshots').delete().eq('user_id', appUserId);
-    await supabase.from('crops').delete().in(
-      'field_id',
-      (await supabase.from('fields').select('id').eq('user_id', appUserId)).data?.map((f: { id: string }) => f.id) || []
-    );
-    await supabase.from('push_subscriptions').delete().eq('user_id', appUserId);
-    await supabase.from('conversations').delete().eq('user_id', appUserId);
-    await supabase.from('fields').delete().eq('user_id', appUserId);
-    await supabase.from('users').delete().eq('id', appUserId);
-
-    // 3. Sign out
-    await logout();
-    navigate('/');
   };
 
   return (
