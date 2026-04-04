@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, readStoredSupabaseSession } from '../lib/supabase';
 import { Leaf } from 'lucide-react';
 
 /**
@@ -15,6 +15,44 @@ export default function AuthCallback() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const waitForSession = async (timeoutMs = 5000) => {
+      const existing = readStoredSupabaseSession();
+      if (existing) {
+        return existing;
+      }
+
+      return await new Promise<Awaited<ReturnType<typeof readStoredSupabaseSession>>>((resolve) => {
+        let settled = false;
+        let timeoutId: number | undefined;
+
+        const finish = (session: ReturnType<typeof readStoredSupabaseSession>) => {
+          if (settled) return;
+          settled = true;
+          if (timeoutId) {
+            window.clearTimeout(timeoutId);
+          }
+          subscription.unsubscribe();
+          resolve(session);
+        };
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session?.access_token) {
+            finish(session);
+          }
+        });
+
+        supabase.auth.getSession()
+          .then(({ data: { session } }) => {
+            if (session?.access_token) {
+              finish(session);
+            }
+          })
+          .catch(() => {});
+
+        timeoutId = window.setTimeout(() => finish(readStoredSupabaseSession()), timeoutMs);
+      });
+    };
+
     const handle = async () => {
       const url = new URL(window.location.href);
       const code = url.searchParams.get('code');
@@ -32,10 +70,10 @@ export default function AuthCallback() {
 
       // OAuth flow: hash fragment (#access_token=...) — Supabase client
       // already processes this via detectSessionInUrl:true. onAuthStateChange
-      // will fire with SIGNED_IN. Just wait briefly then navigate to root.
+      // will fire with SIGNED_IN. Wait for a real session instead of a fixed timeout.
       if (hasHashTokens) {
-        // Give onAuthStateChange time to fire and update context
-        setTimeout(() => navigate('/', { replace: true }), 100);
+        const session = await waitForSession();
+        navigate(session ? '/' : '/auth', { replace: true });
         return;
       }
 
@@ -48,13 +86,14 @@ export default function AuthCallback() {
           setTimeout(() => navigate('/auth', { replace: true }), 2500);
           return;
         }
-        navigate('/', { replace: true });
+        const session = await waitForSession();
+        navigate(session ? '/' : '/auth', { replace: true });
         return;
       }
 
       // No code or hash — might be OAuth with implicit flow already processed
       // Check if we already have a session
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await waitForSession(1500);
       if (session) {
         navigate('/', { replace: true });
       } else {
