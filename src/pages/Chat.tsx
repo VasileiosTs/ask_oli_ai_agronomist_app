@@ -1135,7 +1135,6 @@ export default function Chat() {
     trackEvent(Events.MESSAGE_SENT, { hasPhotos, messageCount: messageCount + 1 });
     if (hasPhotos) trackEvent(Events.FIRST_PHOTO);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
 
     // No extraction pipeline — the main Gemini call already returns crop_mentioned
     // in its response metadata. This saves a second API call per message.
@@ -1179,7 +1178,6 @@ export default function Chat() {
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
     }
   };
 
@@ -1307,6 +1305,7 @@ export default function Chat() {
   };
 
   return (
+    <div className="flex h-[100dvh] bg-background overflow-hidden pt-safe">
     <div className="flex h-[100dvh] bg-background overflow-hidden pt-safe">
 
       {/* ── DESKTOP: permanent sidebar (hidden in guest mode) ── */}
