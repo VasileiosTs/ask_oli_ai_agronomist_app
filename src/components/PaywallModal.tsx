@@ -1,84 +1,171 @@
-import { X, Crown } from 'lucide-react';
+import { X, Crown, Check, Sprout, Briefcase, Building2 } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { useState } from 'react';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
+const TIERS = [
+  {
+    key: 'free' as const,
+    icon: Sprout,
+    color: 'text-muted',
+    borderActive: 'border-muted',
+    features: { en: ['10 messages/week', '3 fields', '7-day history', '1 report/month'], el: ['10 μηνύματα/εβδομάδα', '3 χωράφια', 'Ιστορικό 7 ημερών', '1 αναφορά/μήνα'] },
+    price: null,
+    current: true,
+  },
+  {
+    key: 'pro' as const,
+    icon: Crown,
+    color: 'text-primary',
+    borderActive: 'border-primary',
+    features: { en: ['Unlimited messages', 'Unlimited fields', 'Full history', 'Unlimited reports'], el: ['Απεριόριστα μηνύματα', 'Απεριόριστα χωράφια', 'Πλήρες ιστορικό', 'Απεριόριστες αναφορές'] },
+    price: { en: '€8.99/month', el: '€8,99/μήνα' },
+  },
+  {
+    key: 'agronomist' as const,
+    icon: Briefcase,
+    color: 'text-amber-500',
+    borderActive: 'border-amber-500',
+    features: { en: ['Everything in Pro', 'Branded reports', 'Client management', 'Priority support'], el: ['Όλα του Pro', 'Επώνυμες αναφορές', 'Διαχείριση πελατών', 'Προτεραιότητα υποστήριξης'] },
+    price: { en: '€49/month', el: '€49/μήνα' },
+  },
+  {
+    key: 'enterprise' as const,
+    icon: Building2,
+    color: 'text-blue-500',
+    borderActive: 'border-blue-500',
+    features: { en: ['Custom integrations', 'Dedicated support', 'SLA guarantee', 'Volume pricing'], el: ['Προσαρμοσμένες ενσωματώσεις', 'Αφοσιωμένη υποστήριξη', 'Εγγύηση SLA', 'Τιμές όγκου'] },
+    price: null,
+    enterprise: true,
+  },
+] as const;
+
 export default function PaywallModal({ isOpen, onClose }: Props) {
-  const { t, lang } = useLanguage();
-  const [selected, setSelected] = useState<'monthly' | 'yearly' | null>(null);
+  const { lang } = useLanguage();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [enterpriseEmail, setEnterpriseEmail] = useState('');
+  const [enterpriseSent, setEnterpriseSent] = useState(false);
   if (!isOpen) return null;
 
-  const comingSoon = lang === 'el' ? 'Σύντομα διαθέσιμο' : 'Coming soon';
+  const l = lang === 'el' ? 'el' : 'en';
+  const labels = {
+    title: { en: 'Choose Your Plan', el: 'Επιλέξτε Πλάνο' },
+    current: { en: 'Current', el: 'Τρέχον' },
+    upgrade: { en: 'Upgrade', el: 'Αναβάθμιση' },
+    comingSoon: { en: 'Coming soon', el: 'Σύντομα' },
+    requestQuote: { en: 'Request a Quote', el: 'Ζητήστε Προσφορά' },
+    enterEmail: { en: 'Your email', el: 'Το email σας' },
+    send: { en: 'Send', el: 'Αποστολή' },
+    sent: { en: 'We\'ll be in touch!', el: 'Θα επικοινωνήσουμε!' },
+    cancel: { en: 'Cancel anytime', el: 'Ακύρωση ανά πάσα στιγμή' },
+  };
 
-  const handleSelect = (plan: 'monthly' | 'yearly') => {
-    setSelected(plan);
-    // TODO: integrate Stripe checkout when ready
+  const handleEnterprise = async () => {
+    if (!enterpriseEmail.trim()) return;
+    try {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ to: 'hello@askoli.ai', subject: 'Enterprise Inquiry', body: `Enterprise inquiry from: ${enterpriseEmail}` }),
+      });
+    } catch { /* best effort */ }
+    setEnterpriseSent(true);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl">
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-2xl">
         <button onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 text-muted hover:bg-background hover:text-foreground transition-colors">
+          className="absolute right-3 top-3 rounded-full p-1 text-muted hover:bg-background hover:text-foreground transition-colors z-10">
           <X className="h-5 w-5" />
         </button>
 
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
-            <Crown className="h-6 w-6 text-primary" />
-          </div>
-          <h2 className="mb-2 text-2xl font-bold text-foreground">{t.paywallTitle}</h2>
-          <p className="text-sm text-muted">{t.paywallBody}</p>
-        </div>
+        <h2 className="mb-4 text-center text-xl font-bold text-foreground">{labels.title[l]}</h2>
 
         <div className="space-y-3">
-          {/* Monthly plan */}
-          <button
-            onClick={() => handleSelect('monthly')}
-            className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
-              selected === 'monthly'
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-background hover:border-primary/50'
-            }`}
-          >
-            <div>
-              <p className="font-semibold text-foreground">{t.monthlyPlan}</p>
-              <p className="text-sm text-muted">{t.unlimitedMessages}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-lg font-bold text-foreground">{t.monthly}</span>
-            </div>
-          </button>
-
-          {/* Yearly plan */}
-          <button
-            onClick={() => handleSelect('yearly')}
-            className={`relative flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
-              selected === 'yearly'
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-background hover:border-primary/50'
-            }`}
-          >
-            <div className="absolute -top-3 left-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-              {t.savings}
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">{t.yearlyPlan}</p>
-              <p className="text-sm text-muted">{t.unlimitedMessages}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-lg font-bold text-foreground">{t.yearly}</span>
-            </div>
-          </button>
+          {TIERS.map((tier) => {
+            const Icon = tier.icon;
+            const isSelected = selected === tier.key;
+            const isCurrent = 'current' in tier;
+            const isEnterprise = 'enterprise' in tier;
+            return (
+              <button
+                key={tier.key}
+                onClick={() => setSelected(tier.key)}
+                className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                  isSelected ? `${tier.borderActive} bg-primary/5` : 'border-border bg-background hover:border-primary/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-5 w-5 flex-shrink-0 ${tier.color}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground capitalize">{tier.key}</span>
+                      {isCurrent && (
+                        <span className="rounded-full bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted">
+                          {labels.current[l]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                      {tier.features[l].map((f) => (
+                        <span key={f} className="flex items-center gap-1 text-xs text-muted">
+                          <Check className="h-3 w-3 text-primary" />
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {tier.price ? (
+                      <span className="text-sm font-bold text-foreground">{tier.price[l]}</span>
+                    ) : isEnterprise ? (
+                      <span className="text-xs font-medium text-blue-500">{labels.requestQuote[l]}</span>
+                    ) : (
+                      <span className="text-xs text-muted">{labels.current[l]}</span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Coming soon notice */}
-        <div className="mt-4 rounded-xl bg-primary/10 p-3 text-center">
-          <p className="text-sm font-medium text-primary">{comingSoon}</p>
-        </div>
+        {/* Enterprise email form */}
+        {selected === 'enterprise' && (
+          <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 animate-fade-in">
+            {enterpriseSent ? (
+              <p className="text-center text-sm font-medium text-blue-500">{labels.sent[l]}</p>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={enterpriseEmail}
+                  onChange={(e) => setEnterpriseEmail(e.target.value)}
+                  placeholder={labels.enterEmail[l]}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={handleEnterprise}
+                  disabled={!enterpriseEmail.trim()}
+                  className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                >
+                  {labels.send[l]}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-        <p className="mt-3 text-center text-xs text-muted">{t.cancelAnytime}</p>
+        {/* Upgrade button for pro/agronomist */}
+        {(selected === 'pro' || selected === 'agronomist') && (
+          <div className="mt-3 rounded-xl bg-primary/10 p-3 text-center">
+            <p className="text-sm font-medium text-primary">{labels.comingSoon[l]}</p>
+          </div>
+        )}
+
+        <p className="mt-3 text-center text-xs text-muted">{labels.cancel[l]}</p>
       </div>
     </div>
   );

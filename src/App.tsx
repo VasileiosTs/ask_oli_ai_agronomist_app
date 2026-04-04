@@ -18,6 +18,7 @@ const History = lazy(() => import('./pages/History'));
 const Fields = lazy(() => import('./pages/Fields'));
 const SharedDiagnosis = lazy(() => import('./pages/SharedDiagnosis'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
+const FieldDetail = lazy(() => import('./pages/FieldDetail'));
 
 const NotFound = () => {
   const { t } = useLanguage();
@@ -213,6 +214,7 @@ function AppRoutes() {
       >
         <Route path="/history" element={<History />} />
         <Route path="/fields" element={<Fields />} />
+        <Route path="/fields/:fieldId" element={<FieldDetail />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 

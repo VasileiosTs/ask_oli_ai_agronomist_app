@@ -45,7 +45,7 @@ export default function ChatInputBar({
   onToggleAttachmentSheet,
 }: ChatInputBarProps) {
   return (
-    <div className="border-t border-border/50 bg-surface/95 backdrop-blur-sm mb-14 md:mb-0">
+    <div className="border-t border-border/50 bg-surface/95 backdrop-blur-sm mb-16 md:mb-0">
       {messageCount >= FREE_LIMIT - 3 && (
         <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
           {FREE_LIMIT - messageCount} {t.messagesLeft}

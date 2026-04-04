@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import { getTierLimits } from '../lib/constants';
 import clsx from 'clsx';
 
 interface Field {
@@ -30,15 +32,21 @@ function getFieldStatus(field: Field): 'healthy' | 'warning' | 'critical' {
 }
 
 export default function Fields() {
-  const { appUserId } = useAuth();
+  const { appUserId, profile } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
+  const [limitToast, setLimitToast] = useState(false);
   const [form, setForm] = useState<FieldFormData>({
     name: '', crop_type: '', location: '', size_ha: '',
     soil_type: '', irrigation_type: '', growing_medium: '',
   });
+
+  const tier = (profile as { tier?: string })?.tier || 'free';
+  const limits = getTierLimits(tier);
 
   const STATUS_CONFIG = {
     critical: { color: 'text-red-400 bg-red-500/10 border-red-500/30', icon: <AlertTriangle className="h-3.5 w-3.5" />, label: t.statusCritical },
@@ -55,6 +63,17 @@ export default function Fields() {
     },
     enabled: !!appUserId,
   });
+
+  // Handle edit navigation state from FieldDetail
+  const editFromNav = (location.state as { edit?: string })?.edit;
+  if (editFromNav && fields.length > 0 && !sheetOpen && !editingField) {
+    const fieldToEdit = fields.find(f => f.id === editFromNav);
+    if (fieldToEdit) {
+      // Clear navigation state and open edit
+      window.history.replaceState({}, '');
+      setTimeout(() => openEdit(fieldToEdit), 0);
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -85,6 +104,12 @@ export default function Fields() {
   });
 
   const openAdd = () => {
+    // Enforce field limit for free tier
+    if (fields.length >= limits.fields) {
+      setLimitToast(true);
+      setTimeout(() => setLimitToast(false), 3000);
+      return;
+    }
     setEditingField(null);
     setForm({ name: '', crop_type: '', location: '', size_ha: '', soil_type: '', irrigation_type: '', growing_medium: '' });
     setSheetOpen(true);
@@ -100,13 +125,15 @@ export default function Fields() {
 
   const closeSheet = () => { setSheetOpen(false); setEditingField(null); };
 
-
   return (
     <div className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       <div className="border-b border-border/50 px-4 py-4">
         <div className="flex items-center gap-2">
           <Sprout className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-semibold text-foreground">{t.myFields}</h1>
+          {limits.fields !== Infinity && (
+            <span className="ml-auto text-xs text-muted">{fields.length}/{limits.fields}</span>
+          )}
         </div>
         <p className="mt-0.5 text-xs text-muted">{t.fieldsSubtitle}</p>
       </div>
@@ -131,7 +158,8 @@ export default function Fields() {
               const status = getFieldStatus(field);
               const cfg = STATUS_CONFIG[status];
               return (
-                <div key={field.id} className="rounded-2xl border border-border/50 bg-surface p-4">
+                <button key={field.id} onClick={() => navigate(`/fields/${field.id}`)}
+                  className="w-full rounded-2xl border border-border/50 bg-surface p-4 text-left transition-colors hover:bg-surface/80 active:scale-[0.99]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -146,23 +174,33 @@ export default function Fields() {
                         {field.growing_medium && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{t.fieldOptionLabels[field.growing_medium] || field.growing_medium}</span>}
                       </div>
                     </div>
-                    <button onClick={() => openEdit(field)} className="flex-shrink-0 rounded-full p-2 text-muted hover:bg-muted/10 hover:text-foreground transition-colors">
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
+                    <ChevronRight className="h-4 w-4 text-muted flex-shrink-0 mt-1" />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
       </div>
 
+      {/* FAB — Add field */}
       {fields.length > 0 && (
-        <button onClick={openAdd} aria-label="Add field" className="fixed bottom-[80px] md:bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform active:scale-95 hover:bg-primary/90">
+        <button onClick={openAdd} aria-label={t.addField} className="fixed bottom-[80px] md:bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-transform active:scale-95 hover:bg-primary/90">
           <Plus className="h-6 w-6" />
         </button>
       )}
 
+      {/* Field limit toast */}
+      {limitToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 shadow-lg backdrop-blur-sm">
+            <p className="text-sm font-medium text-amber-400">{t.fieldLimitReached}</p>
+            <p className="text-xs text-muted mt-0.5">{t.fieldLimitBody}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit sheet */}
       {sheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-t-[28px] bg-background p-6 pb-safe shadow-xl max-h-[90dvh] overflow-y-auto">

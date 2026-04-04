@@ -26,6 +26,14 @@ interface DiagnosisData {
   chemical_treatments: string[] | null;
 }
 
+interface ActionDetected {
+  action_type: string;
+  product: string | null;
+  quantity: string | null;
+  date_mentioned: string | null;
+  confidence: number;
+}
+
 interface AiResponseJson {
   response_text: string;
   intent: 'diagnosis' | 'advice' | 'followup' | 'general' | 'unclear';
@@ -34,6 +42,7 @@ interface AiResponseJson {
   question_count: number;
   has_banned_opener: boolean;
   diagnosis_data: DiagnosisData | null;
+  action_detected: ActionDetected | null;
 }
 
 interface ExtractionResult {
@@ -209,6 +218,15 @@ FIELD & HISTORY CONTEXT:
 ${fieldContext || 'No field data or treatment history on record yet.'}
 ${growerContext ? `GROWER CONTEXT:\n${growerContext}` : ''}
 
+AUTO-LOG DETECTION:
+When the farmer mentions a past action they performed (e.g., "I sprayed copper yesterday", "applied fertilizer last week", "watered the field this morning"), populate action_detected:
+- action_type: one of spray, fertilization, irrigation, observation, harvest
+- product: the product name if mentioned (e.g., "copper", "urea", "Bordeaux mixture"), null otherwise
+- quantity: dosage/amount if mentioned (e.g., "2kg/ha", "500ml"), null otherwise
+- date_mentioned: the relative or absolute date (e.g., "yesterday", "last week", "2024-03-01"), null if not mentioned
+- confidence: 0.0-1.0 how confident you are this is a real past action (not hypothetical or a question)
+Only detect PAST actions the farmer actually performed, not recommendations you are giving. Set confidence < 0.5 for uncertain mentions.
+
 RESPONSE FORMAT (internal JSON — extract response_text for display):
 Return valid JSON matching the validator schema. response_text is what the user sees.
 Keep response_text conversational, warm, and thorough. For diagnosis responses, use as many words as needed to fully explain the problem, cause, and treatment — do NOT truncate. For simple questions, keep it concise.`;
@@ -339,6 +357,19 @@ function buildResponseSchema() {
           organic_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
           chemical_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
         },
+      },
+    },
+      action_detected: {
+        type: 'OBJECT',
+        nullable: true,
+        properties: {
+          action_type: { type: 'STRING', enum: ['spray', 'fertilization', 'irrigation', 'observation', 'harvest'] },
+          product: { type: 'STRING', nullable: true },
+          quantity: { type: 'STRING', nullable: true },
+          date_mentioned: { type: 'STRING', nullable: true },
+          confidence: { type: 'NUMBER' },
+        },
+        required: ['action_type', 'confidence'],
       },
     },
     required: ['response_text', 'intent', 'field_scope', 'question_count', 'has_banned_opener'],
@@ -555,6 +586,10 @@ function buildAssistantMetadata(aiResponse: AiResponseJson): Record<string, unkn
     metadata.diagnosis_data = aiResponse.diagnosis_data;
   }
 
+  if (aiResponse.action_detected) {
+    metadata.action_detected = aiResponse.action_detected;
+  }
+
   return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
@@ -743,6 +778,18 @@ async function fetchLatestMemorySnapshot(
   return data as MemorySnapshotRow;
 }
 
+function estimateGrowthStage(cropType: string | null, plantedAt: string | null): string | null {
+  if (!cropType || !plantedAt) return null;
+  const daysSincePlanting = Math.floor((Date.now() - new Date(plantedAt).getTime()) / 86400000);
+  if (daysSincePlanting < 0) return null;
+  // Simplified stage estimation for AI context
+  if (daysSincePlanting <= 14) return `Germination (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 60) return `Vegetative growth (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 90) return `Flowering (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 130) return `Fruiting (day ${daysSincePlanting})`;
+  return `Maturity (day ${daysSincePlanting})`;
+}
+
 async function assembleServerFieldContext(
   supabaseAdmin: any,
   appUserId: string,
@@ -750,11 +797,15 @@ async function assembleServerFieldContext(
   activeFieldId?: string | null,
   fallbackFieldContext = '',
 ) {
-  const [interventions, pendingFollowUps, latestSnapshot] = await Promise.all([
+  const [interventions, pendingFollowUps, latestSnapshot, cropsResult] = await Promise.all([
     fetchContextInterventions(supabaseAdmin, appUserId, activeFieldId),
     fetchPendingFollowUps(supabaseAdmin, appUserId, activeFieldId),
     fetchLatestMemorySnapshot(supabaseAdmin, appUserId, activeFieldId),
+    activeFieldId
+      ? supabaseAdmin.from('crops').select('planted_at, name').eq('field_id', activeFieldId).limit(1)
+      : Promise.resolve({ data: null }),
   ]);
+  const plantedAt = cropsResult?.data?.[0]?.planted_at ?? null;
 
   const fieldMap = new Map(fields.map((field) => [field.id, field]));
   const sections: string[] = [];
@@ -763,7 +814,10 @@ async function assembleServerFieldContext(
     (fields.length === 1 ? fields[0] : null);
 
   if (activeField) {
-    sections.push(`ACTIVE FIELD:\n${formatFieldContextBlock(activeField)}`);
+    let fieldBlock = formatFieldContextBlock(activeField);
+    const stage = estimateGrowthStage(activeField.crop_type, plantedAt);
+    if (stage) fieldBlock += ` | Growth stage: ${stage}`;
+    sections.push(`ACTIVE FIELD:\n${fieldBlock}`);
 
     if (Array.isArray(activeField.recent_diagnoses) && activeField.recent_diagnoses.length > 0) {
       sections.push(`RECENT DIAGNOSES:\n- ${activeField.recent_diagnoses.join('\n- ')}`);

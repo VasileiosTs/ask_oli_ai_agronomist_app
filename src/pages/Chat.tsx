@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { useState, useEffect, useRef, useReducer } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -19,6 +19,7 @@ import { trackEvent, Events } from '../lib/analytics';
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
+import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
 import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
@@ -64,6 +65,7 @@ export default function Chat() {
   const { user, profile, appUserId } = useAuth();
   const { t, lang } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
+  const routeLocation = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -119,6 +121,7 @@ export default function Chat() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
+  const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -336,6 +339,28 @@ export default function Chat() {
       : (lang === 'el' ? 'Θα βελτιωθώ!' : "I'll improve!"));
   };
 
+  const handleAutoLogConfirm = async (action: ActionDetected) => {
+    if (!appUserId) return;
+    const fieldId = activeFieldId || null;
+    try {
+      await supabase.from('interventions').insert({
+        user_id: appUserId,
+        field_id: fieldId,
+        diagnosis: action.action_type,
+        product_applied: action.product || null,
+        dosage: action.quantity || null,
+        applied_at: new Date().toISOString(),
+        step: 1,
+        follow_up_at: new Date(Date.now() + VIO_STEP2_DAYS * 86400000).toISOString(),
+        source: 'auto_log',
+      });
+      showToast(lang === 'el' ? 'Καταγράφηκε!' : 'Logged!');
+    } catch {
+      showToast(lang === 'el' ? 'Σφάλμα καταγραφής' : 'Failed to log');
+    }
+    setPendingAutoLog(null);
+  };
+
   const handleLogIntervention = (msg: Message) => {
     if (!msg.metadata?.diagnosis_data) return;
     setLogModalData({
@@ -532,6 +557,15 @@ export default function Chat() {
     }
     setFields([]);
   }, [appUserId]);
+
+  // Pre-select field when navigating from FieldDetail "Ask Oli" button
+  useEffect(() => {
+    const navFieldId = (routeLocation.state as { fieldId?: string } | null)?.fieldId;
+    if (navFieldId && fields.length > 0 && fields.some(f => f.id === navFieldId)) {
+      setActiveFieldId(navFieldId);
+      window.history.replaceState({}, '');
+    }
+  }, [routeLocation.state, fields]);
 
   const prevMessageCountRef = useRef(0);
   useEffect(() => {
@@ -917,6 +951,12 @@ export default function Chat() {
 
       if (completion.fieldId && completion.fieldId !== currentActiveFieldId) {
         setActiveFieldId(completion.fieldId);
+      }
+
+      // Auto-log detection: show banner if AI detected a past action
+      const detected = completion.metadata?.action_detected;
+      if (detected && typeof detected === 'object' && 'action_type' in detected && 'confidence' in detected) {
+        setPendingAutoLog(detected as ActionDetected);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -1428,6 +1468,14 @@ export default function Chat() {
             </div>
             <div className="flex-shrink-0">
               <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl md:px-4 md:pb-4' : 'max-w-2xl md:px-2 md:pb-4'}`}>
+                {pendingAutoLog && (
+                  <AutoLogBanner
+                    action={pendingAutoLog}
+                    lang={lang}
+                    onConfirm={handleAutoLogConfirm}
+                    onDismiss={() => setPendingAutoLog(null)}
+                  />
+                )}
                 <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
                 <ChatInputBar {...inputBarProps} />
               </div>

@@ -154,6 +154,8 @@ export default function Onboarding() {
     };
     if (ageRange) payload.age_range = ageRange;
     if (referral) { payload.referred_by_share_id = referral; localStorage.removeItem('oli_referral'); }
+    const signupRole = localStorage.getItem('oli_signup_role');
+    if (signupRole === 'agronomist') { payload.role = 'agronomist'; localStorage.removeItem('oli_signup_role'); }
 
     try {
       const { error: upsertError } = await supabase

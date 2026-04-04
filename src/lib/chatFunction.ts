@@ -23,6 +23,14 @@ export interface ChatFunctionRequest {
   lang?: string;
 }
 
+export interface ActionDetectedPayload {
+  action_type: string;
+  product?: string | null;
+  quantity?: string | null;
+  date_mentioned?: string | null;
+  confidence: number;
+}
+
 export interface ChatFunctionMetadata {
   diagnosis_data?: Record<string, unknown> | null;
   crop_mentioned?: string | null;
@@ -30,6 +38,7 @@ export interface ChatFunctionMetadata {
   field_scope?: string;
   question_count?: number;
   has_banned_opener?: boolean;
+  action_detected?: ActionDetectedPayload | null;
   [key: string]: unknown;
 }
 

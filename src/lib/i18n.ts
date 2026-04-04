@@ -122,6 +122,19 @@ export interface T {
   pushPromptTitle: string; pushPromptBody: string; pushPromptEnable: string; pushPromptLater: string;
   // Referral
   inviteFriends: string; inviteBody: string; inviteCopied: string; copyLink: string;
+  // Field detail
+  fieldDetailTimeline: string; fieldDetailNoActivity: string;
+  fieldDetailAskOli: string; fieldDetailTreatments: string;
+  fieldDetailPending: string; fieldDetailChats: string;
+  fieldDetailPendingFollowups: string; fieldDetailLastIssue: string;
+  fieldDetailNotFound: string; fieldDetailDue: string;
+  // Growth stages
+  stageGermination: string; stageVegetative: string; stageFlowering: string;
+  stageFruiting: string; stageMaturity: string; stageDormant: string;
+  stageDay: string;
+  // Tier limits
+  fieldLimitReached: string; fieldLimitBody: string;
+  messagesPerWeek: string;
 }
 
 const el: T = {
@@ -275,6 +288,19 @@ const el: T = {
   termsLawBody: 'Εφαρμόζεται το ελληνικό δίκαιο. Αρμόδια δικαστήρια τα δικαστήρια Αθηνών.',
   pushPromptTitle: 'Ειδοποιήσεις', pushPromptBody: 'Ενεργοποίησε τις ειδοποιήσεις για follow-up υπενθυμίσεις.', pushPromptEnable: 'Ενεργοποίηση', pushPromptLater: 'Αργότερα',
   inviteFriends: 'Προσκάλεσε φίλους', inviteBody: 'Μοιράσου τον Oli με άλλους αγρότες.', inviteCopied: 'Ο σύνδεσμος αντιγράφηκε!', copyLink: 'Αντιγραφή συνδέσμου',
+  // Field detail
+  fieldDetailTimeline: 'Ιστορικό', fieldDetailNoActivity: 'Δεν υπάρχει ιστορικό ακόμα',
+  fieldDetailAskOli: 'Ρώτα τον Oli για αυτό το χωράφι', fieldDetailTreatments: 'Παρεμβάσεις',
+  fieldDetailPending: 'Εκκρεμεί', fieldDetailChats: 'Συνομιλίες',
+  fieldDetailPendingFollowups: 'Εκκρεμή follow-ups', fieldDetailLastIssue: 'Τελ. πρόβλημα',
+  fieldDetailNotFound: 'Δεν βρέθηκε το χωράφι', fieldDetailDue: 'Προθεσμία',
+  // Growth stages
+  stageGermination: 'Φύτρωμα', stageVegetative: 'Βλαστική', stageFlowering: 'Ανθοφορία',
+  stageFruiting: 'Καρποφορία', stageMaturity: 'Ωρίμανση', stageDormant: 'Λήθαργος',
+  stageDay: 'Ημέρα',
+  // Tier limits
+  fieldLimitReached: 'Όριο χωραφιών', fieldLimitBody: 'Αναβάθμισε σε Pro για απεριόριστα χωράφια.',
+  messagesPerWeek: 'μηνύματα/εβδομάδα',
 };
 
 const en: T = {
@@ -428,6 +454,19 @@ const en: T = {
   termsLawBody: 'Greek law applies. The courts of Athens have exclusive jurisdiction.',
   pushPromptTitle: 'Notifications', pushPromptBody: 'Enable notifications for VIO follow-up reminders.', pushPromptEnable: 'Enable', pushPromptLater: 'Later',
   inviteFriends: 'Invite friends', inviteBody: 'Share Oli with other farmers.', inviteCopied: 'Link copied!', copyLink: 'Copy link',
+  // Field detail
+  fieldDetailTimeline: 'Timeline', fieldDetailNoActivity: 'No activity yet',
+  fieldDetailAskOli: 'Ask Oli about this field', fieldDetailTreatments: 'Treatments',
+  fieldDetailPending: 'Pending', fieldDetailChats: 'Chats',
+  fieldDetailPendingFollowups: 'Pending follow-ups', fieldDetailLastIssue: 'Last issue',
+  fieldDetailNotFound: 'Field not found', fieldDetailDue: 'Due',
+  // Growth stages
+  stageGermination: 'Germination', stageVegetative: 'Vegetative', stageFlowering: 'Flowering',
+  stageFruiting: 'Fruiting', stageMaturity: 'Maturity', stageDormant: 'Dormant',
+  stageDay: 'Day',
+  // Tier limits
+  fieldLimitReached: 'Field limit reached', fieldLimitBody: 'Upgrade to Pro for unlimited fields.',
+  messagesPerWeek: 'messages/week',
 };
 
 export const dict: Record<Lang, T> = { el, en };

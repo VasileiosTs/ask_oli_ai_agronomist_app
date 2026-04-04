@@ -10,6 +10,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [isAgronomist, setIsAgronomist] = useState(false);
   const { t, lang } = useLanguage();
 
   // Capture referral share ID from URL
@@ -20,6 +21,11 @@ export default function Auth() {
       localStorage.setItem('oli_referral', ref);
     }
   }, []);
+
+  // Persist role selection for onboarding
+  useEffect(() => {
+    localStorage.setItem('oli_signup_role', isAgronomist ? 'agronomist' : 'farmer');
+  }, [isAgronomist]);
 
   // SEO: noindex for auth page, set proper title
   useEffect(() => {
@@ -118,6 +124,31 @@ export default function Auth() {
           </div>
         ) : (
           <div className="space-y-5 animate-fade-in">
+
+            {/* Role toggle */}
+            <button
+              type="button"
+              onClick={() => setIsAgronomist(!isAgronomist)}
+              className="flex w-full items-center justify-between rounded-full px-5 py-3 text-sm transition-all"
+              style={{
+                background: isAgronomist ? '#194121' : '#f5f4ef',
+                color: isAgronomist ? '#fff' : '#606659',
+                border: `1px solid ${isAgronomist ? '#194121' : '#e3e3de'}`,
+              }}
+            >
+              <span className="font-medium">
+                {lang === 'el' ? 'Είμαι γεωπόνος' : "I'm an agronomist"}
+              </span>
+              <div
+                className="relative h-5 w-9 rounded-full transition-colors"
+                style={{ background: isAgronomist ? '#c0eec0' : '#d1d1cd' }}
+              >
+                <div
+                  className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
+                  style={{ transform: isAgronomist ? 'translateX(16px)' : 'translateX(2px)' }}
+                />
+              </div>
+            </button>
 
             {/* OAuth buttons */}
             <div className="space-y-3">
