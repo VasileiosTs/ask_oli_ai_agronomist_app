@@ -213,6 +213,8 @@ MEMORY & TREATMENT HISTORY:
 - If there's a pending follow-up, ask about it naturally: "How did the [treatment] work out?"
 - NEVER repeat the raw history back to the farmer. Weave it naturally into your advice.
 - If the history shows repeated issues on the same field, flag it as a possible systemic problem.
+- FIELD MEMORY LOG contains a chronological log of past AI exchanges for this field — use it to recall nuanced observations across conversations that may not have resulted in a logged intervention.
+- SAME CROP — OTHER FIELDS shows what happened on the farmer's other fields with the same crop. Use it to spot patterns, e.g. "I see this also appeared on your other olive field last month — this could be a regional pressure."
 
 FIELD & HISTORY CONTEXT:
 ${fieldContext || 'No field data or treatment history on record yet.'}
@@ -753,28 +755,81 @@ async function fetchPendingFollowUps(
   return followUps;
 }
 
-async function fetchLatestMemorySnapshot(
+async function fetchRecentMemorySnapshots(
   supabaseAdmin: any,
   appUserId: string,
   fieldId?: string | null,
-): Promise<MemorySnapshotRow | null> {
+  limit = 5,
+): Promise<MemorySnapshotRow[]> {
   let query = supabaseAdmin
     .from('memory_snapshots')
     .select('id, field_id, summary, snapshot, created_at')
     .eq('user_id', appUserId)
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(limit);
 
   if (fieldId) {
     query = query.eq('field_id', fieldId);
   }
 
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) {
-    return null;
+  const { data, error } = await query;
+  if (error || !Array.isArray(data)) {
+    return [];
   }
 
-  return data as MemorySnapshotRow;
+  return data as MemorySnapshotRow[];
+}
+
+/**
+ * Fetch recent interventions from sibling fields that share the same crop_type.
+ * Used to build cross-field context for Gap 2 (same-crop awareness).
+ */
+async function fetchSameCropInterventions(
+  supabaseAdmin: any,
+  appUserId: string,
+  excludeFieldId: string,
+  cropType: string,
+  limit = 3,
+): Promise<{ fieldName: string; item: InterventionContextRow }[]> {
+  // Find sibling field IDs with same crop_type
+  const { data: siblingFields, error: siblingError } = await supabaseAdmin
+    .from('fields')
+    .select('id, name')
+    .eq('user_id', appUserId)
+    .ilike('crop_type', cropType)
+    .neq('id', excludeFieldId)
+    .limit(5);
+
+  if (siblingError || !Array.isArray(siblingFields) || siblingFields.length === 0) {
+    return [];
+  }
+
+  const siblingIds = siblingFields.map((f: { id: string; name: string }) => f.id);
+  const siblingMap = new Map<string, string>(
+    siblingFields.map((f: { id: string; name: string }) => [f.id, f.name]),
+  );
+
+  const columns =
+    'id, field_id, diagnosis, problem, product_applied, product, dosage, ' +
+    'application_method, outcome, outcome_score, follow_up_at, applied_at, date';
+
+  const { data, error } = await supabaseAdmin
+    .from('interventions')
+    .select(columns)
+    .eq('user_id', appUserId)
+    .in('field_id', siblingIds)
+    .order('applied_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  return (data as InterventionContextRow[]).map((item) => ({
+    fieldName: siblingMap.get(item.field_id ?? '') ?? 'Other field',
+    item,
+  }));
 }
 
 function estimateGrowthStage(cropType: string | null, plantedAt: string | null): string | null {
@@ -796,10 +851,10 @@ async function assembleServerFieldContext(
   activeFieldId?: string | null,
   fallbackFieldContext = '',
 ) {
-  const [interventions, pendingFollowUps, latestSnapshot, cropsResult] = await Promise.all([
+  const [interventions, pendingFollowUps, recentSnapshots, cropsResult] = await Promise.all([
     fetchContextInterventions(supabaseAdmin, appUserId, activeFieldId),
     fetchPendingFollowUps(supabaseAdmin, appUserId, activeFieldId),
-    fetchLatestMemorySnapshot(supabaseAdmin, appUserId, activeFieldId),
+    fetchRecentMemorySnapshots(supabaseAdmin, appUserId, activeFieldId, 5),
     activeFieldId
       ? supabaseAdmin.from('crops').select('planted_at, name').eq('field_id', activeFieldId).limit(1)
       : Promise.resolve({ data: null }),
@@ -854,8 +909,34 @@ async function assembleServerFieldContext(
     sections.push(`PENDING FOLLOW-UPS (${pendingFollowUps.length}):\n${lines.join('\n')}`);
   }
 
-  if (latestSnapshot?.summary) {
-    sections.push(`LATEST MEMORY SNAPSHOT:\n- ${latestSnapshot.summary}`);
+  // Gap 1: Rolling field memory log — last 5 AI exchanges for this field
+  const snapshotsWithSummary = recentSnapshots.filter((s) => s.summary);
+  if (snapshotsWithSummary.length > 0) {
+    const logLines = snapshotsWithSummary.map((s) => {
+      const date = s.created_at.split('T')[0];
+      return `- ${date}: ${s.summary}`;
+    });
+    sections.push(`FIELD MEMORY LOG (last ${snapshotsWithSummary.length} exchanges):\n${logLines.join('\n')}`);
+  }
+
+  // Gap 2: Same-crop cross-field context — show what happened on sibling fields
+  if (activeField?.crop_type && activeField.id && fields.length > 1) {
+    const sameCropRows = await fetchSameCropInterventions(
+      supabaseAdmin,
+      appUserId,
+      activeField.id,
+      activeField.crop_type,
+      3,
+    );
+    if (sameCropRows.length > 0) {
+      const lines = sameCropRows.map(({ fieldName, item }) =>
+        formatInterventionContext(item, fieldName),
+      );
+      sections.push(
+        `SAME CROP (${activeField.crop_type}) — OTHER FIELDS:\n${lines.join('\n')}\n` +
+        `(Use this to spot patterns across all your ${activeField.crop_type} fields.)`,
+      );
+    }
   }
 
   const fieldContext = sections.length > 0
