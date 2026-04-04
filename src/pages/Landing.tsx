@@ -324,7 +324,8 @@ function PhoneMockup({ lang }: { lang: string }) {
   const demo = demos[demoIdx];
 
   return (
-    <div className="relative mx-auto w-[220px] sm:w-[240px]" style={{ filter: 'drop-shadow(0 32px 64px rgba(25,65,33,0.22))' }}>
+    // aria-hidden: this is a decorative animated mockup — not real UI content
+    <div aria-hidden="true" className="relative mx-auto w-[220px] sm:w-[240px]" style={{ filter: 'drop-shadow(0 32px 64px rgba(25,65,33,0.22))' }}>
       {/* Phone frame */}
       <div className="relative rounded-[36px] bg-[#111] p-[3px]" style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset' }}>
         {/* Screen */}
