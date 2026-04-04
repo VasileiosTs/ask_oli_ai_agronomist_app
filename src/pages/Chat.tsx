@@ -47,7 +47,6 @@ export default function Chat() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const messagesRef = useRef(messages);
   /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
@@ -746,7 +745,6 @@ export default function Chat() {
     trackEvent(Events.MESSAGE_SENT, { hasPhotos, messageCount: messageCount + 1 });
     if (hasPhotos) trackEvent(Events.FIRST_PHOTO);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
 
     // No extraction pipeline — the main Gemini call already returns crop_mentioned
     // in its response metadata. This saves a second API call per message.
@@ -790,7 +788,6 @@ export default function Chat() {
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      if (desktopTextareaRef.current) desktopTextareaRef.current.style.height = 'auto';
     }
   };
 
@@ -805,73 +802,77 @@ export default function Chat() {
     const thisGeneration = loadGenerationRef.current;
     setSidebarLoading(true);
     setActiveConversationId(id);
+    try {
+      // Restore field context for this conversation
+      const { data: convData } = await supabase
+        .from('conversations')
+        .select('field_id')
+        .eq('id', id)
+        .single();
+      if (loadGenerationRef.current !== thisGeneration) return; // stale load
+      if (convData?.field_id) {
+        setActiveFieldId(convData.field_id);
+      }
 
-    // Restore field context for this conversation
-    const { data: convData } = await supabase
-      .from('conversations')
-      .select('field_id')
-      .eq('id', id)
-      .single();
-    if (loadGenerationRef.current !== thisGeneration) return; // stale load
-    if (convData?.field_id) {
-      setActiveFieldId(convData.field_id);
-    }
-
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('id, role, content, metadata, starred, image_urls, created_at')
-      .eq('conversation_id', id)
-      .order('created_at', { ascending: true })
-      .limit(50);
-    if (loadGenerationRef.current !== thisGeneration) return; // stale load
-    if (data) {
-      // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
-      const blobUrlsCreated: string[] = [];
-      const messages: Message[] = await Promise.all(data.map(async (m: any) => {
-        const base: Message = {
-          id: m.id, db_id: m.id, role: m.role, content: m.content,
-          metadata: m.metadata, starred: m.starred, created_at: m.created_at,
-        };
-        // Resolve stored image paths into displayable URLs
-        if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
-          const attachments: NonNullable<Message['attachments']> = [];
-          const uncached: string[] = [];
-          // 1. Batch check IndexedDB cache (single transaction instead of per-image)
-          const cachedMap = await getCachedImages(m.image_urls);
-          for (const path of m.image_urls) {
-            const cached = cachedMap.get(path);
-            if (cached) {
-              blobUrlsCreated.push(cached);
-              attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
-            } else {
-              uncached.push(path);
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('id, role, content, metadata, starred, image_urls, created_at')
+        .eq('conversation_id', id)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      if (loadGenerationRef.current !== thisGeneration) return; // stale load
+      if (data) {
+        // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
+        const blobUrlsCreated: string[] = [];
+        const messages: Message[] = await Promise.all(data.map(async (m: any) => {
+          const base: Message = {
+            id: m.id, db_id: m.id, role: m.role, content: m.content,
+            metadata: m.metadata, starred: m.starred, created_at: m.created_at,
+          };
+          // Resolve stored image paths into displayable URLs
+          if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
+            const attachments: NonNullable<Message['attachments']> = [];
+            const uncached: string[] = [];
+            // 1. Batch check IndexedDB cache (single transaction instead of per-image)
+            const cachedMap = await getCachedImages(m.image_urls);
+            for (const path of m.image_urls) {
+              const cached = cachedMap.get(path);
+              if (cached) {
+                blobUrlsCreated.push(cached);
+                attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
+              } else {
+                uncached.push(path);
+              }
             }
-          }
-          // 2. Batch sign all uncached paths in ONE API call
-          if (uncached.length > 0) {
-            const { data: signed } = await supabase.storage
-              .from('chat_uploads')
-              .createSignedUrls(uncached, SIGNED_URL_EXPIRY);
-            if (signed) {
-              for (const s of signed) {
-                if (s.signedUrl) {
-                  attachments.push({ url: s.signedUrl, mimeType: 'image/jpeg', name: (s.path || '').split('/').pop() ?? 'photo' });
+            // 2. Batch sign all uncached paths in ONE API call
+            if (uncached.length > 0) {
+              const { data: signed } = await supabase.storage
+                .from('chat_uploads')
+                .createSignedUrls(uncached, SIGNED_URL_EXPIRY);
+              if (signed) {
+                for (const s of signed) {
+                  if (s.signedUrl) {
+                    attachments.push({ url: s.signedUrl, mimeType: 'image/jpeg', name: (s.path || '').split('/').pop() ?? 'photo' });
+                  }
                 }
               }
             }
+            if (attachments.length > 0) base.attachments = attachments;
           }
-          if (attachments.length > 0) base.attachments = attachments;
+          return base;
+        }));
+        // L2: If another load/clear happened while we were resolving images, revoke the orphaned blob URLs
+        if (loadGenerationRef.current !== thisGeneration) {
+          blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
+          return;
         }
-        return base;
-      }));
-      // L2: If another load/clear happened while we were resolving images, revoke the orphaned blob URLs
-      if (loadGenerationRef.current !== thisGeneration) {
-        blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
-        return;
+        dispatch({ type: 'set', messages });
       }
-      dispatch({ type: 'set', messages });
+    } finally {
+      if (loadGenerationRef.current === thisGeneration) {
+        setSidebarLoading(false);
+      }
     }
-    setSidebarLoading(false);
   };
 
   const messageListProps = {
@@ -915,16 +916,10 @@ export default function Chat() {
       <ChatLayout
         activeConversationId={activeConversationId}
         activeFieldId={activeFieldId}
-        attachments={attachments}
-        desktopTextareaRef={desktopTextareaRef}
         fields={fields}
-        handleInput={handleInput}
-        handleKeyDown={handleKeyDown}
         handleSend={handleSend}
-        input={input}
         inputBarProps={inputBarProps}
         inputTop={<PushPrompt userId={appUserId ?? null} messageCount={messages.length} />}
-        isTyping={isTyping}
         lang={lang}
         messageListProps={messageListProps}
         messages={messages}

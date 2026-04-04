@@ -1,6 +1,5 @@
 import { Leaf, Menu, Send, SquarePen } from 'lucide-react';
 import clsx from 'clsx';
-import type { RefObject } from 'react';
 import type { ReactNode } from 'react';
 import ConversationSidebar from '../../components/ConversationSidebar';
 import ChatInputBar, { type ChatInputBarProps } from '../../components/ChatInputBar';
@@ -12,16 +11,10 @@ import type { Field } from '../../lib/fieldContext';
 interface Props {
   activeConversationId?: string;
   activeFieldId?: string;
-  attachments: { file: File; previewUrl: string }[];
-  desktopTextareaRef: RefObject<HTMLTextAreaElement>;
   fields: Field[];
-  handleInput: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  handleKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   handleSend: (text?: string) => void;
-  input: string;
   inputBarProps: ChatInputBarProps;
   inputTop?: ReactNode;
-  isTyping: boolean;
   lang: string;
   messageListProps: MessageListProps;
   messages: Message[];
@@ -37,16 +30,10 @@ interface Props {
 export default function ChatLayout({
   activeConversationId,
   activeFieldId,
-  attachments,
-  desktopTextareaRef,
   fields,
-  handleInput,
-  handleKeyDown,
   handleSend,
-  input,
   inputBarProps,
   inputTop,
-  isTyping,
   lang,
   messageListProps,
   messages,
@@ -145,30 +132,9 @@ export default function ChatLayout({
                     </button>
                   ))}
                 </div>
-                <div className="relative">
-                  <textarea
-                    ref={desktopTextareaRef}
-                    value={input}
-                    onChange={handleInput}
-                    onKeyDown={handleKeyDown}
-                    aria-label={t.inputPlaceholder}
-                    placeholder={t.inputPlaceholder}
-                    rows={1}
-                    className="max-h-[120px] min-h-[52px] w-full resize-none rounded-[22px] border border-border/50 bg-surface px-5 py-3.5 pr-14 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <button
-                    onClick={() => handleSend()}
-                    disabled={isTyping || (!input.trim() && attachments.length === 0)}
-                    aria-label="Send message"
-                    className={clsx(
-                      'absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[14px] transition-colors duration-150',
-                      (!input.trim() && attachments.length === 0) || isTyping
-                        ? 'bg-muted/50 text-muted/70'
-                        : 'bg-primary text-white hover:bg-primary/90',
-                    )}
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
+                <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
+                  {inputTop}
+                  <ChatInputBar {...inputBarProps} />
                 </div>
               </div>
             </div>

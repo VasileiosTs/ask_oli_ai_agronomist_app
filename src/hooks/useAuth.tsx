@@ -5,6 +5,8 @@ import { identifyUser, resetAnalytics, trackEvent, Events } from '../lib/analyti
 
 /** L6: Inactivity timeout — auto-logout after 30 minutes of no user interaction. */
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+const PROFILE_FETCH_TIMEOUT_MS = 4000;
+const PROFILE_STORAGE_KEY = 'oli-profile-cache';
 const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'mousedown', 'keydown', 'touchstart', 'scroll', 'pointermove',
 ];
@@ -63,6 +65,42 @@ function readStoredSession(): Session | null {
   }
 }
 
+function readStoredProfile(authUserId?: string | null): UserProfile | null {
+  if (!authUserId) {
+    return null;
+  }
+
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as UserProfile | null;
+    if (!parsed || parsed.auth_id !== authUserId) {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn('Failed to read stored profile fallback:', error);
+    return null;
+  }
+}
+
+function persistProfile(profile: UserProfile | null) {
+  try {
+    if (!profile) {
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch (error) {
+    console.warn('Failed to persist profile cache:', error);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -98,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           const sanitizedProfile = data as UserProfile;
           setProfile(sanitizedProfile);
+          persistProfile(sanitizedProfile);
           return sanitizedProfile;
         }
       } catch (error) {
@@ -115,15 +154,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!preserveExisting) {
       setProfile(null);
+      persistProfile(null);
     }
 
     return null;
+  };
+
+  const fetchProfileWithTimeout = async (
+    authUserId: string,
+    options: RefreshProfileOptions = {},
+  ) => {
+    const cachedProfile = readStoredProfile(authUserId);
+
+    return await Promise.race([
+      fetchProfile(authUserId, options),
+      new Promise<UserProfile | null>((resolve) => {
+        window.setTimeout(() => resolve(cachedProfile), PROFILE_FETCH_TIMEOUT_MS);
+      }),
+    ]);
   };
 
   const logout = async () => {
     setProfile(null);
     setUser(null);
     setSession(null);
+    persistProfile(null);
     await supabase.auth.signOut();
   };
 
@@ -138,11 +193,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      const cachedProfile = readStoredProfile(storedSession.user.id);
       restoredFromStorage = true;
       initialResolved = true;
       setSession(storedSession);
       setUser(storedSession.user);
-      fetchProfile(storedSession.user.id, {
+      if (cachedProfile) {
+        setProfile(cachedProfile);
+        setLoading(false);
+      }
+      fetchProfileWithTimeout(storedSession.user.id, {
         retries: 4,
         delayMs: 250,
         preserveExisting: true,
@@ -162,9 +222,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id, { preserveExisting: restoredFromStorage });
+        await fetchProfileWithTimeout(session.user.id, { preserveExisting: restoredFromStorage });
       } else if (!restoredFromStorage) {
         setProfile(null);
+        persistProfile(null);
       }
       if (!cancelled) setLoading(false);
     }).catch((err) => {
@@ -187,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-              await fetchProfile(session.user.id);
+              await fetchProfileWithTimeout(session.user.id);
             }
             if (!cancelled) setLoading(false);
           }
@@ -201,13 +262,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          await fetchProfileWithTimeout(session.user.id);
           if (event === 'SIGNED_IN') {
             identifyUser(session.user.id, { email: session.user.email });
             trackEvent(Events.LOGIN);
           }
         } else {
           setProfile(null);
+          persistProfile(null);
           resetAnalytics();
         }
         setLoading(false);
@@ -223,7 +285,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           initialResolved = true;
           setSession(storedSession);
           setUser(storedSession.user);
-          fetchProfile(storedSession.user.id, {
+          const cachedProfile = readStoredProfile(storedSession.user.id);
+          if (cachedProfile) {
+            setProfile(cachedProfile);
+            setLoading(false);
+          }
+          fetchProfileWithTimeout(storedSession.user.id, {
             retries: 4,
             delayMs: 250,
             preserveExisting: true,
