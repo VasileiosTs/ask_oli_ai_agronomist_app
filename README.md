@@ -392,9 +392,20 @@ supabase functions deploy chat
 
 # 7. Run frontend
 npm run dev
+
+# 8. Run tests
+npm test
 ```
 
 App runs at `http://localhost:3000`.
+
+If local Vitest runs break because a platform-specific Rollup binary is missing, use:
+
+```bash
+npm run test:fix
+```
+
+That reinstalls dependencies from scratch and reruns the test suite.
 
 ---
 

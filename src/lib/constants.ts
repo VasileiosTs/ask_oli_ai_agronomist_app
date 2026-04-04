@@ -1,7 +1,11 @@
-// Shared constants — single source of truth
-// Edge function has its own copy (separate Deno runtime)
+import {
+  FREE_MESSAGE_LIMIT,
+  FREE_MESSAGE_LIMIT_PERIOD,
+} from '../../shared/subscription';
 
-export const FREE_MESSAGE_LIMIT = 20;    // messages per month on free tier
+// Shared constants — single source of truth
+
+export { FREE_MESSAGE_LIMIT, FREE_MESSAGE_LIMIT_PERIOD };
 export const VIO_STEP1_DAYS = 3;         // days after logging → "did you apply?"
 export const VIO_STEP2_DAYS = 3;         // days after apply confirm → "any improvement?"
 export const MAX_ATTACHMENTS = 3;        // max files per message

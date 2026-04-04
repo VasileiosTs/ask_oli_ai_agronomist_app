@@ -1,59 +1,27 @@
-/// <reference types="vite/client" />
-
 import { useState, useEffect, useRef, useReducer } from 'react';
-import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
 import InstallPrompt from '../components/InstallPrompt';
-import ConversationSidebar from '../components/ConversationSidebar';
 import type { Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
-import { compressImage, cacheImage, getCachedImage, getCachedImages, deleteCachedImage } from '../lib/imageCache';
-import clsx from 'clsx';
+import { getCachedImages } from '../lib/imageCache';
 import { trackEvent, Events } from '../lib/analytics';
+import { isUnlimitedTier } from '../../shared/subscription';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS } from "../lib/constants";
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, SIGNED_URL_EXPIRY, VIO_STEP2_DAYS } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import PushPrompt from '../components/PushPrompt';
-import ChatInputBar from '../components/ChatInputBar';
-import MessageList, { Message } from '../components/MessageList';
-import FieldSelector from '../components/FieldSelector';
-
-// ── Message reducer ────────────────────────────────────────────────
-type MsgAction =
-  | { type: 'set'; messages: Message[] }
-  | { type: 'clear' }
-  | { type: 'append'; message: Message }
-  | { type: 'set_if_empty'; message: Message }
-  | { type: 'update'; id: string; patch: Partial<Message> }
-  | { type: 'replace'; id: string; message: Message }
-  | { type: 'update_by'; predicate: (m: Message) => boolean; patch: Partial<Message> }
-  | { type: 'filter'; predicate: (m: Message) => boolean }
-  | { type: 'batch_update'; updates: Array<{ id: string; patch: Partial<Message> }> };
-
-function messagesReducer(state: Message[], action: MsgAction): Message[] {
-  switch (action.type) {
-    case 'set': return action.messages;
-    case 'clear': return [];
-    case 'append': return [...state, action.message];
-    case 'set_if_empty': return state.length === 0 ? [action.message] : state;
-    case 'update': return state.map(m => m.id === action.id ? { ...m, ...action.patch } : m);
-    case 'replace': return state.map(m => m.id === action.id ? action.message : m);
-    case 'update_by': return state.map(m => action.predicate(m) ? { ...m, ...action.patch } : m);
-    case 'filter': return state.filter(action.predicate);
-    case 'batch_update': {
-      const patchMap = new Map(action.updates.map(u => [u.id, u.patch]));
-      return state.map(m => {
-        const patch = patchMap.get(m.id);
-        return patch ? { ...m, ...patch } : m;
-      });
-    }
-    default: return state;
-  }
-}
+import { Message } from '../components/MessageList';
+import ChatLayout from './chat/ChatLayout';
+import { messagesReducer } from './chat/messagesReducer';
+import {
+  cleanupUploadedAssets,
+  prepareAttachmentsForSend,
+  useChatAttachments,
+} from './chat/useChatAttachments';
 
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
@@ -71,9 +39,6 @@ export default function Chat() {
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
-  
-  const [attachments, setAttachments] = useState<{ file: File; previewUrl: string }[]>([]);
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [isListening, setIsListening] = useState(false);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -83,20 +48,23 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
-  const attachmentsRef = useRef(attachments);
   const messagesRef = useRef(messages);
   /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
   const loadGenerationRef = useRef(0);
   const lastSendAttemptRef = useRef(0);
-
-  // Only use explicitly selected field — never auto-select.
-  // Field context is inferred per-message via extraction, not forced globally.
-  const activeField = activeFieldId
-    ? fields.find((field) => field.id === activeFieldId)
-    : undefined;
+  const {
+    attachments,
+    attachmentsRef,
+    cameraInputRef,
+    fileInputRef,
+    showAttachmentSheet,
+    setAttachments,
+    setShowAttachmentSheet,
+    handleFileSelect,
+    removeAttachment,
+  } = useChatAttachments({ t });
+  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
 
   const safeRevokeObjectUrl = (url: string) => {
     if (url.startsWith('blob:')) {
@@ -115,22 +83,6 @@ export default function Chat() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  const cleanupUploadedAssets = async (paths: string[]) => {
-    if (paths.length === 0) {
-      return;
-    }
-
-    await Promise.all(paths.map((path) => deleteCachedImage(path)));
-
-    const { error } = await supabase.storage
-      .from('chat_uploads')
-      .remove(paths);
-
-    if (error) {
-      console.error('Failed to clean up uploaded files:', error);
-    }
   };
 
   const buildConversationTitle = (rawText: string) => {
@@ -566,50 +518,6 @@ export default function Chat() {
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      const validFiles = newFiles.filter(f => {
-        const isValidType = (ALLOWED_FILE_TYPES as readonly string[]).includes(f.type);
-        const isValidSize = f.size <= MAX_FILE_SIZE;
-        return isValidType && isValidSize;
-      });
-
-      if (validFiles.length !== newFiles.length) {
-        showToast(t.fileRejected);
-      }
-
-      const availableSlots = Math.max(MAX_ATTACHMENTS - attachments.length, 0);
-      const filesToAdd = validFiles.slice(0, availableSlots);
-
-      if (filesToAdd.length < validFiles.length) {
-        showToast(t.tooManyFiles);
-      }
-
-      setAttachments(prev => [
-        ...prev,
-        ...filesToAdd.map(f => ({
-          file: f,
-          previewUrl: URL.createObjectURL(f)
-        }))
-      ]);
-    }
-    e.target.value = '';
-    setShowAttachmentSheet(false);
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => {
-      const newAtt = [...prev];
-      if (!newAtt[index]) {
-        return prev;
-      }
-      safeRevokeObjectUrl(newAtt[index].previewUrl);
-      newAtt.splice(index, 1);
-      return newAtt;
-    });
-  };
-
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const el = e.target;
@@ -780,7 +688,7 @@ export default function Chat() {
       return;
     }
 
-    if (messageCount >= FREE_LIMIT) {
+    if (!hasUnlimitedMessages && messageCount >= FREE_LIMIT) {
       setShowPaywall(true);
       trackEvent(Events.PAYWALL_HIT, { messageCount });
       return;
@@ -800,64 +708,23 @@ export default function Chat() {
     let uploadedPaths: string[] = [];
     let base64Images: { mimeType: string; data: string }[] = [];
     let finalMessageText = messageText;
+    let messageAttachments: Array<{ url: string; mimeType: string; name: string }> = [];
 
     if (attachments.length > 0) {
-      const imageCount = attachments.filter((attachment) => attachment.file.type.startsWith('image/')).length;
-      const documentCount = attachments.length - imageCount;
-      const attachmentSummary: string[] = [];
+      const prepared = await prepareAttachmentsForSend({
+        attachments,
+        userId: user?.id,
+        showToast,
+      });
 
-      if (imageCount > 0) {
-        attachmentSummary.push(`${imageCount} image${imageCount === 1 ? '' : 's'}`);
+      if (prepared.attachmentSummary) {
+        finalMessageText =
+          `[The user attached ${prepared.attachmentSummary}. Analyze every attachment carefully for crop disease, pest damage, physiological issues, or any relevant document details.]\n${finalMessageText}`;
       }
-      if (documentCount > 0) {
-        attachmentSummary.push(`${documentCount} document${documentCount === 1 ? '' : 's'}`);
-      }
 
-      finalMessageText = `[The user attached ${attachmentSummary.join(' and ')}. Analyze every attachment carefully for crop disease, pest damage, physiological issues, or any relevant document details.]\n${finalMessageText}`;
-      
-      for (const att of attachments) {
-        try {
-          let base64: string;
-          let mimeType: string;
-          let uploadBlob: Blob;
-
-          if (att.file.type.startsWith('image/')) {
-            // Compress images before sending (max 1000×1000, JPEG 80%)
-            const compressed = await compressImage(att.file);
-            base64 = compressed.base64;
-            mimeType = compressed.mimeType;
-            uploadBlob = compressed.blob;
-          } else {
-            // PDFs: send as-is
-            const buffer = await att.file.arrayBuffer();
-            base64 = btoa(new Uint8Array(buffer).reduce((d, b) => d + String.fromCharCode(b), ''));
-            mimeType = att.file.type;
-            uploadBlob = att.file;
-          }
-
-          base64Images.push({ mimeType, data: base64 });
-
-          if (user) {
-            const fileExt = mimeType === 'image/jpeg' ? 'jpg' : att.file.name.split('.').pop();
-            const fileName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
-            const filePath = `${user.id}/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-              .from('chat_uploads')
-              .upload(filePath, uploadBlob);
-
-            if (!uploadError) {
-              uploadedPaths.push(filePath);
-              // Cache compressed image locally for instant re-display
-              if (mimeType.startsWith('image/')) {
-                await cacheImage(filePath, uploadBlob);
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Error processing attachment', e);
-        }
-      }
+      uploadedPaths = prepared.uploadedPaths;
+      base64Images = prepared.inlineAttachments;
+      messageAttachments = prepared.messageAttachments;
     }
 
     const newUserMsg: Message = {
@@ -867,11 +734,7 @@ export default function Chat() {
       created_at: new Date().toISOString(),
       inlineAttachments: base64Images,
       attachmentPaths: uploadedPaths,
-      attachments: attachments.map((attachment) => ({
-        url: attachment.previewUrl,
-        mimeType: attachment.file.type,
-        name: attachment.file.name,
-      }))
+      attachments: messageAttachments,
     };
 
     dispatch({ type: 'append', message: newUserMsg });
@@ -1030,6 +893,7 @@ export default function Chat() {
     attachments,
     isTyping,
     isListening,
+    hasUnlimitedMessages,
     messageCount,
     showAttachmentSheet,
     t,
@@ -1040,157 +904,38 @@ export default function Chat() {
     onInput: handleInput,
     onKeyDown: handleKeyDown,
     onSend: () => handleSend(),
-    onFileSelect: handleFileSelect,
+    onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => handleFileSelect(event, showToast),
     onRemoveAttachment: removeAttachment,
     onToggleListening: toggleListening,
     onToggleAttachmentSheet: setShowAttachmentSheet,
   };
 
   return (
-    <div className="flex h-[100dvh] bg-background overflow-hidden">
-
-      {/* ── DESKTOP: permanent sidebar ── */}
-      <div className="hidden md:block flex-shrink-0">
-        <ConversationSidebar isOpen={true} onClose={() => {}} desktop={true}
-          activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
-      </div>
-
-      {/* ── MOBILE: slide-over sidebar ── */}
-      <div className="md:hidden">
-        <ConversationSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
-          activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
-      </div>
-
-      {/* ── MAIN AREA ── */}
-      <div className="flex flex-1 flex-col min-w-0">
-
-        {/* Mobile header */}
-        <header className="md:hidden flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-4">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="text-muted hover:text-foreground transition-colors">
-              <Menu className="h-5 w-5" />
-            </button>
-            <Leaf className="h-[18px] w-[18px] text-primary" />
-            <span className="text-[16px] font-medium text-primary">Oli</span>
-          </div>
-          {fields.length > 0 && (
-            <FieldSelector
-              fields={fields}
-              activeFieldId={activeFieldId}
-              onSelectField={setActiveFieldId}
-              lang={lang}
-            />
-          )}
-          <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
-            <SquarePen className="h-5 w-5" />
-          </button>
-        </header>
-
-        {/* Desktop: no top header — sidebar owns all navigation */}
-
-        {/* ── DESKTOP WELCOME (no messages) ── */}
-        {messages.length === 0 && (
-          <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
-            <div className="w-full max-w-2xl">
-              <div className="mb-3 flex items-center justify-center gap-3">
-                <Leaf className="h-10 w-10 text-primary" />
-                <h1 className="text-4xl font-semibold text-primary">Oli</h1>
-              </div>
-              <p className="mb-1 text-center text-xl font-medium text-foreground">{t.welcomeTitle}</p>
-              <p className="mb-8 text-center text-sm text-muted">{t.welcomeSubtitle}</p>
-              <div className="mb-6 grid grid-cols-3 gap-4">
-                {[
-                  { title: t.feature1Title, desc: t.feature1Desc, icon: '📷' },
-                  { title: t.feature2Title, desc: t.feature2Desc, icon: '🧠' },
-                  { title: t.feature3Title, desc: t.feature3Desc, icon: '📋' },
-                ].map((f, i) => (
-                  <div key={i} className="rounded-2xl border border-border/50 bg-surface p-4 text-left">
-                    <div className="mb-2 text-2xl">{f.icon}</div>
-                    <p className="text-sm font-medium text-foreground">{f.title}</p>
-                    <p className="mt-1 text-xs text-muted leading-relaxed">{f.desc}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mb-5 grid grid-cols-2 gap-3">
-                {t.suggestions.map((sugg, i) => (
-                  <button key={i} onClick={() => handleSend(sugg)}
-                    className="rounded-2xl border border-border/50 bg-surface px-4 py-3 text-left text-sm text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98]">
-                    {sugg}
-                  </button>
-                ))}
-              </div>
-              <div className="relative">
-                <textarea ref={desktopTextareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
-                  aria-label={t.inputPlaceholder}
-                  placeholder={t.inputPlaceholder} rows={1}
-                  className="max-h-[120px] min-h-[52px] w-full resize-none rounded-[22px] border border-border/50 bg-surface px-5 py-3.5 pr-14 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"
-                  className={clsx("absolute right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-[14px] transition-colors duration-150",
-                    (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted/70" : "bg-primary text-white hover:bg-primary/90")}>
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── MOBILE EMPTY STATE ── */}
-        {messages.length === 0 && (
-          <div className="md:hidden flex flex-1 flex-col">
-            <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
-              <Leaf className="mb-3 h-10 w-10 text-primary" />
-              <h1 className="mb-1 text-2xl font-semibold text-primary">Oli</h1>
-              <p className="text-sm text-muted mb-5">{t.chatSubtitle}</p>
-
-              {/* Quick feature hints */}
-              <div className="flex gap-2 mb-5 flex-wrap justify-center">
-                {[
-                  { icon: '📷', label: lang === 'el' ? 'Φωτό' : 'Photo' },
-                  { icon: '🎤', label: lang === 'el' ? 'Φωνή' : 'Voice' },
-                  { icon: '🌿', label: lang === 'el' ? 'Διάγνωση' : 'Diagnose' },
-                ].map((f, i) => (
-                  <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-surface/50 px-3 py-1.5 text-xs text-muted">
-                    <span>{f.icon}</span>{f.label}
-                  </span>
-                ))}
-              </div>
-
-              {/* Suggestion buttons */}
-              <div className="grid w-full max-w-md grid-cols-2 gap-2.5">
-                {t.suggestions.map((sugg, i) => (
-                  <button key={i} onClick={() => handleSend(sugg)}
-                    className="rounded-2xl border border-border/50 bg-surface px-3.5 py-3 text-left text-[13px] leading-snug text-foreground transition-all active:scale-[0.97] hover:border-primary/30">
-                    {sugg}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <ChatInputBar {...inputBarProps} />
-          </div>
-        )}
-
-        {/* ── CHAT ACTIVE (both desktop + mobile) ── */}
-        {messages.length > 0 && (
-          <div className="flex flex-1 flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
-              <div className="mx-auto max-w-2xl">
-                {sidebarLoading ? (
-                  <div className="flex h-full items-center justify-center py-20">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
-                  </div>
-                ) : <MessageList {...messageListProps} />}
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <div className="mx-auto max-w-2xl md:px-2 md:pb-4">
-                <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
-                <ChatInputBar {...inputBarProps} />
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
+    <>
+      <ChatLayout
+        activeConversationId={activeConversationId}
+        activeFieldId={activeFieldId}
+        attachments={attachments}
+        desktopTextareaRef={desktopTextareaRef}
+        fields={fields}
+        handleInput={handleInput}
+        handleKeyDown={handleKeyDown}
+        handleSend={handleSend}
+        input={input}
+        inputBarProps={inputBarProps}
+        inputTop={<PushPrompt userId={appUserId ?? null} messageCount={messages.length} />}
+        isTyping={isTyping}
+        lang={lang}
+        messageListProps={messageListProps}
+        messages={messages}
+        onSelectConversation={handleSidebarSelect}
+        onSelectField={setActiveFieldId}
+        onToggleSidebar={setSidebarOpen}
+        onNewChat={clearChat}
+        sidebarLoading={sidebarLoading}
+        sidebarOpen={sidebarOpen}
+        t={t}
+      />
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
       <InstallPrompt />
@@ -1259,6 +1004,6 @@ export default function Chat() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

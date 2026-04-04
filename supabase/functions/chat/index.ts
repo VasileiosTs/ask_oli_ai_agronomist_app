@@ -1,112 +1,42 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-interface InlineAttachment {
-  mimeType: string;
-  data: string;
-}
-
-interface ChatMessageInput {
-  role: string;
-  content: string;
-  attachments?: InlineAttachment[];
-}
-
-interface DiagnosisData {
-  problem: string | null;
-  cause: string | null;
-  severity: 'low' | 'medium' | 'high' | null;
-  product_applied: string | null;
-  product_category: string | null;
-  dosage: string | null;
-  application_method: string | null;
-  organic_treatments: string[] | null;
-  chemical_treatments: string[] | null;
-}
-
-interface AiResponseJson {
-  response_text: string;
-  intent: 'diagnosis' | 'advice' | 'followup' | 'general' | 'unclear';
-  crop_mentioned: string | null;
-  field_scope: 'specific' | 'general';
-  question_count: number;
-  has_banned_opener: boolean;
-  diagnosis_data: DiagnosisData | null;
-}
-
-interface ExtractionResult {
-  crop_type: string | null;
-  field_mention: string | null;
-  confidence: number | null;
-  problem: string | null;
-  location_hint: string | null;
-  intervention_hint: string | null;
-}
-
-interface FieldContextRow {
-  id: string;
-  user_id: string;
-  name: string;
-  crop_type: string | null;
-  location: string | null;
-  size_ha: number | null;
-  soil_type: string | null;
-  irrigation_type: string | null;
-  growing_medium: string | null;
-  last_diagnosis: string | null;
-  last_intervention_at: string | null;
-  crop_count: number | null;
-  intervention_count: number | null;
-  pending_follow_up_count: number | null;
-  conversation_count: number | null;
-  recent_diagnoses: string[] | null;
-}
-
-interface InterventionContextRow {
-  id: string;
-  field_id: string | null;
-  diagnosis: string | null;
-  problem: string | null;
-  product_applied: string | null;
-  product: string | null;
-  dosage: string | null;
-  application_method: string | null;
-  outcome: string | null;
-  outcome_score: number | null;
-  follow_up_at: string | null;
-  applied_at: string | null;
-  date: string | null;
-}
-
-interface MemorySnapshotRow {
-  id: string;
-  field_id: string | null;
-  summary: string | null;
-  snapshot: Record<string, unknown> | null;
-  created_at: string;
-}
-
-interface ConversationRow {
-  id: string;
-  field_id: string | null;
-  title: string;
-}
-
-interface ChatRequestBody {
-  mode?: 'chat' | 'extract' | 'greeting';
-  messages?: ChatMessageInput[];
-  message?: string;
-  messageId?: string | null;
-  fieldContext?: string;
-  hasActiveField?: boolean;
-  attachmentPaths?: string[];
-  imageUrls?: string[];
-  conversationId?: string | null;
-  fieldId?: string | null;
-  userMessageId?: string | null;
-  timezone?: string;
-  lang?: string;
-}
+import {
+  applyExtractedFieldContext,
+  assembleServerFieldContext,
+  cleanupFailedChatAttempt,
+  createConversation,
+  fetchFieldContextRows,
+  fetchOwnedConversation,
+  mergeMessageMetadata,
+  persistFieldMemorySnapshot,
+  resolveSingleFieldByHint,
+  updateConversationFieldLink,
+} from './lib/fieldContext.ts';
+import {
+  buildAssistantMetadata,
+  callGeminiExtraction,
+  generateValidatedResponse,
+  splitIntoChunks,
+} from './lib/gemini.ts';
+import {
+  logAiUsageEvent,
+  logOperationalEvent,
+  maybeLogGeminiErrorRateAlert,
+  type GeminiUsage,
+} from './lib/monitoring.ts';
+import {
+  assertBurstRateLimit,
+  assertMonthlyUsageAllowed,
+  getCurrentMonthlyMessageCount,
+  incrementMonthlyMessageCount,
+} from './lib/rateLimit.ts';
+import type {
+  AiResponseJson,
+  AppUserRow,
+  ChatRequestBody,
+  ChatMessageInput,
+  ExtractionResult,
+} from './lib/types.ts';
 
 // C1: Restrict CORS to production domain (was wildcard *)
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://codex-ask-oli-app.vercel.app';
@@ -127,7 +57,6 @@ function getCorsHeaders(req?: Request) {
   };
 }
 
-const FREE_LIMIT = 20;
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_INLINE_ATTACHMENTS = 3;
 const MAX_MESSAGE_CHARS = 8000;
@@ -242,940 +171,6 @@ function safeErrorMessage(error: unknown): string {
   return 'An unexpected error occurred';
 }
 
-function cleanAssistantText(text: string): string {
-  return text
-    .replace(/\r\n/g, '\n')
-    .replace(/^\s*(great question|certainly|of course|sure)[!,.:\-\s]+/i, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function validateResponse(json: AiResponseJson, hasActiveField: boolean): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (json.question_count > 1) {
-    errors.push('question_count > 1: AI asks more than one question.');
-  }
-
-  if (json.has_banned_opener) {
-    errors.push('has_banned_opener == true: Response starts with a banned opener.');
-  }
-
-  if (hasActiveField && json.field_scope !== 'specific') {
-    errors.push("field_scope must be 'specific' when an active field exists.");
-  }
-
-  if (!json.response_text || json.response_text.trim() === '') {
-    errors.push('response_text is empty.');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-function extractGeminiText(payload: any): string {
-  const parts = payload?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts)) {
-    return '';
-  }
-
-  return parts
-    .map((part: any) => part?.text ?? '')
-    .join('')
-    .trim();
-}
-
-function parseGeminiPayload<T>(payload: any): T {
-  const text = extractGeminiText(payload)
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim();
-
-  return JSON.parse(text) as T;
-}
-
-function buildResponseSchema() {
-  return {
-    type: 'OBJECT',
-    properties: {
-      response_text: { type: 'STRING' },
-      intent: { type: 'STRING', enum: ['diagnosis', 'advice', 'followup', 'general', 'unclear'] },
-      crop_mentioned: { type: 'STRING', nullable: true },
-      field_scope: { type: 'STRING', enum: ['specific', 'general'] },
-      question_count: { type: 'INTEGER' },
-      has_banned_opener: { type: 'BOOLEAN' },
-      diagnosis_data: {
-        type: 'OBJECT',
-        nullable: true,
-        properties: {
-          problem: { type: 'STRING', nullable: true },
-          cause: { type: 'STRING', nullable: true },
-          severity: { type: 'STRING', enum: ['low', 'medium', 'high'], nullable: true },
-          product_applied: { type: 'STRING', nullable: true },
-          product_category: { type: 'STRING', nullable: true },
-          dosage: { type: 'STRING', nullable: true },
-          application_method: { type: 'STRING', nullable: true },
-          organic_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
-          chemical_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
-        },
-      },
-    },
-    required: ['response_text', 'intent', 'field_scope', 'question_count', 'has_banned_opener'],
-  };
-}
-
-function buildExtractionSchema() {
-  return {
-    type: 'OBJECT',
-    properties: {
-      crop_type: { type: 'STRING', nullable: true },
-      field_mention: { type: 'STRING', nullable: true },
-      confidence: { type: 'NUMBER', nullable: true },
-      problem: { type: 'STRING', nullable: true },
-      location_hint: { type: 'STRING', nullable: true },
-      intervention_hint: { type: 'STRING', nullable: true },
-    },
-    required: ['crop_type', 'field_mention', 'confidence', 'problem', 'location_hint', 'intervention_hint'],
-  };
-}
-
-function splitIntoChunks(text: string, targetSize = 64): string[] {
-  if (!text.trim()) return [];
-
-  // Attach trailing whitespace to each word so chunk boundaries are lossless.
-  // Concatenating all chunks exactly reconstructs the original text.
-  const lines = text.split('\n');
-  const chunks: string[] = [];
-  let current = '';
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const isLastLine = i === lines.length - 1;
-    const nextLineEmpty = !isLastLine && lines[i + 1].trim() === '';
-
-    if (!line.trim()) {
-      // Empty line = paragraph break
-      if (current) { chunks.push(current); current = ''; }
-      chunks.push('\n\n');
-      continue;
-    }
-
-    const words = line.split(' ');
-    for (let wi = 0; wi < words.length; wi++) {
-      const isLastWord = wi === words.length - 1;
-      // Add '\n' after last word only when next line is non-empty (e.g. list items)
-      // Paragraph breaks are handled by the '\n\n' chunk above
-      const suffix = isLastWord
-        ? (isLastLine || nextLineEmpty ? '' : '\n')
-        : ' ';
-      const wordWithSuffix = words[wi] + suffix;
-
-      if (!current) {
-        current = wordWithSuffix;
-      } else if ((current + wordWithSuffix).length > targetSize) {
-        chunks.push(current);
-        current = wordWithSuffix;
-      } else {
-        current += wordWithSuffix;
-      }
-    }
-  }
-
-  if (current) chunks.push(current);
-  return chunks;
-}
-async function callGemini(
-  geminiApiKey: string,
-  messages: ChatMessageInput[],
-  systemPrompt: string,
-  extraInstruction?: string,
-): Promise<AiResponseJson> {
-  const contents = messages.map((message, index) => {
-    const parts: Array<{ text?: string; inlineData?: InlineAttachment }> = [{ text: message.content }];
-
-    if (Array.isArray(message.attachments)) {
-      for (const attachment of message.attachments) {
-        parts.push({
-          inlineData: {
-            mimeType: attachment.mimeType,
-            data: attachment.data,
-          },
-        });
-      }
-    }
-
-    if (extraInstruction && index === messages.length - 1 && parts[0]?.text) {
-      parts[0].text = `${parts[0].text}\n\n[SYSTEM REPAIR INSTRUCTION: ${extraInstruction}]`;
-    }
-
-    return {
-      role: message.role === 'assistant' ? 'model' : 'user',
-      parts,
-    };
-  });
-
-  const payload = {
-    systemInstruction: {
-      parts: [{ text: systemPrompt }],
-    },
-    contents,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: buildResponseSchema(),
-      temperature: 0.4,
-    },
-  };
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': geminiApiKey,
-      },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Gemini request failed (${response.status}):`, errorText);
-    throw new Error(`Gemini request failed (${response.status})`);
-  }
-
-  const data = await response.json();
-  const parsed = parseGeminiPayload<AiResponseJson>(data);
-
-  return {
-    ...parsed,
-    response_text: cleanAssistantText(parsed.response_text),
-  };
-}
-
-async function callGeminiExtraction(geminiApiKey: string, message: string): Promise<ExtractionResult> {
-  const payload = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text:
-              'Extract agronomic context from the following farmer message. Return JSON only with these exact keys: crop_type, field_mention, confidence, problem, location_hint, intervention_hint. Confidence must be a number from 0.0 to 1.0.\n\n' +
-              `Message:\n"""${message}"""`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: buildExtractionSchema(),
-      temperature: 0.1,
-    },
-  };
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': geminiApiKey,
-      },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Gemini extraction failed (${response.status}):`, errorText);
-    throw new Error(`Gemini extraction failed (${response.status})`);
-  }
-
-  const data = await response.json();
-  return parseGeminiPayload<ExtractionResult>(data);
-}
-
-async function generateValidatedResponse(
-  geminiApiKey: string,
-  messages: ChatMessageInput[],
-  fieldContext: string,
-  hasActiveField: boolean,
-  growerContext = '',
-): Promise<AiResponseJson> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext);
-  let json = await callGemini(geminiApiKey, messages, systemPrompt);
-  const validation = validateResponse(json, hasActiveField);
-
-  if (!validation.valid) {
-    const repairInstruction = `Your previous response failed validation with these errors: ${validation.errors.join(' ')}. Please correct them and return a valid JSON.`;
-    json = await callGemini(geminiApiKey, messages, systemPrompt, repairInstruction);
-  }
-
-  return {
-    ...json,
-    response_text: cleanAssistantText(json.response_text),
-  };
-}
-
-function buildAssistantMetadata(aiResponse: AiResponseJson): Record<string, unknown> | null {
-  const metadata: Record<string, unknown> = {
-    intent: aiResponse.intent,
-    field_scope: aiResponse.field_scope,
-    question_count: aiResponse.question_count,
-    has_banned_opener: aiResponse.has_banned_opener,
-  };
-
-  if (aiResponse.crop_mentioned) {
-    metadata.crop_mentioned = aiResponse.crop_mentioned;
-  }
-
-  if (aiResponse.diagnosis_data) {
-    metadata.diagnosis_data = aiResponse.diagnosis_data;
-  }
-
-  return Object.keys(metadata).length > 0 ? metadata : null;
-}
-
-function formatFieldContextBlock(field: FieldContextRow): string {
-  const parts = [
-    `Field: ${field.name}`,
-    `Crop: ${field.crop_type || 'N/A'}`,
-    field.size_ha != null ? `Size: ${field.size_ha}ha` : null,
-    field.soil_type ? `Soil: ${field.soil_type}` : null,
-    field.irrigation_type ? `Irrigation: ${field.irrigation_type}` : null,
-    field.growing_medium ? `Medium: ${field.growing_medium}` : null,
-    `Last issue: ${field.last_diagnosis || 'None'}`,
-    field.intervention_count ? `Interventions: ${field.intervention_count}` : null,
-    field.pending_follow_up_count ? `Pending follow-ups: ${field.pending_follow_up_count}` : null,
-  ].filter(Boolean);
-
-  return parts.join(' | ');
-}
-
-function formatInterventionContext(item: InterventionContextRow, fieldName?: string): string {
-  const date = item.applied_at?.split('T')[0] || item.date || '?';
-  const problem = item.diagnosis || item.problem || 'Unknown issue';
-  const treatment = item.product_applied || item.product || 'No product recorded';
-  const dosage = item.dosage ? ` ${item.dosage}` : '';
-  const method = item.application_method ? ` (${item.application_method})` : '';
-  const fieldPrefix = fieldName ? `${fieldName} | ` : '';
-
-  let status: string;
-  if (item.outcome) {
-    status = `Outcome: ${item.outcome}`;
-    if (item.outcome_score) {
-      status += ` (${item.outcome_score}/5)`;
-    }
-  } else if (item.follow_up_at) {
-    status = `Pending follow-up (${item.follow_up_at.split('T')[0]})`;
-  } else {
-    status = 'No follow-up set';
-  }
-
-  return `- ${fieldPrefix}${date}: ${problem} -> ${treatment}${dosage}${method} -> ${status}`;
-}
-
-async function fetchFieldContextRows(supabaseAdmin: any, appUserId: string): Promise<FieldContextRow[]> {
-  const { data, error } = await supabaseAdmin
-    .from('field_context_view')
-    .select('*')
-    .eq('user_id', appUserId)
-    .order('created_at', { ascending: true });
-
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
-
-  return data as FieldContextRow[];
-}
-
-async function fetchContextInterventions(
-  supabaseAdmin: any,
-  appUserId: string,
-  fieldId?: string | null,
-  limit = 5,
-): Promise<InterventionContextRow[]> {
-  const columns =
-    'id, field_id, diagnosis, problem, product_applied, product, dosage, ' +
-    'application_method, outcome, outcome_score, follow_up_at, applied_at, date';
-
-  let query = supabaseAdmin
-    .from('interventions')
-    .select(columns)
-    .eq('user_id', appUserId)
-    .order('applied_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (fieldId) {
-    query = query.eq('field_id', fieldId);
-  }
-
-  const { data, error } = await query;
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
-
-  const interventions = data as InterventionContextRow[];
-  if (!fieldId || interventions.length >= limit) {
-    return interventions;
-  }
-
-  const { data: backfill } = await supabaseAdmin
-    .from('interventions')
-    .select(columns)
-    .eq('user_id', appUserId)
-    .neq('field_id', fieldId)
-    .order('applied_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false })
-    .limit(limit - interventions.length);
-
-  if (Array.isArray(backfill)) {
-    const seen = new Set(interventions.map((item) => item.id));
-    for (const item of backfill as InterventionContextRow[]) {
-      if (!seen.has(item.id)) {
-        interventions.push(item);
-      }
-    }
-  }
-
-  return interventions;
-}
-
-async function fetchPendingFollowUps(
-  supabaseAdmin: any,
-  appUserId: string,
-  fieldId?: string | null,
-  limit = 5,
-): Promise<InterventionContextRow[]> {
-  const columns =
-    'id, field_id, diagnosis, problem, product_applied, product, dosage, ' +
-    'application_method, outcome, outcome_score, follow_up_at, applied_at, date';
-
-  let query = supabaseAdmin
-    .from('interventions')
-    .select(columns)
-    .eq('user_id', appUserId)
-    .is('outcome', null)
-    .not('follow_up_at', 'is', null)
-    .order('follow_up_at', { ascending: true })
-    .limit(limit);
-
-  if (fieldId) {
-    query = query.eq('field_id', fieldId);
-  }
-
-  const { data, error } = await query;
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
-
-  const followUps = data as InterventionContextRow[];
-  if (!fieldId || followUps.length >= limit) {
-    return followUps;
-  }
-
-  const { data: backfill } = await supabaseAdmin
-    .from('interventions')
-    .select(columns)
-    .eq('user_id', appUserId)
-    .is('outcome', null)
-    .not('follow_up_at', 'is', null)
-    .neq('field_id', fieldId)
-    .order('follow_up_at', { ascending: true })
-    .limit(limit - followUps.length);
-
-  if (Array.isArray(backfill)) {
-    const seen = new Set(followUps.map((item) => item.id));
-    for (const item of backfill as InterventionContextRow[]) {
-      if (!seen.has(item.id)) {
-        followUps.push(item);
-      }
-    }
-  }
-
-  return followUps;
-}
-
-async function fetchLatestMemorySnapshot(
-  supabaseAdmin: any,
-  appUserId: string,
-  fieldId?: string | null,
-): Promise<MemorySnapshotRow | null> {
-  let query = supabaseAdmin
-    .from('memory_snapshots')
-    .select('id, field_id, summary, snapshot, created_at')
-    .eq('user_id', appUserId)
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  if (fieldId) {
-    query = query.eq('field_id', fieldId);
-  }
-
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) {
-    return null;
-  }
-
-  return data as MemorySnapshotRow;
-}
-
-async function assembleServerFieldContext(
-  supabaseAdmin: any,
-  appUserId: string,
-  fields: FieldContextRow[],
-  activeFieldId?: string | null,
-  fallbackFieldContext = '',
-) {
-  const [interventions, pendingFollowUps, latestSnapshot] = await Promise.all([
-    fetchContextInterventions(supabaseAdmin, appUserId, activeFieldId),
-    fetchPendingFollowUps(supabaseAdmin, appUserId, activeFieldId),
-    fetchLatestMemorySnapshot(supabaseAdmin, appUserId, activeFieldId),
-  ]);
-
-  const fieldMap = new Map(fields.map((field) => [field.id, field]));
-  const sections: string[] = [];
-  const activeField =
-    (activeFieldId ? fields.find((field) => field.id === activeFieldId) : null) ??
-    (fields.length === 1 ? fields[0] : null);
-
-  if (activeField) {
-    sections.push(`ACTIVE FIELD:\n${formatFieldContextBlock(activeField)}`);
-
-    if (Array.isArray(activeField.recent_diagnoses) && activeField.recent_diagnoses.length > 0) {
-      sections.push(`RECENT DIAGNOSES:\n- ${activeField.recent_diagnoses.join('\n- ')}`);
-    }
-  } else if (fields.length > 1) {
-    sections.push(
-      `USER HAS ${fields.length} FIELDS:\n${fields.map((field) => formatFieldContextBlock(field)).join('\n')}\n(No specific field selected for this conversation.)`,
-    );
-  } else if (fields.length === 1) {
-    sections.push(`USER FIELD:\n${formatFieldContextBlock(fields[0])}`);
-  }
-
-  if (interventions.length > 0) {
-    const lines = interventions.map((item) =>
-      formatInterventionContext(
-        item,
-        !activeFieldId && item.field_id ? fieldMap.get(item.field_id)?.name : undefined,
-      ),
-    );
-    sections.push(`TREATMENT HISTORY (last ${interventions.length}):\n${lines.join('\n')}`);
-  }
-
-  if (pendingFollowUps.length > 0) {
-    const lines = pendingFollowUps.map((item) => {
-      const problem = item.diagnosis || item.problem || 'treatment';
-      const product = item.product_applied || item.product || '';
-      const date = item.applied_at?.split('T')[0] || item.date || '?';
-      const dueDate = item.follow_up_at?.split('T')[0] || '?';
-      const fieldLabel =
-        !activeFieldId && item.field_id ? `${fieldMap.get(item.field_id)?.name || 'Field'} | ` : '';
-
-      return `- ${fieldLabel}${problem}${product ? ` (${product})` : ''} from ${date} -> check due ${dueDate}`;
-    });
-
-    sections.push(`PENDING FOLLOW-UPS (${pendingFollowUps.length}):\n${lines.join('\n')}`);
-  }
-
-  if (latestSnapshot?.summary) {
-    sections.push(`LATEST MEMORY SNAPSHOT:\n- ${latestSnapshot.summary}`);
-  }
-
-  const fieldContext = sections.length > 0
-    ? sections.join('\n\n')
-    : fallbackFieldContext || 'No field data or treatment history on record yet.';
-
-  return {
-    fieldContext,
-    activeFieldId: activeField?.id ?? activeFieldId ?? null,
-    activeFieldName: activeField?.name ?? null,
-    hasActiveField: Boolean(activeField?.id ?? activeFieldId),
-    recentInterventions: interventions,
-    pendingFollowUps,
-  };
-}
-
-async function fetchOwnedConversation(
-  supabaseAdmin: any,
-  appUserId: string,
-  conversationId?: string | null,
-): Promise<ConversationRow | null> {
-  if (!conversationId) {
-    return null;
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('conversations')
-    .select('id, field_id, title')
-    .eq('id', conversationId)
-    .eq('user_id', appUserId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return data as ConversationRow;
-}
-
-function buildInitialConversationTitle(rawText: string): string {
-  const cleaned = rawText
-    .replace(/^\[The user attached[^\]]*\]\n?/i, '')
-    .trim();
-
-  if (!cleaned) {
-    return 'New conversation';
-  }
-
-  return cleaned.slice(0, 80);
-}
-
-async function createConversation(
-  supabaseAdmin: any,
-  appUserId: string,
-  fieldId: string | null,
-  latestMessageText: string,
-): Promise<string | null> {
-  const { data, error } = await supabaseAdmin
-    .from('conversations')
-    .insert({
-      user_id: appUserId,
-      field_id: fieldId,
-      title: buildInitialConversationTitle(latestMessageText),
-    })
-    .select('id, field_id, title')
-    .single();
-
-  if (error || !data?.id) {
-    console.error('Failed to create conversation:', error?.message ?? 'Conversation insert returned no id');
-    return null;
-  }
-
-  return data.id as string;
-}
-
-async function updateConversationFieldLink(
-  supabaseAdmin: any,
-  appUserId: string,
-  conversationId: string | null | undefined,
-  fieldId: string | null,
-) {
-  if (!conversationId || !fieldId) {
-    return;
-  }
-
-  await supabaseAdmin
-    .from('conversations')
-    .update({ field_id: fieldId })
-    .eq('id', conversationId)
-    .eq('user_id', appUserId);
-}
-
-async function mergeMessageMetadata(
-  supabaseAdmin: any,
-  appUserId: string,
-  messageId: string,
-  patch: Record<string, unknown>,
-  fieldId?: string | null,
-  conversationId?: string | null,
-) {
-  const { data: existing } = await supabaseAdmin
-    .from('chat_messages')
-    .select('metadata')
-    .eq('id', messageId)
-    .eq('user_id', appUserId)
-    .maybeSingle();
-
-  const updateData: Record<string, unknown> = {};
-
-  if (Object.keys(patch).length > 0) {
-    updateData.metadata = {
-      ...((existing?.metadata as Record<string, unknown> | null) ?? {}),
-      ...patch,
-    };
-  }
-
-  if (typeof fieldId !== 'undefined') {
-    updateData.field_id = fieldId;
-  }
-
-  if (typeof conversationId !== 'undefined') {
-    updateData.conversation_id = conversationId;
-  }
-
-  if (Object.keys(updateData).length === 0) {
-    return;
-  }
-
-  await supabaseAdmin
-    .from('chat_messages')
-    .update(updateData)
-    .eq('id', messageId)
-    .eq('user_id', appUserId);
-}
-
-async function cleanupFailedChatAttempt(
-  supabaseAdmin: any,
-  appUserId: string,
-  userMessageId: string | null,
-  conversationId: string | null,
-  conversationCreatedByFunction: boolean,
-) {
-  if (userMessageId) {
-    await supabaseAdmin
-      .from('chat_messages')
-      .delete()
-      .eq('id', userMessageId)
-      .eq('user_id', appUserId);
-  }
-
-  if (!conversationCreatedByFunction || !conversationId) {
-    return;
-  }
-
-  const { count } = await supabaseAdmin
-    .from('chat_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('conversation_id', conversationId)
-    .eq('user_id', appUserId);
-
-  if ((count ?? 0) > 0) {
-    return;
-  }
-
-  await supabaseAdmin
-    .from('conversations')
-    .delete()
-    .eq('id', conversationId)
-    .eq('user_id', appUserId);
-}
-
-function buildSnapshotSummary(aiResponse: AiResponseJson): string | null {
-  const diagnosis = aiResponse.diagnosis_data?.problem || aiResponse.crop_mentioned || null;
-  const severity = aiResponse.diagnosis_data?.severity || null;
-  const product =
-    aiResponse.diagnosis_data?.product_applied ||
-    aiResponse.diagnosis_data?.chemical_treatments?.[0] ||
-    aiResponse.diagnosis_data?.organic_treatments?.[0] ||
-    null;
-
-  if (!diagnosis && !product) {
-    return null;
-  }
-
-  return [
-    diagnosis || 'Agronomy follow-up',
-    severity ? `severity ${severity}` : null,
-    product ? `suggested ${product}` : null,
-  ].filter(Boolean).join(' | ');
-}
-
-async function persistFieldMemorySnapshot(
-  supabaseAdmin: any,
-  appUserId: string,
-  fieldId: string | null,
-  userMessageId: string,
-  assistantMessageId: string,
-  aiResponse: AiResponseJson,
-  assistantText: string,
-  recentInterventions: InterventionContextRow[],
-  pendingFollowUps: InterventionContextRow[],
-) {
-  if (!fieldId) {
-    return null;
-  }
-
-  const summary = buildSnapshotSummary(aiResponse);
-  const snapshot = {
-    intent: aiResponse.intent,
-    crop_mentioned: aiResponse.crop_mentioned,
-    field_scope: aiResponse.field_scope,
-    diagnosis_data: aiResponse.diagnosis_data,
-    assistant_text_excerpt: assistantText.slice(0, 600),
-    recent_interventions: recentInterventions.slice(0, 3).map((item) => ({
-      id: item.id,
-      diagnosis: item.diagnosis || item.problem,
-      product: item.product_applied || item.product,
-      outcome: item.outcome,
-      applied_at: item.applied_at || item.date,
-    })),
-    pending_follow_ups: pendingFollowUps.slice(0, 3).map((item) => ({
-      id: item.id,
-      diagnosis: item.diagnosis || item.problem,
-      due_at: item.follow_up_at,
-    })),
-  };
-
-  const { data, error } = await supabaseAdmin
-    .from('memory_snapshots')
-    .insert({
-      user_id: appUserId,
-      field_id: fieldId,
-      summary,
-      snapshot,
-      source_message_ids: [userMessageId, assistantMessageId],
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) {
-    console.error('Failed to persist memory snapshot', error);
-    return null;
-  }
-
-  return data.id as string;
-}
-
-function sameCalendarMonth(a: Date | null, b: Date): boolean {
-  if (!a) {
-    return false;
-  }
-
-  return a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth();
-}
-
-async function resolveFieldCandidates(supabaseAdmin: any, appUserId: string, fieldMention: string) {
-  const trimmedMention = fieldMention.trim();
-  if (!trimmedMention) {
-    return [];
-  }
-
-  const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('resolve_field', {
-    p_user_id: appUserId,
-    p_mention: trimmedMention,
-  });
-
-  if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-    return rpcData.map((field: any) => ({
-      id: field.field_id,
-      name: field.field_name,
-      confidence: typeof field.confidence === 'number' ? field.confidence : null,
-    }));
-  }
-
-  const { data: fallbackData, error: fallbackError } = await supabaseAdmin
-    .from('fields')
-    .select('id, name')
-    .eq('user_id', appUserId)
-    .ilike('name', `%${trimmedMention}%`)
-    .limit(3);
-
-  if (fallbackError || !Array.isArray(fallbackData)) {
-    return [];
-  }
-
-  return fallbackData.map((field) => ({
-    id: field.id,
-    name: field.name,
-    confidence: null,
-  }));
-}
-
-async function resolveSingleFieldByHint(
-  supabaseAdmin: any,
-  appUserId: string,
-  hint: string,
-  minConfidence = 0.35,
-) {
-  const candidates = await resolveFieldCandidates(supabaseAdmin, appUserId, hint);
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  const [bestCandidate, secondCandidate] = candidates;
-  const bestConfidence = typeof bestCandidate.confidence === 'number' ? bestCandidate.confidence : null;
-  const secondConfidence = typeof secondCandidate?.confidence === 'number' ? secondCandidate.confidence : null;
-
-  if (bestConfidence != null && bestConfidence >= minConfidence) {
-    if (secondConfidence == null || bestConfidence - secondConfidence >= 0.08) {
-      return bestCandidate;
-    }
-  }
-
-  if (candidates.length === 1) {
-    return bestCandidate;
-  }
-
-  return null;
-}
-
-async function applyExtractedFieldContext(
-  supabaseAdmin: any,
-  appUserId: string,
-  messageId: string | null | undefined,
-  extracted: ExtractionResult,
-) {
-  let action: 'none' | 'auto_set' | 'disambiguate' = 'none';
-  let targetFieldId: string | undefined;
-  let disambiguateFields: Array<{ id: string; name: string; confidence: number | null }> = [];
-
-  const metadata: Record<string, unknown> = {};
-  if (extracted.intervention_hint) {
-    metadata.intervention_hint = extracted.intervention_hint;
-  }
-
-  const confidence = typeof extracted.confidence === 'number' ? extracted.confidence : 0;
-
-  if (extracted.field_mention) {
-    const matchedFields = await resolveFieldCandidates(supabaseAdmin, appUserId, extracted.field_mention);
-
-    if (matchedFields.length > 0) {
-      if (confidence > 0.7) {
-        targetFieldId = matchedFields[0].id;
-        action = 'auto_set';
-      } else if (confidence >= 0.4) {
-        disambiguateFields = matchedFields;
-        action = 'disambiguate';
-      }
-    }
-    // No auto-field creation — users must create fields manually.
-    // Auto-created "tomato Field" etc. polluted user accounts.
-  }
-
-  if (messageId) {
-    const { data: existingMessage } = await supabaseAdmin
-      .from('chat_messages')
-      .select('metadata')
-      .eq('id', messageId)
-      .eq('user_id', appUserId)
-      .maybeSingle();
-
-    const updateData: Record<string, unknown> = {};
-
-    if (Object.keys(metadata).length > 0) {
-      updateData.metadata = {
-        ...((existingMessage?.metadata as Record<string, unknown> | null) ?? {}),
-        ...metadata,
-      };
-    }
-
-    if (targetFieldId) {
-      updateData.field_id = targetFieldId;
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      await supabaseAdmin
-        .from('chat_messages')
-        .update(updateData)
-        .eq('id', messageId)
-        .eq('user_id', appUserId);
-    }
-  }
-
-  return {
-    action,
-    targetFieldId: targetFieldId ?? null,
-    disambiguateFields,
-    extracted,
-  };
-}
-
 Deno.serve(async (req) => {
   // Set request-scoped CORS headers
   _reqCorsHeaders = getCorsHeaders(req);
@@ -1224,15 +219,17 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as ChatRequestBody;
     const mode = body.mode === 'extract' ? 'extract' : body.mode === 'greeting' ? 'greeting' : 'chat';
 
-    const { data: appUser, error: appUserError } = await supabaseAdmin
+    const { data: rawAppUser, error: appUserError } = await supabaseAdmin
       .from('users')
       .select('id, name, location, language, primary_crop, tier, message_count_month, message_reset_date')
       .eq('auth_id', user.id)
       .single();
 
-    if (appUserError || !appUser) {
+    if (appUserError || !rawAppUser) {
       return jsonResponse({ error: 'App user profile not found' }, 404);
     }
+
+    const appUser = rawAppUser as AppUserRow;
 
     if (mode === 'extract') {
       const message = typeof body.message === 'string' ? body.message.trim() : '';
@@ -1240,8 +237,22 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Extraction mode requires a message' }, 400);
       }
 
-      const extracted = await callGeminiExtraction(geminiApiKey, message);
-      const result = await applyExtractedFieldContext(supabaseAdmin, appUser.id, body.messageId ?? null, extracted);
+      const { extraction, usage } = await callGeminiExtraction(geminiApiKey, GEMINI_MODEL, message);
+      await logOperationalEvent(supabaseAdmin, {
+        userId: appUser.id,
+        source: 'chat',
+        eventType: 'gemini_request',
+        message: 'Gemini extraction completed',
+        metadata: { model: GEMINI_MODEL, requestKind: 'extract' },
+      });
+      await logAiUsageEvent(supabaseAdmin, {
+        userId: appUser.id,
+        model: GEMINI_MODEL,
+        requestKind: 'extract',
+        usage,
+        metadata: { messageId: body.messageId ?? null },
+      });
+      const result = await applyExtractedFieldContext(supabaseAdmin, appUser.id, body.messageId ?? null, extraction);
       return jsonResponse(result);
     }
 
@@ -1360,53 +371,34 @@ Return ONLY the greeting text, nothing else.`;
       [...requestMessages].reverse().find((message) => message.role !== 'assistant') ?? requestMessages[requestMessages.length - 1];
 
     const now = new Date();
-    const resetDate = appUser.message_reset_date ? new Date(appUser.message_reset_date) : null;
-    const sameMonth = sameCalendarMonth(resetDate, now);
-    const currentCount = sameMonth ? appUser.message_count_month ?? 0 : 0;
+    const currentCount = getCurrentMonthlyMessageCount(appUser, now);
 
-    // Burst rate limiting should happen before we consume monthly quota or upload
-    // any more state for this request.
-    const { data: lastMsg } = await supabaseAdmin
-      .from('chat_messages')
-      .select('created_at')
-      .eq('user_id', appUser.id)
-      .eq('role', 'user')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      await assertBurstRateLimit(supabaseAdmin, appUser.id);
+      assertMonthlyUsageAllowed(appUser, currentCount);
+    } catch (error) {
+      const status = typeof (error as { status?: unknown }).status === 'number'
+        ? Number((error as { status?: unknown }).status)
+        : 429;
+      const code = typeof (error as { code?: unknown }).code === 'string'
+        ? String((error as { code?: unknown }).code)
+        : 'rate_limit';
+      const limit = typeof (error as { limit?: unknown }).limit === 'number'
+        ? Number((error as { limit?: unknown }).limit)
+        : undefined;
 
-    if (lastMsg) {
-      const elapsed = Date.now() - new Date(lastMsg.created_at).getTime();
-      if (elapsed < 2000) {
-        return jsonResponse(
-          {
-            error: 'Please wait a moment before sending another message',
-            code: 'burst_rate_limit',
-          },
-          429,
-        );
-      }
-    }
-
-    if ((appUser.tier ?? 'free') !== 'pro' && currentCount >= FREE_LIMIT) {
       return jsonResponse(
         {
-          error: 'Monthly message limit reached',
-          code: 'monthly_limit',
-          limit: FREE_LIMIT,
+          error: error instanceof Error ? error.message : 'Rate limit exceeded',
+          code,
+          ...(typeof limit === 'number' ? { limit } : {}),
         },
-        429,
+        status,
       );
     }
 
     const nextMessageCount = currentCount + 1;
-    await supabaseAdmin
-      .from('users')
-      .update({
-        message_count_month: nextMessageCount,
-        message_reset_date: now.toISOString(),
-      })
-      .eq('id', appUser.id);
+    await incrementMonthlyMessageCount(supabaseAdmin, appUser.id, nextMessageCount, now);
 
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
@@ -1454,6 +446,7 @@ Return ONLY the greeting text, nothing else.`;
     let aiResponse: AiResponseJson;
     let assistantText = '';
     let assistantMetadata: Record<string, unknown> = {};
+    let geminiUsage: GeminiUsage | null = null;
 
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
@@ -1464,7 +457,24 @@ Return ONLY the greeting text, nothing else.`;
     try {
       if (!effectiveFieldId) {
         try {
-          extractionResult = await callGeminiExtraction(geminiApiKey, latestUserMessage.content);
+          await logOperationalEvent(supabaseAdmin, {
+            userId: appUser.id,
+            source: 'chat',
+            eventType: 'gemini_request',
+            message: 'Gemini field extraction started',
+            metadata: {
+              model: GEMINI_MODEL,
+              requestKind: 'extract',
+            },
+          });
+
+          const extractionCall = await callGeminiExtraction(
+            geminiApiKey,
+            GEMINI_MODEL,
+            latestUserMessage.content,
+          );
+          extractionResult = extractionCall.extraction;
+          geminiUsage = extractionCall.usage;
 
           let resolvedField = extractionResult.field_mention
             ? await resolveSingleFieldByHint(
@@ -1488,8 +498,44 @@ Return ONLY the greeting text, nothing else.`;
             effectiveFieldId = resolvedField.id;
             fieldResolutionSource = 'message_extract';
           }
+
+          await logOperationalEvent(supabaseAdmin, {
+            userId: appUser.id,
+            source: 'chat',
+            eventType: 'gemini_response',
+            message: 'Gemini field extraction completed',
+            metadata: {
+              model: GEMINI_MODEL,
+              requestKind: 'extract',
+              resolvedFieldId: effectiveFieldId,
+            },
+          });
+
+          await logAiUsageEvent(supabaseAdmin, {
+            userId: appUser.id,
+            conversationId: effectiveConversationId,
+            model: GEMINI_MODEL,
+            requestKind: 'extract',
+            usage: extractionCall.usage,
+            metadata: {
+              messageId: userMessageId,
+              resolvedFieldId: effectiveFieldId,
+            },
+          });
         } catch (error) {
           console.error('Server-side field extraction failed', error);
+          await logOperationalEvent(supabaseAdmin, {
+            userId: appUser.id,
+            source: 'chat',
+            eventType: 'gemini_api',
+            severity: 'error',
+            message: 'Server-side field extraction failed',
+            metadata: {
+              model: GEMINI_MODEL,
+              requestKind: 'extract',
+              error: error instanceof Error ? error.message : String(error),
+            },
+          });
         }
       }
 
@@ -1641,15 +687,54 @@ Return ONLY the greeting text, nothing else.`;
         );
       }
 
-      aiResponse = await generateValidatedResponse(
+      await logOperationalEvent(supabaseAdmin, {
+        userId: appUser.id,
+        source: 'chat',
+        eventType: 'gemini_request',
+        message: 'Gemini response generation started',
+        metadata: {
+          model: GEMINI_MODEL,
+          requestKind: 'chat',
+        },
+      });
+
+      const responseGeneration = await generateValidatedResponse(
         geminiApiKey,
+        GEMINI_MODEL,
         requestMessages,
         serverContext.fieldContext,
         serverContext.hasActiveField,
+        buildSystemPrompt,
         growerContext,
       );
+      aiResponse = responseGeneration.aiResponse;
+      geminiUsage = responseGeneration.usage;
       assistantText = aiResponse.response_text;
       assistantMetadata = buildAssistantMetadata(aiResponse);
+
+      await logOperationalEvent(supabaseAdmin, {
+        userId: appUser.id,
+        source: 'chat',
+        eventType: 'gemini_response',
+        message: 'Gemini response generated',
+        metadata: {
+          model: GEMINI_MODEL,
+          requestKind: 'chat',
+          repaired: responseGeneration.repaired,
+        },
+      });
+
+      await logAiUsageEvent(supabaseAdmin, {
+        userId: appUser.id,
+        conversationId: effectiveConversationId,
+        model: GEMINI_MODEL,
+        requestKind: 'chat',
+        usage: geminiUsage,
+        metadata: {
+          repaired: responseGeneration.repaired,
+          fieldId: effectiveFieldId,
+        },
+      });
 
       if (!assistantText) {
         await cleanupFailedChatAttempt(
@@ -1663,6 +748,21 @@ Return ONLY the greeting text, nothing else.`;
       }
     } catch (error) {
       console.error('Chat preprocessing failed', error);
+      await logOperationalEvent(supabaseAdmin, {
+        userId: appUser.id,
+        source: 'chat',
+        eventType: 'gemini_api',
+        severity: 'error',
+        message: 'Chat preprocessing failed',
+        metadata: {
+          model: GEMINI_MODEL,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      await maybeLogGeminiErrorRateAlert(supabaseAdmin, {
+        userId: appUser.id,
+        model: GEMINI_MODEL,
+      });
       await cleanupFailedChatAttempt(
         supabaseAdmin,
         appUser.id,
@@ -1831,6 +931,19 @@ Return ONLY the greeting text, nothing else.`;
           controller.close();
         } catch (error) {
           console.error('chat function stream error', error);
+          await logOperationalEvent(supabaseAdmin, {
+            userId: appUser.id,
+            source: 'chat',
+            eventType: 'stream_failure',
+            severity: 'error',
+            message: 'Chat SSE stream failed',
+            metadata: {
+              model: GEMINI_MODEL,
+              conversationId: effectiveConversationId,
+              userMessageId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          });
           // H2: Don't leak internal error details to client
           sendEvent('error', {
             message: 'An error occurred while processing your request',

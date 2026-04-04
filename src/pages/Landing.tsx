@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 import OliLogo from '../components/OliLogo';
 
 const STATS = (lang: string) => [
@@ -536,6 +537,9 @@ export default function Landing() {
             <p className="text-[#606659] text-xs opacity-60">
               © 2026 Oli. {lang === 'el' ? 'Με ασφάλεια δεδομένων.' : 'Data encrypted & secure.'}
             </p>
+            <div className="pt-2">
+              <LanguageToggle />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-3">

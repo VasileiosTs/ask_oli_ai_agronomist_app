@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { trackError } from '../lib/sentry';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
@@ -80,7 +81,11 @@ export function usePushSubscription(userId: string | null) {
       setIsSubscribed(true);
       return true;
     } catch (e) {
-      console.error('Push subscribe error:', e);
+      trackError(e, {
+        type: 'push_notification',
+        phase: 'subscribe',
+        userId,
+      });
       return false;
     } finally {
       setLoading(false);
@@ -103,7 +108,11 @@ export function usePushSubscription(userId: string | null) {
       }
       setIsSubscribed(false);
     } catch (e) {
-      console.error('Push unsubscribe error:', e);
+      trackError(e, {
+        type: 'push_notification',
+        phase: 'unsubscribe',
+        userId,
+      });
     } finally {
       setLoading(false);
     }

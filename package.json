@@ -10,7 +10,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:fix": "rm -rf node_modules package-lock.json && npm install && npm test"
   },
   "dependencies": {
     "@sentry/react": "^10.45.0",

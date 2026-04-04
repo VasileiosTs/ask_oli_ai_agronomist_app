@@ -9,6 +9,7 @@ export interface ChatInputBarProps {
   attachments: { file: File; previewUrl: string }[];
   isTyping: boolean;
   isListening: boolean;
+  hasUnlimitedMessages: boolean;
   messageCount: number;
   showAttachmentSheet: boolean;
   t: T;
@@ -30,6 +31,7 @@ export default function ChatInputBar({
   attachments,
   isTyping,
   isListening,
+  hasUnlimitedMessages,
   messageCount,
   showAttachmentSheet,
   t,
@@ -46,7 +48,7 @@ export default function ChatInputBar({
 }: ChatInputBarProps) {
   return (
     <div className="border-t border-border/50 bg-surface/95 backdrop-blur-sm mb-14 md:mb-0">
-      {messageCount >= FREE_LIMIT - 3 && (
+      {!hasUnlimitedMessages && messageCount >= FREE_LIMIT - 3 && (
         <div className="bg-amber-500/10 py-1.5 text-center text-xs text-amber-400">
           {FREE_LIMIT - messageCount} {t.messagesLeft}
         </div>

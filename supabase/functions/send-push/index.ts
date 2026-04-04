@@ -113,6 +113,32 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+async function logOperationalEvent(
+  supabase: ReturnType<typeof createClient>,
+  {
+    userId,
+    eventType,
+    severity = "error",
+    message,
+    metadata,
+  }: {
+    userId?: string | null;
+    eventType: string;
+    severity?: "info" | "warning" | "error" | "critical";
+    message: string;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  await supabase.from("operational_events").insert({
+    user_id: userId ?? null,
+    source: "send-push",
+    event_type: eventType,
+    severity,
+    message,
+    metadata: metadata ?? {},
+  });
+}
+
 // Max push notifications per user per hour
 const PUSH_RATE_LIMIT = 10;
 // Max subscriptions per user
@@ -187,6 +213,16 @@ serve(async (req) => {
           // Track send time for rate limiting
           await supabase.from("push_subscriptions").update({ last_pushed_at: now }).eq("id", sub.id);
         } else {
+          await logOperationalEvent(supabase, {
+            userId: body.user_id,
+            eventType: "push_delivery_failed",
+            severity: "warning",
+            message: "Direct push delivery failed and the subscription was removed",
+            metadata: {
+              subscriptionId: sub.id,
+              endpoint: sub.endpoint,
+            },
+          });
           // Remove invalid subscription
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
         }
@@ -234,6 +270,17 @@ serve(async (req) => {
             tag: `vio-${iv.id}`,
           });
           if (!ok) {
+            await logOperationalEvent(supabase, {
+              userId: iv.user_id,
+              eventType: "push_delivery_failed",
+              severity: "warning",
+              message: "Scheduled VIO push delivery failed and the subscription was removed",
+              metadata: {
+                interventionId: iv.id,
+                subscriptionId: sub.id,
+                endpoint: sub.endpoint,
+              },
+            });
             await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           }
         }
@@ -251,6 +298,15 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("send-push error:", e);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    await logOperationalEvent(supabase, {
+      eventType: "push_function_error",
+      severity: "error",
+      message: "send-push function crashed",
+      metadata: {
+        error: (e as Error).message,
+      },
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },

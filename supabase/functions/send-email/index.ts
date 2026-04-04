@@ -10,6 +10,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Oli <noreply@askoli.ai>";
 const APP_URL = Deno.env.get("APP_URL") || "https://codex-ask-oli-app.vercel.app";
+const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@askoli.ai";
 
 // ── CORS ──
 const ALLOWED_ORIGINS = [
@@ -370,6 +371,41 @@ function reEngagementEmail(
   };
 }
 
+function upgradeInterestEmail(
+  requester: { email: string; name: string; currentTier: string; requestedPlan: string },
+  lang: string,
+): { subject: string; html: string } {
+  const requestedPlan = requester.requestedPlan === "yearly" ? "Yearly" : "Monthly";
+  const subject = `Upgrade interest: ${requestedPlan} plan`;
+  const isEl = lang === "el";
+
+  return {
+    subject,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:24px;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e8e5dc;">
+    <tr><td style="padding:28px 28px 8px;">
+      <h1 style="margin:0;font-size:22px;color:#194121;">Oli upgrade request</h1>
+    </td></tr>
+    <tr><td style="padding:0 28px 28px;color:#485045;font-size:15px;line-height:1.6;">
+      <p>${isEl
+        ? "Ένας χρήστης ζήτησε αναβάθμιση από το paywall."
+        : "A user requested an upgrade from the paywall."}</p>
+      <p><strong>Name:</strong> ${requester.name || "Unknown"}</p>
+      <p><strong>Email:</strong> ${requester.email}</p>
+      <p><strong>Current tier:</strong> ${requester.currentTier || "free"}</p>
+      <p><strong>Requested plan:</strong> ${requestedPlan}</p>
+      <p><strong>Requested from:</strong> ${APP_URL}</p>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
 // ── Main handler ──
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -396,6 +432,25 @@ serve(async (req) => {
       if (!isValidEmail(email)) return new Response(JSON.stringify({ error: "invalid email format" }), { status: 400, headers });
       const tpl = welcomeEmail(name || "Farmer", lang || "en");
       const ok = await sendEmail(email, tpl.subject, tpl.html);
+      return new Response(JSON.stringify({ sent: ok }), { headers });
+    }
+
+    if (body.mode === "upgrade_interest") {
+      const email = typeof body.email === "string" ? body.email.trim() : "";
+      if (!email) return new Response(JSON.stringify({ error: "email required" }), { status: 400, headers });
+      if (!isValidEmail(email)) return new Response(JSON.stringify({ error: "invalid email format" }), { status: 400, headers });
+
+      const tpl = upgradeInterestEmail(
+        {
+          email,
+          name: typeof body.name === "string" ? body.name.trim() : "",
+          currentTier: typeof body.currentTier === "string" ? body.currentTier : "free",
+          requestedPlan: body.requestedPlan === "yearly" ? "yearly" : "monthly",
+        },
+        body.lang === "el" ? "el" : "en",
+      );
+
+      const ok = await sendEmail(SUPPORT_EMAIL, tpl.subject, tpl.html);
       return new Response(JSON.stringify({ sent: ok }), { headers });
     }
 
