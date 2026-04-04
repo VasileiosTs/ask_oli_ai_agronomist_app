@@ -75,11 +75,12 @@ export default function InstallPrompt() {
       return () => window.removeEventListener('beforeinstallprompt', handler);
     }
 
-    // Delay showing the prompt
+    // Delay showing the prompt — only if browser actually supports install
     const timer = setTimeout(() => {
-      if (isIosSafari()) {
-        setIsIos(true);
-      }
+      const iosCapable = isIosSafari();
+      const androidCapable = !!deferredPromptRef.current;
+      if (!iosCapable && !androidCapable) return; // browser doesn't support PWA install
+      if (iosCapable) setIsIos(true);
       setShow(true);
     }, 15000); // 15 seconds
 

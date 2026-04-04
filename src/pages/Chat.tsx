@@ -750,8 +750,9 @@ export default function Chat() {
   // Auto-send guest query from ?q= param, or show login if quota already used
   useEffect(() => {
     if (!guestQuery || !user) {
-      // If guest quota already used and they arrive with ?q=, prompt login immediately
+      // If guest quota already used and they arrive with ?q=, save question and prompt login
       if (guestQuery && guestAlreadyUsed && !user) {
+        sessionStorage.setItem('oli_pending_input', decodeURIComponent(guestQuery));
         setShowLoginModal(true);
       }
     }
@@ -773,6 +774,13 @@ export default function Chat() {
 
     // User is now authenticated — clear the guest quota flag so it doesn't affect their experience
     localStorage.removeItem('oli_guest_used');
+
+    // Restore any question that was pending before login (e.g. from ?q= when quota was used)
+    const pendingInput = sessionStorage.getItem('oli_pending_input');
+    if (pendingInput) {
+      sessionStorage.removeItem('oli_pending_input');
+      setInput(pendingInput);
+    }
 
     const raw = sessionStorage.getItem(GUEST_SESSION_KEY);
     if (!raw) return;
@@ -1009,8 +1017,9 @@ export default function Chat() {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
 
-    // Guest mode: gate 2nd message with login modal
+    // Guest mode: gate 2nd message with login modal — save pending input so it survives login
     if (isGuestMode) {
+      if (messageText) sessionStorage.setItem('oli_pending_input', messageText);
       setShowLoginModal(true);
       trackEvent(Events.PAYWALL_HIT, { guest: true });
       return;

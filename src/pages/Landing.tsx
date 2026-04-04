@@ -395,7 +395,7 @@ function PhoneMockup({ lang }: { lang: string }) {
                     <p className="text-[10px] text-[#1b1c19] leading-relaxed">{demo.answer}</p>
                     <div className="flex items-center gap-1 mt-2">
                       <Check className="w-2.5 h-2.5 text-emerald-600" />
-                      <span className="text-[8px] text-[#8a9280]">{lang === 'el' ? 'Βασισμένο σε αγρονομικά δεδομένα' : 'Based on agronomic data'}</span>
+                      <span className="text-[8px] text-[#606659]">{lang === 'el' ? 'Βασισμένο σε αγρονομικά δεδομένα' : 'Based on agronomic data'}</span>
                     </div>
                   </div>
                 )}
@@ -419,7 +419,7 @@ function PhoneMockup({ lang }: { lang: string }) {
           </div>
           {/* Input bar */}
           <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 bg-white rounded-full border border-[#deded8] px-3 py-2" style={{ boxShadow: '0 2px 8px rgba(25,65,33,0.08)' }}>
-            <span className="flex-1 text-[9px] text-[#8a9280]">{lang === 'el' ? 'Ρώτα τον Oli...' : 'Ask Oli...'}</span>
+            <span className="flex-1 text-[9px] text-[#606659]">{lang === 'el' ? 'Ρώτα τον Oli...' : 'Ask Oli...'}</span>
             <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
               <Send className="w-2.5 h-2.5 text-white" />
             </div>
@@ -524,6 +524,9 @@ export default function Landing() {
         </div>
       </nav>
 
+      {/* ── MAIN CONTENT ── */}
+      <main>
+
       {/* ── HERO ── */}
       <section className="pt-20 pb-12 bg-[#faf9f4]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
@@ -582,7 +585,7 @@ export default function Landing() {
                   <span className="flex-shrink-0 text-[#194121]/60">→</span>
                   <span className="truncate">{rotatingQuestions[suggestionIdx]}</span>
                 </button>
-                <p className="text-xs text-[#8a9280]">
+                <p className="text-xs text-[#606659]">
                   {lang === 'el' ? 'Χωρίς εγγραφή · Η πρώτη ερώτηση είναι δωρεάν' : 'No sign-up required · First question is free'}
                 </p>
               </div>
@@ -600,10 +603,10 @@ export default function Landing() {
       <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
               {lang === 'el' ? 'Ο Oli σε δράση' : 'Oli in action'}
             </p>
-            <p className="text-sm text-[#8a9280]">
+            <p className="text-sm text-[#606659]">
               {lang === 'el'
                 ? 'Ασθένειες, κλάδεμα, λίπανση, σχεδιασμός φύτευσης και πολλά άλλα'
                 : 'Diseases, pruning, irrigation, planting plans and much more'}
@@ -682,7 +685,7 @@ export default function Landing() {
                       <div className="bg-white rounded-xl rounded-tl-sm border border-[#e8e8e3] px-4 py-3 flex items-center gap-4">
                         <div>
                           <div className="text-2xl font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>{demoPlanning.summary}</div>
-                          <div className="text-xs text-[#8a9280]">{demoPlanning.summaryNote}</div>
+                          <div className="text-xs text-[#606659]">{demoPlanning.summaryNote}</div>
                         </div>
                         <div className="ml-auto text-2xl">🌳</div>
                       </div>
@@ -693,7 +696,7 @@ export default function Landing() {
                               <span className={`text-xs font-semibold ${row.label.includes('✓') ? 'text-[#194121]' : 'text-[#3a4035]'}`}>{row.label}</span>
                               <span className={`text-xs font-bold ${row.label.includes('✓') ? 'text-[#194121]' : 'text-[#606659]'}`}>{row.value}</span>
                             </div>
-                            <p className="text-[10px] text-[#8a9280] leading-tight">{row.note}</p>
+                            <p className="text-[10px] text-[#606659] leading-tight">{row.note}</p>
                           </div>
                         ))}
                       </div>
@@ -714,13 +717,13 @@ export default function Landing() {
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
               {lang === 'el' ? 'Τι ρωτούν οι αγρότες' : 'Things farmers ask Oli'}
             </p>
             <h2 className="text-xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
               {lang === 'el' ? 'Αν το ξέρει ένας γεωπόνος, το ξέρει ο Oli' : 'If an agronomist knows it, so does Oli'}
             </h2>
-            <p className="text-sm text-[#8a9280]">
+            <p className="text-sm text-[#606659]">
               {lang === 'el' ? 'Κάνε κλικ σε οποιαδήποτε ερώτηση για να τη δοκιμάσεις' : 'Click any question to try it now'}
             </p>
           </div>
@@ -764,7 +767,7 @@ export default function Landing() {
       <section className="py-16 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
               {lang === 'el' ? 'Πώς λειτουργεί' : 'How it works'}
             </p>
             <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>
@@ -797,7 +800,7 @@ export default function Landing() {
       {/* ── TESTIMONIALS ── */}
       <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-10">
+          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-10">
             {lang === 'el' ? 'Τι λένε οι αγρότες' : 'What farmers say'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -817,7 +820,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[#1b1c19]">{t.name}</p>
-                    <p className="text-[11px] text-[#8a9280]">{t.crop}</p>
+                    <p className="text-[11px] text-[#606659]">{t.crop}</p>
                   </div>
                 </div>
               </div>
@@ -851,7 +854,7 @@ export default function Landing() {
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/50 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
               {lang === 'el' ? 'Τιμολόγηση' : 'Pricing'}
             </p>
             <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>
@@ -866,9 +869,9 @@ export default function Landing() {
                 <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lang === 'el' ? 'Δωρεάν' : 'Free'}</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
-                  <span className="text-sm text-[#8a9280]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+                  <span className="text-sm text-[#606659]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
                 </div>
-                <p className="text-xs text-[#8a9280] mt-1">{lang === 'el' ? 'Χωρίς πιστωτική κάρτα' : 'No credit card required'}</p>
+                <p className="text-xs text-[#606659] mt-1">{lang === 'el' ? 'Χωρίς πιστωτική κάρτα' : 'No credit card required'}</p>
               </div>
               <ul className="space-y-2.5 mb-6">
                 {(lang === 'el'
@@ -951,15 +954,17 @@ export default function Landing() {
         </div>
       </section>
 
+      </main>
+
       {/* ── FOOTER ── */}
       <footer className="bg-white border-t border-[#e8e8e3] py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <OliLogo size={16} bg="#ffffff" />
             <span className="text-sm font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>Oli</span>
-            <span className="text-xs text-[#8a9280]">&copy; 2026</span>
+            <span className="text-xs text-[#606659]">&copy; 2026</span>
           </div>
-          <div className="flex gap-5 text-xs text-[#8a9280]">
+          <div className="flex gap-5 text-xs text-[#606659]">
             <Link to="/legal/privacy" className="hover:text-[#194121] transition-colors">
               {lang === 'el' ? 'Απόρρητο' : 'Privacy'}
             </Link>
