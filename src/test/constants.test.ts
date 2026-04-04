@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { FREE_MESSAGE_LIMIT, VIO_STEP1_DAYS, VIO_STEP2_DAYS, MAX_ATTACHMENTS, MAX_CONVERSATION_HISTORY } from '../lib/constants';
+import {
+  FREE_MESSAGE_LIMIT,
+  FREE_MESSAGE_LIMIT_PERIOD,
+  VIO_STEP1_DAYS,
+  VIO_STEP2_DAYS,
+  MAX_ATTACHMENTS,
+  MAX_CONVERSATION_HISTORY,
+} from '../lib/constants';
 
 describe('constants', () => {
   it('has correct free message limit', () => {

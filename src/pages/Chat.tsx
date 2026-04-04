@@ -1306,7 +1306,6 @@ export default function Chat() {
 
   return (
     <div className="flex h-[100dvh] bg-background overflow-hidden pt-safe">
-    <div className="flex h-[100dvh] bg-background overflow-hidden pt-safe">
 
       {/* ── DESKTOP: permanent sidebar (hidden in guest mode) ── */}
       {!isGuestMode && (

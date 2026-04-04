@@ -3,13 +3,8 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { identifyUser, resetAnalytics, trackEvent, Events } from '../lib/analytics';
 
-/** L6: Inactivity timeout — auto-logout after 30 minutes of no user interaction. */
-const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 const PROFILE_FETCH_TIMEOUT_MS = 4000;
 const PROFILE_STORAGE_KEY = 'oli-profile-cache';
-const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
-  'mousedown', 'keydown', 'touchstart', 'scroll', 'pointermove',
-];
 export interface UserProfile {
   id: string;
   auth_id?: string | null;

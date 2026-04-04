@@ -40,8 +40,9 @@ export default function Profile() {
   }
 
   const currentProfile = profile;
+  const currentTier = typeof currentProfile.tier === 'string' ? currentProfile.tier : null;
   const hasUnlimitedMessages = isUnlimitedTier(
-    typeof currentProfile.tier === 'string' ? currentProfile.tier : null,
+    currentTier,
   );
   const msgCount = (currentProfile.message_count_month as number) ?? 0;
   const msgPercent = Math.min((msgCount / FREE_LIMIT) * 100, 100);
@@ -203,7 +204,7 @@ export default function Profile() {
             <span className={clsx('mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
               hasUnlimitedMessages ? 'bg-primary/15 text-primary' : 'bg-surface text-muted border border-border/50')}>
               {hasUnlimitedMessages && <Crown className="h-3 w-3" />}
-              {hasUnlimitedMessages ? formatTierLabel(currentProfile.tier) : lang === 'el' ? 'ΔΩΡΕΑΝ' : 'FREE'}
+              {hasUnlimitedMessages ? formatTierLabel(currentTier) : lang === 'el' ? 'ΔΩΡΕΑΝ' : 'FREE'}
             </span>
           </div>
         </div>
@@ -222,7 +223,7 @@ export default function Profile() {
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
             <div>
               <p className="font-semibold text-foreground">{t.unlimited}</p>
-              <p className="text-sm text-primary">{formatTierLabel(currentProfile.tier)} · {t.active}</p>
+              <p className="text-sm text-primary">{formatTierLabel(currentTier)} · {t.active}</p>
             </div>
             <Crown className="h-6 w-6 text-primary" />
           </div>
