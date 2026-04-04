@@ -358,7 +358,6 @@ function buildResponseSchema() {
           chemical_treatments: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
         },
       },
-    },
       action_detected: {
         type: 'OBJECT',
         nullable: true,
