@@ -1614,7 +1614,8 @@ Return ONLY the greeting text, nothing else.`;
     // happen atomically inside the SQL function (FOR UPDATE lock) so two
     // concurrent requests can never both slip past the quota.
     let nextMessageCount: number;
-    if ((appUser.tier ?? 'free') !== 'pro') {
+    const isUnlimitedTier = ['pro', 'agronomist', 'enterprise'].includes(appUser.tier ?? 'free');
+    if (!isUnlimitedTier) {
       const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
         p_user_id: appUser.id,
         p_now: now.toISOString(),

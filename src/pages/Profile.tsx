@@ -8,6 +8,7 @@ import { usePushSubscription } from '../hooks/usePushSubscription';
 import type { Lang } from '../lib/i18n';
 import clsx from 'clsx';
 import PaywallModal from '../components/PaywallModal';
+import { formatTierLabel, isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
 
@@ -39,7 +40,9 @@ export default function Profile() {
   }
 
   const currentProfile = profile;
-  const isPro = currentProfile.tier === 'pro';
+  const hasUnlimitedMessages = isUnlimitedTier(
+    typeof currentProfile.tier === 'string' ? currentProfile.tier : null,
+  );
   const msgCount = (currentProfile.message_count_month as number) ?? 0;
   const msgPercent = Math.min((msgCount / FREE_LIMIT) * 100, 100);
 
@@ -198,9 +201,9 @@ export default function Profile() {
               <span className="truncate text-sm text-muted">{currentProfile.location as string}</span>
             </div>
             <span className={clsx('mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-              isPro ? 'bg-primary/15 text-primary' : 'bg-surface text-muted border border-border/50')}>
-              {isPro && <Crown className="h-3 w-3" />}
-              {isPro ? 'PRO' : lang === 'el' ? 'ΔΩΡΕΑΝ' : 'FREE'}
+              hasUnlimitedMessages ? 'bg-primary/15 text-primary' : 'bg-surface text-muted border border-border/50')}>
+              {hasUnlimitedMessages && <Crown className="h-3 w-3" />}
+              {hasUnlimitedMessages ? formatTierLabel(currentProfile.tier) : lang === 'el' ? 'ΔΩΡΕΑΝ' : 'FREE'}
             </span>
           </div>
         </div>
@@ -215,9 +218,12 @@ export default function Profile() {
       {/* Subscription */}
       <div className="px-4 py-4">
         <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t.subscription}</h2>
-        {isPro ? (
+        {hasUnlimitedMessages ? (
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
-            <div><p className="font-semibold text-foreground">{t.unlimited}</p><p className="text-sm text-primary">{t.active}</p></div>
+            <div>
+              <p className="font-semibold text-foreground">{t.unlimited}</p>
+              <p className="text-sm text-primary">{formatTierLabel(currentProfile.tier)} · {t.active}</p>
+            </div>
             <Crown className="h-6 w-6 text-primary" />
           </div>
         ) : (

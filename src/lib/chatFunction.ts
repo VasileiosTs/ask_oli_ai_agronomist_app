@@ -61,7 +61,7 @@ function createStreamError(message: string, status?: number, code?: string) {
   return Object.assign(new Error(message), { status, code });
 }
 
-function parseSseEvent(rawEvent: string): { event: string; data: string } | null {
+export function parseSseEvent(rawEvent: string): { event: string; data: string } | null {
   const lines = rawEvent.split(/\r?\n/);
   let event = 'message';
   const dataLines: string[] = [];
@@ -87,7 +87,7 @@ function parseSseEvent(rawEvent: string): { event: string; data: string } | null
   };
 }
 
-async function readErrorPayload(response: Response): Promise<{ message: string; code?: string }> {
+export async function readErrorPayload(response: Response): Promise<{ message: string; code?: string }> {
   const contentType = response.headers.get('content-type') || '';
 
   if (contentType.includes('application/json')) {

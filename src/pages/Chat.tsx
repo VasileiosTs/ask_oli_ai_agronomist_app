@@ -15,6 +15,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { compressImage, cacheImage, getCachedImage, getCachedImages, deleteCachedImage } from '../lib/imageCache';
 import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
+import { isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS } from "../lib/constants";
 
@@ -109,6 +110,7 @@ export default function Chat() {
   const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
   const [guestMessageSent, setGuestMessageSent] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
@@ -1192,74 +1194,75 @@ export default function Chat() {
     const thisGeneration = loadGenerationRef.current;
     setSidebarLoading(true);
     setActiveConversationId(id);
+    try {
+      // Restore field context for this conversation
+      const { data: convData } = await supabase
+        .from('conversations')
+        .select('field_id')
+        .eq('id', id)
+        .single();
+      if (loadGenerationRef.current !== thisGeneration) return; // stale load
+      if (convData?.field_id) {
+        setActiveFieldId(convData.field_id);
+      }
 
-    // Restore field context for this conversation
-    const { data: convData } = await supabase
-      .from('conversations')
-      .select('field_id')
-      .eq('id', id)
-      .single();
-    if (loadGenerationRef.current !== thisGeneration) return; // stale load
-    if (convData?.field_id) {
-      setActiveFieldId(convData.field_id);
-    }
-
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('id, role, content, metadata, starred, image_urls, created_at')
-      .eq('conversation_id', id)
-      .order('created_at', { ascending: true })
-      .limit(50);
-    if (loadGenerationRef.current !== thisGeneration) return; // stale load
-    if (data) {
-      // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
-      const blobUrlsCreated: string[] = [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const messages: Message[] = await Promise.all(data.map(async (m: any) => {
-        const base: Message = {
-          id: m.id, db_id: m.id, role: m.role, content: m.content,
-          metadata: m.metadata, starred: m.starred, created_at: m.created_at,
-        };
-        // Resolve stored image paths into displayable URLs
-        if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
-          const attachments: NonNullable<Message['attachments']> = [];
-          const uncached: string[] = [];
-          // 1. Batch check IndexedDB cache (single transaction instead of per-image)
-          const cachedMap = await getCachedImages(m.image_urls);
-          for (const path of m.image_urls) {
-            const cached = cachedMap.get(path);
-            if (cached) {
-              blobUrlsCreated.push(cached);
-              attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
-            } else {
-              uncached.push(path);
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('id, role, content, metadata, starred, image_urls, created_at')
+        .eq('conversation_id', id)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      if (loadGenerationRef.current !== thisGeneration) return; // stale load
+      if (data) {
+        // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
+        const blobUrlsCreated: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const messages: Message[] = await Promise.all(data.map(async (m: any) => {
+          const base: Message = {
+            id: m.id, db_id: m.id, role: m.role, content: m.content,
+            metadata: m.metadata, starred: m.starred, created_at: m.created_at,
+          };
+          // Resolve stored image paths into displayable URLs
+          if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
+            const attachments: NonNullable<Message['attachments']> = [];
+            const uncached: string[] = [];
+            const cachedMap = await getCachedImages(m.image_urls);
+            for (const path of m.image_urls) {
+              const cached = cachedMap.get(path);
+              if (cached) {
+                blobUrlsCreated.push(cached);
+                attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
+              } else {
+                uncached.push(path);
+              }
             }
-          }
-          // 2. Batch sign all uncached paths in ONE API call
-          if (uncached.length > 0) {
-            const { data: signed } = await supabase.storage
-              .from('chat_uploads')
-              .createSignedUrls(uncached, SIGNED_URL_EXPIRY);
-            if (signed) {
-              for (const s of signed) {
-                if (s.signedUrl) {
-                  attachments.push({ url: s.signedUrl, mimeType: 'image/jpeg', name: (s.path || '').split('/').pop() ?? 'photo' });
+            if (uncached.length > 0) {
+              const { data: signed } = await supabase.storage
+                .from('chat_uploads')
+                .createSignedUrls(uncached, SIGNED_URL_EXPIRY);
+              if (signed) {
+                for (const s of signed) {
+                  if (s.signedUrl) {
+                    attachments.push({ url: s.signedUrl, mimeType: 'image/jpeg', name: (s.path || '').split('/').pop() ?? 'photo' });
+                  }
                 }
               }
             }
+            if (attachments.length > 0) base.attachments = attachments;
           }
-          if (attachments.length > 0) base.attachments = attachments;
+          return base;
+        }));
+        if (loadGenerationRef.current !== thisGeneration) {
+          blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
+          return;
         }
-        return base;
-      }));
-      // L2: If another load/clear happened while we were resolving images, revoke the orphaned blob URLs
-      if (loadGenerationRef.current !== thisGeneration) {
-        blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
-        return;
+        dispatch({ type: 'set', messages });
       }
-      dispatch({ type: 'set', messages });
+    } finally {
+      if (loadGenerationRef.current === thisGeneration) {
+        setSidebarLoading(false);
+      }
     }
-    setSidebarLoading(false);
   };
 
   const messageListProps = {
@@ -1281,6 +1284,7 @@ export default function Chat() {
     attachments,
     isTyping,
     isListening,
+    hasUnlimitedMessages,
     messageCount,
     showAttachmentSheet,
     t,
@@ -1295,6 +1299,11 @@ export default function Chat() {
     onRemoveAttachment: removeAttachment,
     onToggleListening: toggleListening,
     onToggleAttachmentSheet: setShowAttachmentSheet,
+  };
+
+  const desktopInputBarProps = {
+    ...inputBarProps,
+    textareaRef: desktopTextareaRef,
   };
 
   return (
@@ -1413,16 +1422,8 @@ export default function Chat() {
                   </button>
                 ))}
               </div>
-              <div className="relative">
-                <textarea ref={desktopTextareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
-                  aria-label={t.inputPlaceholder}
-                  placeholder={t.inputPlaceholder} rows={1}
-                  className="max-h-[120px] min-h-[52px] w-full resize-none rounded-[22px] border border-border/50 bg-surface px-5 py-3.5 pr-14 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                <button onClick={() => handleSend()} disabled={isTyping || (!input.trim() && attachments.length === 0)} aria-label="Send message"
-                  className={clsx("absolute right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-[14px] transition-colors duration-150",
-                    (!input.trim() && attachments.length === 0) || isTyping ? "bg-muted/50 text-muted/70" : "bg-primary text-white hover:bg-primary/90")}>
-                  <Send className="h-4 w-4" />
-                </button>
+              <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
+                <ChatInputBar {...desktopInputBarProps} />
               </div>
             </div>
           </div>

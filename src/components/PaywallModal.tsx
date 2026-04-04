@@ -1,6 +1,10 @@
 import { X, Crown, Check, Sprout, Briefcase, Building2 } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
+import { Events, trackEvent } from '../lib/analytics';
+import { SUPPORT_EMAIL } from '../../shared/subscription';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
@@ -10,7 +14,7 @@ const TIERS = [
     icon: Sprout,
     color: 'text-muted',
     borderActive: 'border-muted',
-    features: { en: ['10 messages/week', '3 fields', '7-day history', '1 report/month'], el: ['10 μηνύματα/εβδομάδα', '3 χωράφια', 'Ιστορικό 7 ημερών', '1 αναφορά/μήνα'] },
+    features: { en: ['20 messages/month', '3 fields', '7-day history', '1 report/month'], el: ['20 μηνύματα/μήνα', '3 χωράφια', 'Ιστορικό 7 ημερών', '1 αναφορά/μήνα'] },
     price: null,
     current: true,
   },
@@ -42,10 +46,13 @@ const TIERS = [
 ] as const;
 
 export default function PaywallModal({ isOpen, onClose }: Props) {
+  const { user, profile } = useAuth();
   const { lang } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
   const [enterpriseEmail, setEnterpriseEmail] = useState('');
   const [enterpriseSent, setEnterpriseSent] = useState(false);
+  const [submittingTier, setSubmittingTier] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   if (!isOpen) return null;
 
   const l = lang === 'el' ? 'el' : 'en';
@@ -61,16 +68,78 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
     cancel: { en: 'Cancel anytime', el: 'Ακύρωση ανά πάσα στιγμή' },
   };
 
+  const openEmailFallback = (tier: string, emailOverride?: string) => {
+    const body = [
+      lang === 'el'
+        ? 'Γεια σας, ενδιαφέρομαι για αναβάθμιση στο Oli.'
+        : 'Hi, I am interested in upgrading to Oli.',
+      '',
+      `Tier: ${tier}`,
+      `Email: ${emailOverride || user?.email || ''}`,
+      `Name: ${typeof profile?.name === 'string' ? profile.name : ''}`,
+      `Current tier: ${typeof profile?.tier === 'string' ? profile.tier : 'free'}`,
+    ].join('\n');
+
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Oli upgrade interest - ${tier}`)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const submitInterest = async (tier: string, emailOverride?: string) => {
+    setSubmittingTier(tier);
+    setNotice(null);
+    trackEvent(Events.PAYWALL_UPGRADE_CLICK, {
+      tier,
+      source: 'paywall_modal',
+      currentTier: profile?.tier ?? 'free',
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          mode: 'upgrade_interest',
+          email: emailOverride || user?.email || '',
+          name: typeof profile?.name === 'string' ? profile.name : '',
+          currentTier: typeof profile?.tier === 'string' ? profile.tier : 'free',
+          requestedTier: tier,
+          requestedPlan: tier,
+          lang,
+        },
+      });
+
+      if (error || !data?.sent) {
+        openEmailFallback(tier, emailOverride);
+        setNotice(
+          lang === 'el'
+            ? 'Άνοιξε το email σου για να ολοκληρώσεις το αίτημα αναβάθμισης.'
+            : 'Your email app has been opened to finish the upgrade request.',
+        );
+        return false;
+      }
+
+      setNotice(
+        lang === 'el'
+          ? 'Το αίτημα αναβάθμισης στάλθηκε. Η ομάδα μας θα επικοινωνήσει μαζί σου σύντομα.'
+          : 'Your upgrade request was sent. Our team will reach out shortly.',
+      );
+      return true;
+    } catch {
+      openEmailFallback(tier, emailOverride);
+      setNotice(
+        lang === 'el'
+          ? 'Δεν ήταν δυνατή η αυτόματη αποστολή. Άνοιξε το email σου για να συνεχίσεις.'
+          : 'Automatic sending was unavailable, so your email app was opened instead.',
+      );
+      return false;
+    } finally {
+      setSubmittingTier(null);
+    }
+  };
+
   const handleEnterprise = async () => {
     if (!enterpriseEmail.trim()) return;
-    try {
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
-        body: JSON.stringify({ to: 'hello@askoli.ai', subject: 'Enterprise Inquiry', body: `Enterprise inquiry from: ${enterpriseEmail}` }),
-      });
-    } catch { /* best effort */ }
-    setEnterpriseSent(true);
+    const sent = await submitInterest('enterprise', enterpriseEmail.trim());
+    if (sent) {
+      setEnterpriseSent(true);
+    }
   };
 
   return (
@@ -92,7 +161,10 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
             return (
               <button
                 key={tier.key}
-                onClick={() => setSelected(tier.key)}
+                onClick={() => {
+                  setSelected(tier.key);
+                  setNotice(null);
+                }}
                 className={`w-full rounded-xl border p-4 text-left transition-colors ${
                   isSelected ? `${tier.borderActive} bg-primary/5` : 'border-border bg-background hover:border-primary/30'
                 }`}
@@ -132,6 +204,12 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
           })}
         </div>
 
+        {notice && (
+          <p className="mt-3 rounded-xl bg-background px-3 py-2 text-center text-xs text-muted">
+            {notice}
+          </p>
+        )}
+
         {/* Enterprise email form */}
         {selected === 'enterprise' && (
           <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 animate-fade-in">
@@ -161,7 +239,13 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
         {/* Upgrade button for pro/agronomist */}
         {(selected === 'pro' || selected === 'agronomist') && (
           <div className="mt-3 rounded-xl bg-primary/10 p-3 text-center">
-            <p className="text-sm font-medium text-primary">{labels.comingSoon[l]}</p>
+            <button
+              onClick={() => void submitInterest(selected)}
+              disabled={submittingTier !== null}
+              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {submittingTier === selected ? labels.send[l] : labels.upgrade[l]}
+            </button>
           </div>
         )}
 

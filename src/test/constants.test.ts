@@ -3,7 +3,8 @@ import { FREE_MESSAGE_LIMIT, VIO_STEP1_DAYS, VIO_STEP2_DAYS, MAX_ATTACHMENTS, MA
 
 describe('constants', () => {
   it('has correct free message limit', () => {
-    expect(FREE_MESSAGE_LIMIT).toBe(10);
+    expect(FREE_MESSAGE_LIMIT).toBe(20);
+    expect(FREE_MESSAGE_LIMIT_PERIOD).toBe('month');
   });
 
   it('VIO step days are 3 each', () => {

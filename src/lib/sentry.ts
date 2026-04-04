@@ -16,4 +16,25 @@ export function initSentry() {
   }
 }
 
+export function trackError(error: unknown, extras?: Record<string, unknown>) {
+  console.error(error);
+
+  if (!import.meta.env.PROD) {
+    return;
+  }
+
+  Sentry.withScope((scope) => {
+    if (extras) {
+      scope.setExtras(extras);
+    }
+
+    if (error instanceof Error) {
+      Sentry.captureException(error);
+      return;
+    }
+
+    Sentry.captureMessage(typeof error === 'string' ? error : 'Unknown client error');
+  });
+}
+
 export { Sentry };
