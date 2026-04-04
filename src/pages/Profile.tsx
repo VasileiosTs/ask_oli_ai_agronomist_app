@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, MapPin, Crown, Pencil, Bell, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { usePushSubscription } from '../hooks/usePushSubscription';
@@ -155,16 +155,32 @@ export default function Profile() {
     if (!appUserId || !user || deleteConfirm !== t.deleteConfirmWord) return;
     setDeleting(true);
     try {
-      const { error } = await supabase.functions.invoke('delete-account', {
-        body: {},
+      const accessToken = await getAccessTokenWithFallback();
+      if (!accessToken) {
+        throw new Error('Missing access token');
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          apikey: supabasePublicKey,
+        },
+        body: JSON.stringify({}),
       });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          typeof payload?.error === 'string'
+            ? payload.error
+            : `Delete account failed with status ${response.status}`,
+        );
       }
 
       try {
-        await logout();
+        await supabase.auth.signOut({ scope: 'local' });
       } catch (logoutError) {
         console.warn('Local sign-out after account deletion failed:', logoutError);
       }

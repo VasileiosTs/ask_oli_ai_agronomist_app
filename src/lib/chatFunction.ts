@@ -1,4 +1,4 @@
-import { supabase, supabasePublicKey, supabaseUrl } from './supabase';
+import { getAccessTokenWithFallback, supabasePublicKey, supabaseUrl } from './supabase';
 
 export interface InlineAttachment {
   mimeType: string;
@@ -107,11 +107,9 @@ export async function streamChatCompletion(
     throw createStreamError('Supabase environment variables are missing.');
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const accessToken = await getAccessTokenWithFallback();
 
-  if (!session?.access_token) {
+  if (!accessToken) {
     throw createStreamError('You need to sign in to use chat.', 401);
   }
 
@@ -123,7 +121,7 @@ export async function streamChatCompletion(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'apikey': supabasePublicKey,
       },
       body: JSON.stringify(request),
