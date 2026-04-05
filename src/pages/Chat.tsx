@@ -24,10 +24,7 @@ import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
 import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
-import { ConversationSidebar } from '../components/ConversationSidebar';
 import { FieldSelector } from '../components/FieldSelector';
-import { ChatInputBar } from '../components/ChatInputBar';
-import { MessageList } from '../components/MessageList';import FieldSelector from '../components/FieldSelector';
 
 // ── Message reducer ────────────────────────────────────────────────
 type MsgAction =
@@ -79,7 +76,6 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
-const { attachments, attachmentsRef, setAttachments, showAttachmentSheet, setShowAttachmentSheet, handleFileSelect, removeAttachment } = useChatAttachments();  // ── Offline detection ──
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   useEffect(() => {
     const on = () => setIsOnline(true);
