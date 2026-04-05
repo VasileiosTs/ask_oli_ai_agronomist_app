@@ -24,8 +24,7 @@ import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
 import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
-import { FieldSelector } from '../components/FieldSelector';
-
+import FieldSelector from '../components/FieldSelector';
 // ── Message reducer ────────────────────────────────────────────────
 type MsgAction =
   | { type: 'set'; messages: Message[] }
