@@ -24,7 +24,10 @@ import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
 import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
-import FieldSelector from '../components/FieldSelector';
+import { ConversationSidebar } from '../components/ConversationSidebar';
+import { FieldSelector } from '../components/FieldSelector';
+import { ChatInputBar } from '../components/ChatInputBar';
+import { MessageList } from '../components/MessageList';import FieldSelector from '../components/FieldSelector';
 
 // ── Message reducer ────────────────────────────────────────────────
 type MsgAction =
