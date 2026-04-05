@@ -76,8 +76,7 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
-
-  // ── Offline detection ──
+const { attachments, attachmentsRef, setAttachments, showAttachmentSheet, setShowAttachmentSheet, handleFileSelect, removeAttachment } = useChatAttachments();  // ── Offline detection ──
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   useEffect(() => {
     const on = () => setIsOnline(true);
