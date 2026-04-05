@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Self-hosted fonts — avoids 7 Google Fonts network requests (~400ms) */
+@import "@fontsource/plus-jakarta-sans/300.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/noto-serif/400.css";
+@import "@fontsource/noto-serif/600.css";
+@import "@fontsource/noto-serif/700.css";
+
 @theme {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -128,3 +138,17 @@ html {
 }
 
 .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Oli logo thinking animation — also exposed as @keyframes so inline style= can reference it */
+@keyframes oliThink {
+  0%   { transform: rotate(0deg)   scale(1); }
+  25%  { transform: rotate(90deg)  scale(1.08); }
+  50%  { transform: rotate(180deg) scale(1); }
+  75%  { transform: rotate(270deg) scale(1.08); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes thinkDot {
+  0%, 60%, 100% { opacity: 0; }
+  30%           { opacity: 1; }
+}

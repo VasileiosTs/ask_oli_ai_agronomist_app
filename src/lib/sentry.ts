@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/react';
 export function initSentry() {
   if (import.meta.env.PROD) {
     Sentry.init({
-      dsn: 'https://69cf6c75e1b67584858ba32bd257d337@o4511089240768513.ingest.de.sentry.io/4511089250205776',
+      dsn: import.meta.env.VITE_SENTRY_DSN as string,
       environment: 'production',
       // Only capture errors, not performance (free tier friendly)
       tracesSampleRate: 0,

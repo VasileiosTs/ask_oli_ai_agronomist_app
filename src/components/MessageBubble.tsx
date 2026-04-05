@@ -3,11 +3,33 @@ import rehypeSanitize from 'rehype-sanitize';
 import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import type { T } from '../lib/i18n';
+import OliLogo from './OliLogo';
 
 interface MessageAttachment {
   url: string;
   mimeType: string;
   name: string;
+}
+
+export interface MessageMetadata {
+  diagnosis_data?: {
+    problem?: string;
+    cause?: string;
+    severity?: string;
+    product_applied?: string;
+    dosage?: string;
+    application_method?: string;
+    organic_treatments?: string[];
+    chemical_treatments?: string[];
+  };
+  crop_mentioned?: string;
+  intervention_id?: string;
+  share_id?: string;
+  is_follow_up?: boolean;
+  follow_up_intervention_id?: string;
+  vio_step?: number;
+  vio_step_type?: 'apply_check' | 'outcome_check';
+  feedback?: 'positive' | 'negative';
 }
 
 export interface ChatMessage {
@@ -17,7 +39,7 @@ export interface ChatMessage {
   content: string;
   created_at: string;
   attachments?: MessageAttachment[];
-  metadata?: any;
+  metadata?: MessageMetadata;
   starred?: boolean;
 }
 
@@ -50,8 +72,10 @@ export default function MessageBubble({
   return (
     <div className={clsx("group flex w-full animate-fade-in", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className="w-6 flex-shrink-0 pt-3">
-          {isFirstAiInSequence && <div className="h-2 w-2 rounded-full bg-primary/60" />}
+        <div className="flex-shrink-0 pt-1 mr-2.5">
+          {isFirstAiInSequence
+            ? <OliLogo size={22} bg="#0D1117" />
+            : <div className="w-[22px]" />}
         </div>
       )}
       <div className="flex max-w-[78%] flex-col gap-1">
@@ -172,7 +196,7 @@ export default function MessageBubble({
               <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
             </button>
             <button onClick={() => onShare(msg)}
-              className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground">
+              className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary">
               <Share2 className="h-3.5 w-3.5" />{t.shareLabel}
             </button>
           </div>

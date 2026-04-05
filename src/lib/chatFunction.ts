@@ -23,6 +23,14 @@ export interface ChatFunctionRequest {
   lang?: string;
 }
 
+export interface ActionDetectedPayload {
+  action_type: string;
+  product?: string | null;
+  quantity?: string | null;
+  date_mentioned?: string | null;
+  confidence: number;
+}
+
 export interface ChatFunctionMetadata {
   diagnosis_data?: Record<string, unknown> | null;
   crop_mentioned?: string | null;
@@ -30,6 +38,7 @@ export interface ChatFunctionMetadata {
   field_scope?: string;
   question_count?: number;
   has_banned_opener?: boolean;
+  action_detected?: ActionDetectedPayload | null;
   [key: string]: unknown;
 }
 
@@ -228,4 +237,46 @@ export async function streamChatCompletion(
     }
     throw error;
   }
+}
+
+// ── Guest chat (unauthenticated, single message, no streaming) ──
+
+export interface GuestChatResponse {
+  assistantText: string;
+  metadata?: ChatFunctionMetadata;
+}
+
+export async function guestChatCompletion(
+  message: string,
+  lang?: string,
+): Promise<GuestChatResponse> {
+  if (!supabaseUrl || !supabasePublicKey) {
+    throw createStreamError('Supabase environment variables are missing.');
+  }
+
+  const functionUrl = `${supabaseUrl}/functions/v1/chat`;
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': supabasePublicKey,
+    },
+    body: JSON.stringify({
+      mode: 'guest',
+      messages: [{ role: 'user', content: message }],
+      lang,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const { message: errorMessage, code } = await readErrorPayload(response);
+    throw createStreamError(errorMessage, response.status, code);
+  }
+
+  const data = await response.json();
+  return {
+    assistantText: typeof data.assistantText === 'string' ? data.assistantText : '',
+    metadata: data.metadata as ChatFunctionMetadata | undefined,
+  };
 }

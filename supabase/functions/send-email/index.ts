@@ -372,11 +372,12 @@ function reEngagementEmail(
 }
 
 function upgradeInterestEmail(
-  requester: { email: string; name: string; currentTier: string; requestedPlan: string },
+  requester: { email: string; name: string; currentTier: string; requestedTier: string },
   lang: string,
 ): { subject: string; html: string } {
-  const requestedPlan = requester.requestedPlan === "yearly" ? "Yearly" : "Monthly";
-  const subject = `Upgrade interest: ${requestedPlan} plan`;
+  const requestedTier = requester.requestedTier || "pro";
+  const planLabel = requestedTier.charAt(0).toUpperCase() + requestedTier.slice(1);
+  const subject = `Upgrade interest: ${planLabel}`;
   const isEl = lang === "el";
 
   return {
@@ -397,7 +398,7 @@ function upgradeInterestEmail(
       <p><strong>Name:</strong> ${requester.name || "Unknown"}</p>
       <p><strong>Email:</strong> ${requester.email}</p>
       <p><strong>Current tier:</strong> ${requester.currentTier || "free"}</p>
-      <p><strong>Requested plan:</strong> ${requestedPlan}</p>
+      <p><strong>Requested tier:</strong> ${planLabel}</p>
       <p><strong>Requested from:</strong> ${APP_URL}</p>
     </td></tr>
   </table>
@@ -445,7 +446,11 @@ serve(async (req) => {
           email,
           name: typeof body.name === "string" ? body.name.trim() : "",
           currentTier: typeof body.currentTier === "string" ? body.currentTier : "free",
-          requestedPlan: body.requestedPlan === "yearly" ? "yearly" : "monthly",
+          requestedTier: typeof body.requestedTier === "string"
+            ? body.requestedTier
+            : typeof body.requestedPlan === "string"
+              ? body.requestedPlan
+              : "pro",
         },
         body.lang === "el" ? "el" : "en",
       );

@@ -54,3 +54,36 @@ describe('i18n translations', () => {
     expect(dict.en.pushPromptEnable).toBeDefined();
   });
 });
+
+describe('i18next integration', () => {
+  it('i18next resources match dict for en', async () => {
+    // Dynamically import to avoid top-level side effects in test environment
+    const { default: i18n } = await import('../lib/i18next');
+    expect(i18n.getResourceBundle('en', 'translation')).toMatchObject({
+      tagline: dict.en.tagline,
+      navChat: dict.en.navChat,
+      navProfile: dict.en.navProfile,
+    });
+  });
+
+  it('i18next resources match dict for el', async () => {
+    const { default: i18n } = await import('../lib/i18next');
+    expect(i18n.getResourceBundle('el', 'translation')).toMatchObject({
+      tagline: dict.el.tagline,
+      navChat: dict.el.navChat,
+    });
+  });
+
+  it('i18next t function returns correct string for en', async () => {
+    const { default: i18n } = await import('../lib/i18next');
+    await i18n.changeLanguage('en');
+    expect(i18n.t('navChat')).toBe('Chat');
+    expect(i18n.t('navProfile')).toBe('Profile');
+  });
+
+  it('i18next t function returns correct string for el', async () => {
+    const { default: i18n } = await import('../lib/i18next');
+    await i18n.changeLanguage('el');
+    expect(i18n.t('navChat')).toBe('Συνομιλία');
+  });
+});

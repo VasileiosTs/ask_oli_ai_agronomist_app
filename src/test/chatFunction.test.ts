@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../lib/supabase', () => ({
+  getAccessTokenWithFallback: vi.fn(),
+  supabasePublicKey: 'test-publishable-key',
+  supabaseUrl: 'https://example.supabase.co',
+}));
+
 import { parseSseEvent, readErrorPayload } from '../lib/chatFunction';
 
 describe('chatFunction SSE helpers', () => {

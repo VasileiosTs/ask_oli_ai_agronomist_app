@@ -40,7 +40,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
         .eq('user_id', appUserId).order('updated_at', { ascending: false }).range(0, PAGE_SIZE - 1)
     ).then(({ data }) => { if (data) setConvs(data); setLoading(false); })
       .catch(() => { setLoading(false); });
-  }, [appUserId, isOpen, activeId]);
+  }, [appUserId, isOpen]);
 
   const loadMore = () => {
     if (!appUserId) return;
@@ -109,6 +109,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
             className="w-full rounded-xl border border-border/50 bg-background pl-8 pr-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
           />
           {query && (

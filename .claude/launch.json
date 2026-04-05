@@ -2,11 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "oli-dev",
-      "runtimeExecutable": "/opt/homebrew/bin/node",
-      "runtimeArgs": ["/Users/vasileios/codex_ask_oli_app/node_modules/.bin/vite", "--port", "5173"],
-      "port": 5173,
-      "cwd": "/Users/vasileios/codex_ask_oli_app"
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3001
     }
   ]
 }

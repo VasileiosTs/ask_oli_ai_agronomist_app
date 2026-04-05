@@ -14,10 +14,28 @@ const SEVERITY_BADGE: Record<string, { el: string; en: string; cls: string }> = 
 /** Validate that a string looks like a UUID (v4) */
 const isValidUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
+interface SharedDiagnosisData {
+  share_id?: string;
+  legacy_intervention_id?: string;
+  problem?: string;
+  diagnosis?: string;
+  cause?: string;
+  crop_type?: string;
+  severity?: string;
+  product_applied?: string;
+  product?: string;
+  dosage?: string;
+  application_method?: string;
+  organic_treatments?: string[];
+  chemical_treatments?: string[];
+  notes?: string;
+  created_at?: string;
+}
+
 export default function SharedDiagnosis() {
   const { shareId } = useParams();
   const { lang } = useLanguage();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<SharedDiagnosisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isNetworkError, setIsNetworkError] = useState(false);
 

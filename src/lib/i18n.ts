@@ -11,6 +11,7 @@ export interface T {
   step1Q: string; step1P: string;
   step2Q: string; step2P: string;
   step3Q: string; step3P: string;
+  step4Q: string; ageRanges: string[]; skipAge: string;
   next: string; letsGo: string; saving: string;
   crops: string[]; savingError: string;
   // Chat - empty state
@@ -121,6 +122,19 @@ export interface T {
   pushPromptTitle: string; pushPromptBody: string; pushPromptEnable: string; pushPromptLater: string;
   // Referral
   inviteFriends: string; inviteBody: string; inviteCopied: string; copyLink: string;
+  // Field detail
+  fieldDetailTimeline: string; fieldDetailNoActivity: string;
+  fieldDetailAskOli: string; fieldDetailTreatments: string;
+  fieldDetailPending: string; fieldDetailChats: string;
+  fieldDetailPendingFollowups: string; fieldDetailLastIssue: string;
+  fieldDetailNotFound: string; fieldDetailDue: string;
+  // Growth stages
+  stageGermination: string; stageVegetative: string; stageFlowering: string;
+  stageFruiting: string; stageMaturity: string; stageDormant: string;
+  stageDay: string;
+  // Tier limits
+  fieldLimitReached: string; fieldLimitBody: string;
+  messagesPerWeek: string;
 }
 
 const el: T = {
@@ -137,6 +151,7 @@ const el: T = {
   step1Q: 'Πώς σε λένε;', step1P: 'π.χ. Γιάννης',
   step2Q: 'Πού καλλιεργείς;', step2P: 'Πόλη ή περιοχή',
   step3Q: 'Τι καλλιεργείς κυρίως;', step3P: 'π.χ. Ελιές, Τομάτες',
+  step4Q: 'Πόσο χρονών είσαι;', ageRanges: ['Κάτω από 30', '30–45', '46–60', 'Πάνω από 60'], skipAge: 'Προτιμώ να μην απαντήσω',
   next: 'Επόμενο', letsGo: 'Ξεκινάμε', saving: 'Αποθήκευση...',
   crops: ['Ελιές', 'Αμπελώνας', 'Τομάτα', 'Πορτοκάλια', 'Σιτάρι', 'Άλλο'],
   savingError: 'Δεν αποθηκεύτηκε το προφίλ. Δοκίμασε ξανά.',
@@ -206,7 +221,7 @@ const el: T = {
   logIt: 'Καταχώρηση', logging: 'Καταχώρηση...',
   cropType: 'Καλλιέργεια', problem: 'Πρόβλημα / Διάγνωση', product: 'Προϊόν',
   dosage: 'Δοσολογία', appMethod: 'Μέθοδος Εφαρμογής', notes: 'Σημειώσεις',
-  setReminder: 'Ορισμός Υπενθύμισης', reminderQuestion: 'Θέλεις follow-up σε 3 μέρες;', noThanks: 'Όχι ευχαριστώ',
+  setReminder: 'Ορισμός Υπενθύμισης', reminderQuestion: 'Θέλεις να κάνω follow-up για τη θεραπεία;', noThanks: 'Όχι ευχαριστώ',
   paywallTitle: 'Ξεκλειδώστε το Oli Pro',
   paywallBody: 'Φτάσατε το όριο δωρεάν μηνυμάτων για αυτόν τον μήνα. Αναβαθμίστε για απεριόριστη πρόσβαση.',
   monthlyPlan: 'Μηνιαίο Πλάνο', yearlyPlan: 'Ετήσιο Πλάνο',
@@ -273,6 +288,19 @@ const el: T = {
   termsLawBody: 'Εφαρμόζεται το ελληνικό δίκαιο. Αρμόδια δικαστήρια τα δικαστήρια Αθηνών.',
   pushPromptTitle: 'Ειδοποιήσεις', pushPromptBody: 'Ενεργοποίησε τις ειδοποιήσεις για follow-up υπενθυμίσεις.', pushPromptEnable: 'Ενεργοποίηση', pushPromptLater: 'Αργότερα',
   inviteFriends: 'Προσκάλεσε φίλους', inviteBody: 'Μοιράσου τον Oli με άλλους αγρότες.', inviteCopied: 'Ο σύνδεσμος αντιγράφηκε!', copyLink: 'Αντιγραφή συνδέσμου',
+  // Field detail
+  fieldDetailTimeline: 'Ιστορικό', fieldDetailNoActivity: 'Δεν υπάρχει ιστορικό ακόμα',
+  fieldDetailAskOli: 'Ρώτα τον Oli για αυτό το χωράφι', fieldDetailTreatments: 'Παρεμβάσεις',
+  fieldDetailPending: 'Εκκρεμεί', fieldDetailChats: 'Συνομιλίες',
+  fieldDetailPendingFollowups: 'Εκκρεμή follow-ups', fieldDetailLastIssue: 'Τελ. πρόβλημα',
+  fieldDetailNotFound: 'Δεν βρέθηκε το χωράφι', fieldDetailDue: 'Προθεσμία',
+  // Growth stages
+  stageGermination: 'Φύτρωμα', stageVegetative: 'Βλαστική', stageFlowering: 'Ανθοφορία',
+  stageFruiting: 'Καρποφορία', stageMaturity: 'Ωρίμανση', stageDormant: 'Λήθαργος',
+  stageDay: 'Ημέρα',
+  // Tier limits
+  fieldLimitReached: 'Όριο χωραφιών', fieldLimitBody: 'Αναβάθμισε σε Pro για απεριόριστα χωράφια.',
+  messagesPerWeek: 'μηνύματα/εβδομάδα',
 };
 
 const en: T = {
@@ -289,6 +317,7 @@ const en: T = {
   step1Q: "What's your name?", step1P: 'e.g. John',
   step2Q: 'Where do you farm?', step2P: 'City or region',
   step3Q: 'What is your main crop?', step3P: 'e.g. Olives, Tomatoes',
+  step4Q: 'How old are you?', ageRanges: ['Under 30', '30–45', '46–60', 'Over 60'], skipAge: 'Prefer not to say',
   next: 'Next', letsGo: "Let's start", saving: 'Saving...',
   crops: ['Olives', 'Vineyard', 'Tomatoes', 'Oranges', 'Wheat', 'Other'],
   savingError: 'Could not save profile. Please try again.',
@@ -358,7 +387,7 @@ const en: T = {
   logIt: 'Log it', logging: 'Logging...',
   cropType: 'Crop', problem: 'Problem / Diagnosis', product: 'Product',
   dosage: 'Dosage', appMethod: 'Application Method', notes: 'Notes',
-  setReminder: 'Set Reminder', reminderQuestion: 'Set a follow-up check-in in 3 days?', noThanks: 'No thanks',
+  setReminder: 'Set Reminder', reminderQuestion: 'Want me to follow up on this treatment?', noThanks: 'No thanks',
   paywallTitle: 'Unlock Oli Pro',
   paywallBody: 'You have reached the free message limit for this month. Upgrade for unlimited access.',
   monthlyPlan: 'Monthly Plan', yearlyPlan: 'Yearly Plan',
@@ -425,6 +454,19 @@ const en: T = {
   termsLawBody: 'Greek law applies. The courts of Athens have exclusive jurisdiction.',
   pushPromptTitle: 'Notifications', pushPromptBody: 'Enable notifications for VIO follow-up reminders.', pushPromptEnable: 'Enable', pushPromptLater: 'Later',
   inviteFriends: 'Invite friends', inviteBody: 'Share Oli with other farmers.', inviteCopied: 'Link copied!', copyLink: 'Copy link',
+  // Field detail
+  fieldDetailTimeline: 'Timeline', fieldDetailNoActivity: 'No activity yet',
+  fieldDetailAskOli: 'Ask Oli about this field', fieldDetailTreatments: 'Treatments',
+  fieldDetailPending: 'Pending', fieldDetailChats: 'Chats',
+  fieldDetailPendingFollowups: 'Pending follow-ups', fieldDetailLastIssue: 'Last issue',
+  fieldDetailNotFound: 'Field not found', fieldDetailDue: 'Due',
+  // Growth stages
+  stageGermination: 'Germination', stageVegetative: 'Vegetative', stageFlowering: 'Flowering',
+  stageFruiting: 'Fruiting', stageMaturity: 'Maturity', stageDormant: 'Dormant',
+  stageDay: 'Day',
+  // Tier limits
+  fieldLimitReached: 'Field limit reached', fieldLimitBody: 'Upgrade to Pro for unlimited fields.',
+  messagesPerWeek: 'messages/week',
 };
 
 export const dict: Record<Lang, T> = { el, en };

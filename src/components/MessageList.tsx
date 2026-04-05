@@ -1,4 +1,5 @@
 import MessageBubble, { ChatMessage } from './MessageBubble';
+import OliLogo from './OliLogo';
 import type { T } from '../lib/i18n';
 import type { InlineAttachment } from '../lib/chatFunction';
 
@@ -56,13 +57,20 @@ export default function MessageList({
         />
       ))}
       {isTyping && (
-        <div className="group flex w-full justify-start animate-fade-in">
-          <div className="w-6 flex-shrink-0 pt-3"><div className="h-2 w-2 rounded-full bg-primary/60" /></div>
+        <div className="flex w-full justify-start animate-fade-in">
+          {/* Animated Oli logo */}
+          <div className="flex-shrink-0 mt-1 mr-2.5" style={{ animation: 'oliThink 2s ease-in-out infinite', transformOrigin: 'center' }}>
+            <OliLogo size={26} bg="#161C23" />
+          </div>
+          {/* Thinking bubble */}
           <div className="flex max-w-[78%] flex-col gap-1">
-            <div className="flex items-center gap-1 rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface px-4 py-4">
-              <div className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted" style={{ animationDelay: '0ms' }} />
-              <div className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted" style={{ animationDelay: '150ms' }} />
-              <div className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted" style={{ animationDelay: '300ms' }} />
+            <div className="flex items-center gap-1.5 rounded-[18px] rounded-bl-[4px] border border-border/50 bg-surface px-4 py-3">
+              <span className="text-sm text-muted select-none">
+                {lang === 'el' ? 'Σκέφτομαι' : 'Thinking'}
+              </span>
+              <span className="animate-think-dot text-muted text-sm" style={{ animationDelay: '0ms' }}>.</span>
+              <span className="animate-think-dot text-muted text-sm" style={{ animationDelay: '0.2s' }}>.</span>
+              <span className="animate-think-dot text-muted text-sm" style={{ animationDelay: '0.4s' }}>.</span>
             </div>
           </div>
         </div>

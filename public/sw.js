@@ -1,8 +1,10 @@
 // Oli Service Worker — PWA install + push notifications + smart caching
-const CACHE_NAME = 'oli-v5';
-const SHELL_URLS = ['/offline.html'];
+// CACHE_NAME token is replaced at build time by vite.config.ts swVersionPlugin
+const CACHE_NAME = '__SW_CACHE_VERSION__';
+// Cache both the app shell (/) and the offline fallback
+const SHELL_URLS = ['/', '/offline.html'];
 
-// Install: cache offline fallback, then activate immediately
+// Install: cache app shell + offline fallback, then activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
@@ -35,16 +37,21 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin requests
   if (url.origin !== self.location.origin) return;
 
-  // HTML navigation requests — always go to network first
+  // HTML navigation requests — network first, fall back to cached app shell.
+  // This lets the SPA router handle all routes offline once the shell is cached.
+  // Falls back to offline.html only if the shell itself isn't cached yet.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
+          // Cache the freshest index.html so future offline loads are up to date
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', clone));
+          }
           return response;
         })
-        .catch(() => {
-          return caches.match('/offline.html');
-        })
+        .catch(() => caches.match('/') || caches.match('/offline.html'))
     );
     return;
   }

@@ -1,16 +1,10 @@
-import { createContext, useContext, useEffect, useRef, useCallback, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { identifyUser, resetAnalytics, trackEvent, Events } from '../lib/analytics';
 
-/** L6: Inactivity timeout — auto-logout after 30 minutes of no user interaction. */
-const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 const PROFILE_FETCH_TIMEOUT_MS = 4000;
 const PROFILE_STORAGE_KEY = 'oli-profile-cache';
-const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
-  'mousedown', 'keydown', 'touchstart', 'scroll', 'pointermove',
-];
-
 export interface UserProfile {
   id: string;
   auth_id?: string | null;
@@ -312,40 +306,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
-
-  // L6: Inactivity auto-logout — reset timer on any user interaction
-  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const logoutRef = useRef(logout);
-  logoutRef.current = logout;
-
-  const resetInactivityTimer = useCallback(() => {
-    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-    inactivityTimer.current = setTimeout(() => {
-      logoutRef.current();
-    }, INACTIVITY_TIMEOUT_MS);
-  }, []);
-
-  useEffect(() => {
-    // Only track inactivity when a user is logged in
-    if (!session) {
-      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-      return;
-    }
-
-    resetInactivityTimer();
-
-    const handler = () => resetInactivityTimer();
-    for (const evt of ACTIVITY_EVENTS) {
-      window.addEventListener(evt, handler, { passive: true });
-    }
-
-    return () => {
-      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-      for (const evt of ACTIVITY_EVENTS) {
-        window.removeEventListener(evt, handler);
-      }
-    };
-  }, [session, resetInactivityTimer]);
 
   const refreshProfile = async (options?: RefreshProfileOptions) => {
     if (!user) {

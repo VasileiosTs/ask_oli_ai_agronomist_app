@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, Bell, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -26,7 +26,6 @@ export default function Profile() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [notifState, setNotifState] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -40,9 +39,10 @@ export default function Profile() {
     );
   }
 
-  const currentProfile = { ...profile, ...notifState };
+  const currentProfile = profile;
+  const currentTier = typeof currentProfile.tier === 'string' ? currentProfile.tier : null;
   const hasUnlimitedMessages = isUnlimitedTier(
-    typeof currentProfile.tier === 'string' ? currentProfile.tier : null,
+    currentTier,
   );
   const msgCount = (currentProfile.message_count_month as number) ?? 0;
   const msgPercent = Math.min((msgCount / FREE_LIMIT) * 100, 100);
@@ -90,14 +90,6 @@ export default function Profile() {
     await refreshProfile();
     setSaving(false);
     setEditOpen(false);
-  };
-
-  const toggleNotif = async (field: string) => {
-    if (!appUserId) return;
-    const current = (notifState[field] !== undefined ? notifState[field] : currentProfile[field]) as boolean;
-    const newVal = !current;
-    setNotifState(prev => ({ ...prev, [field]: newVal }));
-    await supabase.from('users').update({ [field]: newVal }).eq('id', appUserId);
   };
 
   /** Fetch all rows from a table with pagination (Supabase default limit is 1000). */
@@ -212,7 +204,7 @@ export default function Profile() {
             <span className={clsx('mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
               hasUnlimitedMessages ? 'bg-primary/15 text-primary' : 'bg-surface text-muted border border-border/50')}>
               {hasUnlimitedMessages && <Crown className="h-3 w-3" />}
-              {formatTierLabel(typeof currentProfile.tier === 'string' ? currentProfile.tier : null)}
+              {hasUnlimitedMessages ? formatTierLabel(currentTier) : lang === 'el' ? 'ΔΩΡΕΑΝ' : 'FREE'}
             </span>
           </div>
         </div>
@@ -229,7 +221,10 @@ export default function Profile() {
         <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t.subscription}</h2>
         {hasUnlimitedMessages ? (
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
-            <div><p className="font-semibold text-foreground">{t.unlimited}</p><p className="text-sm text-primary">{t.active}</p></div>
+            <div>
+              <p className="font-semibold text-foreground">{t.unlimited}</p>
+              <p className="text-sm text-primary">{formatTierLabel(currentTier)} · {t.active}</p>
+            </div>
             <Crown className="h-6 w-6 text-primary" />
           </div>
         ) : (
@@ -270,48 +265,25 @@ export default function Profile() {
               ))}
             </div>
           </div>
-          {[
-            { key: 'notification_followup', label: t.followUp },
-          ].map(({ key, label }) => {
-            const isOn = notifState[key] !== undefined
-              ? notifState[key]
-              : !!(currentProfile[key]);
-            return (
-              <div key={key} className="flex items-center justify-between rounded-xl p-3">
-                <div className="flex items-center gap-3">
-                  <Bell className="h-5 w-5 text-muted" />
-                  <span className="text-sm text-foreground">{label}</span>
+          {/* Push notifications — read-only status; managed via in-app prompt */}
+          {push.isSupported && (
+            <div className="flex items-center justify-between rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <BellRing className="h-5 w-5 text-muted" />
+                <div>
+                  <span className="text-sm text-foreground">{t.pushNotifications}</span>
+                  {push.permission === 'denied'
+                    ? <p className="text-[11px] text-red-400">{t.pushDenied}</p>
+                    : push.isSubscribed
+                      ? <p className="text-[11px] text-primary">{lang === 'el' ? 'Ενεργές' : 'Enabled'}</p>
+                      : null}
                 </div>
-                <button onClick={() => toggleNotif(key)}
-                  className={clsx('relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors', isOn ? 'bg-primary' : 'bg-border')}>
-                  <span className={clsx('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', isOn ? 'translate-x-5' : 'translate-x-0')} />
-                </button>
               </div>
-            );
-          })}
-
-          {/* Push notifications */}
-          <div className="flex items-center justify-between rounded-xl p-3">
-            <div className="flex items-center gap-3">
-              <BellRing className="h-5 w-5 text-muted" />
-              <div>
-                <span className="text-sm text-foreground">{t.pushNotifications}</span>
-                {!push.isSupported && <p className="text-[11px] text-muted">{t.pushNotSupported}</p>}
-                {push.permission === 'denied' && <p className="text-[11px] text-red-400">{t.pushDenied}</p>}
-              </div>
+              {push.isSubscribed && (
+                <span className="text-xs font-medium text-primary">✓</span>
+              )}
             </div>
-            {push.isSupported && push.permission !== 'denied' && (
-              <button
-                onClick={() => push.isSubscribed ? push.unsubscribe() : push.subscribe()}
-                disabled={push.loading}
-                className={clsx('relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50',
-                  push.isSubscribed ? 'bg-primary' : 'bg-border')}
-              >
-                <span className={clsx('pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
-                  push.isSubscribed ? 'translate-x-5' : 'translate-x-0')} />
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 

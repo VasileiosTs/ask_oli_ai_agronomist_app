@@ -1,18 +1,23 @@
 import { useState, useEffect, useRef, useReducer } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
+import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
+import LoginModal from '../components/LoginModal';
 import InstallPrompt from '../components/InstallPrompt';
 import type { Field } from '../lib/fieldContext';
-import { InlineAttachment, streamChatCompletion } from '../lib/chatFunction';
+import { InlineAttachment, streamChatCompletion, guestChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
-import { getCachedImages } from '../lib/imageCache';
+import { compressImage, cacheImage, getCachedImage, getCachedImages, deleteCachedImage } from '../lib/imageCache';
+import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 import { isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT, SIGNED_URL_EXPIRY, VIO_STEP2_DAYS } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
+import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
 import PushPrompt from '../components/PushPrompt';
 import { Message } from '../components/MessageList';
 import ChatLayout from './chat/ChatLayout';
@@ -23,18 +28,58 @@ import {
   useChatAttachments,
 } from './chat/useChatAttachments';
 
+// ── Guest session storage keys ──
+const GUEST_SESSION_KEY = 'oli_guest_messages';
+
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
   const { t, lang } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const routeLocation = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   const [messages, dispatch] = useReducer(messagesReducer, []);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
+
+  // ── Offline detection ──
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  // ── Personalised greeting (non-blocking; shown in welcome state subtitle) ──
+  const [dynamicGreeting, setDynamicGreeting] = useState('');
+  const greetingFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!user || !profile || isGuestMode || greetingFetchedRef.current) return;
+    greetingFetchedRef.current = true;
+    supabase.functions.invoke('chat', { body: { mode: 'greeting' } })
+      .then(({ data, error }) => {
+        if (!error && typeof data?.greeting === 'string' && data.greeting.trim()) {
+          setDynamicGreeting(data.greeting.trim());
+        }
+      })
+      .catch(() => { /* fail silently — static subtitle is the fallback */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, !!profile]);
+
+  // ── Guest mode state ──
+  const guestQuery = searchParams.get('q');
+  // oli_guest_used persists across reloads so the same browser can't get unlimited free messages
+  const guestAlreadyUsed = !user && !!localStorage.getItem('oli_guest_used');
+  const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
+  const [guestMessageSent, setGuestMessageSent] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
@@ -43,27 +88,26 @@ export default function Chat() {
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
-  const [logModalData, setLogModalData] = useState<any | null>(null);
+  const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
+  const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const messagesRef = useRef(messages);
   /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
   const loadGenerationRef = useRef(0);
   const lastSendAttemptRef = useRef(0);
-  const {
-    attachments,
-    attachmentsRef,
-    cameraInputRef,
-    fileInputRef,
-    showAttachmentSheet,
-    setAttachments,
-    setShowAttachmentSheet,
-    handleFileSelect,
-    removeAttachment,
-  } = useChatAttachments({ t });
-  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
+
+  // Only use explicitly selected field — never auto-select.
+  // Field context is inferred per-message via extraction, not forced globally.
+  const activeField = activeFieldId
+    ? fields.find((field) => field.id === activeFieldId)
+    : undefined;
 
   const safeRevokeObjectUrl = (url: string) => {
     if (url.startsWith('blob:')) {
@@ -82,6 +126,22 @@ export default function Chat() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const cleanupUploadedAssets = async (paths: string[]) => {
+    if (paths.length === 0) {
+      return;
+    }
+
+    await Promise.all(paths.map((path) => deleteCachedImage(path)));
+
+    const { error } = await supabase.storage
+      .from('chat_uploads')
+      .remove(paths);
+
+    if (error) {
+      console.error('Failed to clean up uploaded files:', error);
+    }
   };
 
   const buildConversationTitle = (rawText: string) => {
@@ -165,8 +225,8 @@ export default function Chat() {
         id: `vio-applied-${Date.now()}`,
         role: 'assistant',
         content: lang === 'el'
-          ? 'Τέλεια! Θα σε ρωτήσω σε 3 μέρες αν βλέπεις βελτίωση.'
-          : "Great! I'll check back in 3 days to see if you notice any improvement.",
+          ? 'Τέλεια! Θα σε ρωτήσω σύντομα αν βλέπεις βελτίωση.'
+          : "Great! I'll follow up soon to see if you notice any improvement.",
         created_at: new Date().toISOString(),
       };
       dispatch({ type: 'replace', id: msgId, message: confirmMsg });
@@ -244,6 +304,28 @@ export default function Chat() {
     showToast(feedback === 'positive'
       ? (lang === 'el' ? 'Ευχαριστώ!' : 'Thanks!')
       : (lang === 'el' ? 'Θα βελτιωθώ!' : "I'll improve!"));
+  };
+
+  const handleAutoLogConfirm = async (action: ActionDetected) => {
+    if (!appUserId) return;
+    const fieldId = activeFieldId || null;
+    try {
+      await supabase.from('interventions').insert({
+        user_id: appUserId,
+        field_id: fieldId,
+        diagnosis: action.action_type,
+        product_applied: action.product || null,
+        dosage: action.quantity || null,
+        applied_at: new Date().toISOString(),
+        step: 1,
+        follow_up_at: new Date(Date.now() + VIO_STEP2_DAYS * 86400000).toISOString(),
+        source: 'auto_log',
+      });
+      showToast(lang === 'el' ? 'Καταγράφηκε!' : 'Logged!');
+    } catch {
+      showToast(lang === 'el' ? 'Σφάλμα καταγραφής' : 'Failed to log');
+    }
+    setPendingAutoLog(null);
   };
 
   const handleLogIntervention = (msg: Message) => {
@@ -401,12 +483,12 @@ export default function Chat() {
         .limit(1)
         .then(({ data: due }) => {
           if (!due || due.length === 0) return;
-          const item = due[0] as any;
+          const item = due[0] as { id: string; crop_type: string | null; diagnosis: string | null; follow_up_at: string | null; field_id: string | null; vio_step: number | null; product_applied: string | null };
           const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
           const step = item.vio_step ?? 1;
 
           let followUpContent: string;
-          let vioStepType: string;
+          let vioStepType: 'apply_check' | 'outcome_check';
 
           if (step <= 1) {
             // Step 1: Did you apply the treatment?
@@ -443,6 +525,15 @@ export default function Chat() {
     setFields([]);
   }, [appUserId]);
 
+  // Pre-select field when navigating from FieldDetail "Ask Oli" button
+  useEffect(() => {
+    const navFieldId = (routeLocation.state as { fieldId?: string } | null)?.fieldId;
+    if (navFieldId && fields.length > 0 && fields.some(f => f.id === navFieldId)) {
+      setActiveFieldId(navFieldId);
+      window.history.replaceState({}, '');
+    }
+  }, [routeLocation.state, fields]);
+
   const prevMessageCountRef = useRef(0);
   useEffect(() => {
     const currentCount = messages.length + (isTyping ? 1 : 0);
@@ -472,12 +563,14 @@ export default function Chat() {
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = lang === 'el' ? 'el-GR' : 'en-US';
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -490,6 +583,7 @@ export default function Chat() {
         }
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
         setIsListening(false);
@@ -526,10 +620,168 @@ export default function Chat() {
     });
   };
 
+  // ── Guest chat: send one unauthenticated message ──
+  const sendGuestMessage = async (text: string) => {
+    setGuestMessageSent(true);
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    dispatch({ type: 'append', message: userMsg });
+    setIsTyping(true);
+
+    try {
+      const result = await guestChatCompletion(text, lang);
+
+      const assistantMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: result.assistantText,
+        created_at: new Date().toISOString(),
+        metadata: result.metadata,
+      };
+      dispatch({ type: 'append', message: assistantMsg });
+
+      // Persist in sessionStorage so it survives onboarding redirect
+      sessionStorage.setItem(GUEST_SESSION_KEY, JSON.stringify({
+        userText: text,
+        assistantText: result.assistantText,
+        metadata: result.metadata,
+      }));
+
+      // Mark this browser as having used the guest quota — persists across reloads
+      localStorage.setItem('oli_guest_used', '1');
+
+      trackEvent(Events.MESSAGE_SENT, { guest: true });
+    } catch {
+      dispatch({ type: 'append', message: {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: lang === 'el'
+          ? 'Κάτι πήγε στραβά. Δοκίμασε ξανά.'
+          : 'Something went wrong. Please try again.',
+        created_at: new Date().toISOString(),
+      }});
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  // Auto-send guest query from ?q= param, or show login if quota already used
+  useEffect(() => {
+    if (!guestQuery || !user) {
+      // If guest quota already used and they arrive with ?q=, save question and prompt login
+      if (guestQuery && guestAlreadyUsed && !user) {
+        sessionStorage.setItem('oli_pending_input', decodeURIComponent(guestQuery));
+        setShowLoginModal(true);
+      }
+    }
+    if (!guestQuery || !isGuestMode || guestMessageSent) return;
+
+    const text = decodeURIComponent(guestQuery);
+    // Clear the ?q= param to prevent re-send on re-render
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('q');
+    setSearchParams(newParams, { replace: true });
+
+    sendGuestMessage(text);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestQuery, isGuestMode]);
+
+  // Migrate guest messages after login + onboarding
+  useEffect(() => {
+    if (!appUserId) return;
+
+    // User is now authenticated — clear the guest quota flag so it doesn't affect their experience
+    localStorage.removeItem('oli_guest_used');
+
+    // Restore any question that was pending before login (e.g. from ?q= when quota was used)
+    const pendingInput = sessionStorage.getItem('oli_pending_input');
+    if (pendingInput) {
+      sessionStorage.removeItem('oli_pending_input');
+      setInput(pendingInput);
+    }
+
+    const raw = sessionStorage.getItem(GUEST_SESSION_KEY);
+    if (!raw) return;
+
+    sessionStorage.removeItem(GUEST_SESSION_KEY);
+    setIsGuestMode(false);
+
+    let guestData: { userText: string; assistantText: string; metadata?: Record<string, unknown> };
+    try {
+      guestData = JSON.parse(raw);
+    } catch {
+      return;
+    }
+
+    (async () => {
+      // Create conversation
+      const { data: conv } = await supabase.from('conversations').insert({
+        user_id: appUserId,
+        title: guestData.userText.slice(0, 50) + ' – ' + new Date().toLocaleString('en', { month: 'short', year: 'numeric' }),
+      }).select('id').single();
+
+      if (conv?.id) {
+        setActiveConversationId(conv.id);
+
+        // Insert user message
+        await supabase.from('chat_messages').insert({
+          conversation_id: conv.id,
+          user_id: appUserId,
+          role: 'user',
+          content: guestData.userText,
+        });
+
+        // Insert assistant message
+        await supabase.from('chat_messages').insert({
+          conversation_id: conv.id,
+          user_id: appUserId,
+          role: 'assistant',
+          content: guestData.assistantText,
+          metadata: { ...(guestData.metadata ?? {}), source: 'guest-migration' },
+        });
+      }
+
+      // Count the guest message (increment message_count_month by 1)
+      const currentCount = profile?.message_count_month ?? 0;
+      await supabase.from('users').update({
+        message_count_month: currentCount + 1,
+        message_reset_date: new Date().toISOString(),
+      }).eq('id', appUserId);
+      setMessageCount(currentCount + 1);
+
+      // Re-load messages for the new conversation
+      if (conv?.id) {
+        const { data: msgs } = await supabase.from('chat_messages')
+          .select('id, role, content, created_at, metadata, starred, image_urls')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: true });
+
+        if (msgs) {
+          dispatch({ type: 'set', messages: msgs.map(m => ({
+            id: m.id,
+            db_id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            created_at: m.created_at,
+            metadata: m.metadata as Record<string, unknown> | undefined,
+            starred: m.starred,
+            attachments: m.image_urls?.map((u: string) => ({ url: u, type: 'image' as const })),
+          }))});
+        }
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUserId]);
+
   const sendMessageToAI = async (
-    currentMessages: Message[], 
-    userText: string, 
-    currentActiveFieldId: string | undefined, 
+    currentMessages: Message[],
+    userText: string,
+    currentActiveFieldId: string | undefined,
     currentConversationId: string | undefined,
     base64Images?: InlineAttachment[],
     attachmentPaths?: string[]
@@ -631,6 +883,12 @@ export default function Chat() {
       if (completion.fieldId && completion.fieldId !== currentActiveFieldId) {
         setActiveFieldId(completion.fieldId);
       }
+
+      // Auto-log detection: show banner if AI detected a past action
+      const detected = completion.metadata?.action_detected;
+      if (detected && typeof detected === 'object' && 'action_type' in detected && 'confidence' in detected) {
+        setPendingAutoLog(detected as ActionDetected);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setIsTyping(false);
@@ -681,6 +939,14 @@ export default function Chat() {
   const handleSend = async (text: string = input) => {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
+
+    // Guest mode: gate 2nd message with login modal — save pending input so it survives login
+    if (isGuestMode) {
+      if (messageText) sessionStorage.setItem('oli_pending_input', messageText);
+      setShowLoginModal(true);
+      trackEvent(Events.PAYWALL_HIT, { guest: true });
+      return;
+    }
 
     if (!appUserId) {
       showToast(t.profileSyncing);
@@ -824,6 +1090,7 @@ export default function Chat() {
       if (data) {
         // L2: Track all blob URLs created during this load so we can revoke them if the load goes stale.
         const blobUrlsCreated: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const messages: Message[] = await Promise.all(data.map(async (m: any) => {
           const base: Message = {
             id: m.id, db_id: m.id, role: m.role, content: m.content,
@@ -833,7 +1100,6 @@ export default function Chat() {
           if (Array.isArray(m.image_urls) && m.image_urls.length > 0) {
             const attachments: NonNullable<Message['attachments']> = [];
             const uncached: string[] = [];
-            // 1. Batch check IndexedDB cache (single transaction instead of per-image)
             const cachedMap = await getCachedImages(m.image_urls);
             for (const path of m.image_urls) {
               const cached = cachedMap.get(path);
@@ -844,7 +1110,6 @@ export default function Chat() {
                 uncached.push(path);
               }
             }
-            // 2. Batch sign all uncached paths in ONE API call
             if (uncached.length > 0) {
               const { data: signed } = await supabase.storage
                 .from('chat_uploads')
@@ -861,7 +1126,6 @@ export default function Chat() {
           }
           return base;
         }));
-        // L2: If another load/clear happened while we were resolving images, revoke the orphaned blob URLs
         if (loadGenerationRef.current !== thisGeneration) {
           blobUrlsCreated.forEach(url => URL.revokeObjectURL(url));
           return;
@@ -911,29 +1175,203 @@ export default function Chat() {
     onToggleAttachmentSheet: setShowAttachmentSheet,
   };
 
+  const desktopInputBarProps = {
+    ...inputBarProps,
+    textareaRef: desktopTextareaRef,
+  };
+
   return (
-    <>
-      <ChatLayout
-        activeConversationId={activeConversationId}
-        activeFieldId={activeFieldId}
-        fields={fields}
-        handleSend={handleSend}
-        inputBarProps={inputBarProps}
-        inputTop={<PushPrompt userId={appUserId ?? null} messageCount={messages.length} />}
-        lang={lang}
-        messageListProps={messageListProps}
-        messages={messages}
-        onSelectConversation={handleSidebarSelect}
-        onSelectField={setActiveFieldId}
-        onToggleSidebar={setSidebarOpen}
-        onNewChat={clearChat}
-        sidebarLoading={sidebarLoading}
-        sidebarOpen={sidebarOpen}
-        t={t}
-      />
+    <div className="flex h-[100dvh] bg-background overflow-hidden pt-safe">
+
+      {/* ── DESKTOP: permanent sidebar (hidden in guest mode) ── */}
+      {!isGuestMode && (
+        <div className="hidden md:block flex-shrink-0">
+          <ConversationSidebar isOpen={true} onClose={() => {}} desktop={true}
+            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
+        </div>
+      )}
+
+      {/* ── MOBILE: slide-over sidebar (hidden in guest mode) ── */}
+      {!isGuestMode && (
+        <div className="md:hidden">
+          <ConversationSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
+            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
+        </div>
+      )}
+
+      {/* ── MAIN AREA ── */}
+      <div className="flex flex-1 flex-col min-w-0">
+
+        {/* Desktop guest header — sign-in bar, only shown in guest mode on md+ */}
+        {isGuestMode && (
+          <header className="hidden md:flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-6">
+            <div className="flex items-center gap-2">
+              <Leaf className="h-[18px] w-[18px] text-primary" />
+              <span className="text-[16px] font-medium text-primary">Oli</span>
+            </div>
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
+              style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}
+            >
+              {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
+            </button>
+          </header>
+        )}
+
+        {/* Mobile header */}
+        <header className="md:hidden flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-4">
+          <div className="flex items-center gap-3">
+            {!isGuestMode && (
+              <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="text-muted hover:text-foreground transition-colors">
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
+            <Leaf className="h-[18px] w-[18px] text-primary" />
+            <span className="text-[16px] font-medium text-primary">Oli</span>
+          </div>
+          {isGuestMode ? (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
+              style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}
+            >
+              {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
+            </button>
+          ) : (
+            <>
+              {fields.length > 0 && (
+                <FieldSelector
+                  fields={fields}
+                  activeFieldId={activeFieldId}
+                  onSelectField={setActiveFieldId}
+                  lang={lang}
+                />
+              )}
+              <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
+                <SquarePen className="h-5 w-5" />
+              </button>
+            </>
+          )}
+        </header>
+
+        {/* Desktop: no top header — sidebar owns all navigation */}
+
+        {/* ── OFFLINE BANNER ── */}
+        {!isOnline && (
+          <div className="flex items-center justify-center gap-2 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <span>●</span>
+            <span>{lang === 'el' ? 'Δεν υπάρχει σύνδεση — τα μηνύματα δεν αποστέλλονται' : 'No internet connection — messages cannot be sent'}</span>
+          </div>
+        )}
+
+        {/* ── DESKTOP WELCOME (no messages) ── */}
+        {messages.length === 0 && (
+          <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
+            <div className="w-full max-w-2xl">
+              <div className="mb-3 flex items-center justify-center gap-3">
+                <Leaf className="h-10 w-10 text-primary" />
+                <h1 className="text-4xl font-semibold text-primary">Oli</h1>
+              </div>
+              <p className="mb-1 text-center text-xl font-medium text-foreground">{t.welcomeTitle}</p>
+              <p className="mb-8 text-center text-sm text-muted">{dynamicGreeting || t.welcomeSubtitle}</p>
+              <div className="mb-6 grid grid-cols-3 gap-4">
+                {[
+                  { title: t.feature1Title, desc: t.feature1Desc, icon: '📷' },
+                  { title: t.feature2Title, desc: t.feature2Desc, icon: '🧠' },
+                  { title: t.feature3Title, desc: t.feature3Desc, icon: '📋' },
+                ].map((f, i) => (
+                  <div key={i} className="rounded-2xl border border-border/50 bg-surface p-4 text-left">
+                    <div className="mb-2 text-2xl">{f.icon}</div>
+                    <p className="text-sm font-medium text-foreground">{f.title}</p>
+                    <p className="mt-1 text-xs text-muted leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mb-5 grid grid-cols-2 gap-3">
+                {t.suggestions.map((sugg, i) => (
+                  <button key={i} onClick={() => handleSend(sugg)}
+                    className="rounded-2xl border border-border/50 bg-surface px-4 py-3 text-left text-sm text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98]">
+                    {sugg}
+                  </button>
+                ))}
+              </div>
+              <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
+                <ChatInputBar {...desktopInputBarProps} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MOBILE EMPTY STATE ── */}
+        {messages.length === 0 && (
+          <div className="md:hidden flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
+              <Leaf className="mb-3 h-10 w-10 text-primary" />
+              <h1 className="mb-1 text-2xl font-semibold text-primary">Oli</h1>
+              <p className="text-sm text-muted mb-5">{dynamicGreeting || t.chatSubtitle}</p>
+
+              {/* Quick feature hints */}
+              <div className="flex gap-2 mb-5 flex-wrap justify-center">
+                {[
+                  { icon: '📷', label: lang === 'el' ? 'Φωτό' : 'Photo' },
+                  { icon: '🎤', label: lang === 'el' ? 'Φωνή' : 'Voice' },
+                  { icon: '🌿', label: lang === 'el' ? 'Διάγνωση' : 'Diagnose' },
+                ].map((f, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-surface/50 px-3 py-1.5 text-xs text-muted">
+                    <span>{f.icon}</span>{f.label}
+                  </span>
+                ))}
+              </div>
+
+              {/* Suggestion buttons */}
+              <div className="grid w-full max-w-md grid-cols-2 gap-2.5">
+                {t.suggestions.map((sugg, i) => (
+                  <button key={i} onClick={() => handleSend(sugg)}
+                    className="rounded-2xl border border-border/50 bg-surface px-3.5 py-3 text-left text-[13px] leading-snug text-foreground transition-all active:scale-[0.97] hover:border-primary/30">
+                    {sugg}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ChatInputBar {...inputBarProps} />
+          </div>
+        )}
+
+        {/* ── CHAT ACTIVE (both desktop + mobile) ── */}
+        {messages.length > 0 && (
+          <div className="flex flex-1 flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+              <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl' : 'max-w-2xl'}`}>
+                {sidebarLoading ? (
+                  <div className="flex h-full items-center justify-center py-20">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+                  </div>
+                ) : <MessageList {...messageListProps} />}
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl md:px-4 md:pb-4' : 'max-w-2xl md:px-2 md:pb-4'}`}>
+                {pendingAutoLog && (
+                  <AutoLogBanner
+                    action={pendingAutoLog}
+                    lang={lang}
+                    onConfirm={handleAutoLogConfirm}
+                    onDismiss={() => setPendingAutoLog(null)}
+                  />
+                )}
+                <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
+                <ChatInputBar {...inputBarProps} />
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
-      <InstallPrompt />
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {!isGuestMode && <InstallPrompt />}
 
       {logModalData && user && (
         <LogInterventionModal
@@ -941,7 +1379,7 @@ export default function Chat() {
           onClose={() => setLogModalData(null)}
           initialData={logModalData}
           userId={appUserId || user.id}
-          fieldId={logModalData.field_id}
+          fieldId={logModalData.field_id as string | undefined}
           onSuccess={async (id) => {
             showToast(t.interventionLogged);
             const msg = messages.find(m => m.id === logModalData.msg_id);
@@ -992,13 +1430,15 @@ export default function Chat() {
         </div>
       )}
 
-      {toastMessage && (
-        <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4">
-          <div className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">
-            {toastMessage}
+      <div role="status" aria-live="polite" aria-atomic="true" className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2">
+        {toastMessage && (
+          <div className="animate-in fade-in slide-in-from-bottom-4">
+            <div className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg">
+              {toastMessage}
+            </div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </div>
   );
 }
