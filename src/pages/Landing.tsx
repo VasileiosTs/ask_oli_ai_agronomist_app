@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Send, Clock, Leaf, Check, MessageCircle, Zap, RefreshCw } from 'lucide-react';
+import { Send, Clock, Leaf, Check, MessageCircle, Zap, RefreshCw, Camera, Mic, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import OliLogo from '../components/OliLogo';
+import { ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from '../lib/constants';
 
 // ── Unit detection ────────────────────────────────────────────────────────────
 const detectImperial = (): boolean => {
@@ -446,10 +447,65 @@ export default function Landing() {
   const [suggestionVisible, setSuggestionVisible] = useState(true);
   const imperial = useMemo(() => detectImperial(), []);
 
+  // Photo attachment for hero guest chat
+  const [heroPhoto, setHeroPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Voice (speech-to-text) for hero guest chat
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   const rotatingQuestions = useMemo(() => ROTATING_QUESTIONS(lang, imperial), [lang, imperial]);
   const exampleQuestions  = useMemo(() => EXAMPLE_QUESTIONS(lang, imperial), [lang, imperial]);
   const demoDisease       = DEMO_DISEASE(lang);
   const demoPlanning      = DEMO_PLANNING(lang, imperial);
+
+  // Initialise speech recognition
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = lang === 'el' ? 'el-GR' : 'en-US';
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0]?.[0]?.transcript ?? '';
+      if (transcript) setChatInput(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
+    recognitionRef.current = rec;
+  }, [lang]);
+
+  const toggleListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  }, [isListening]);
+
+  // Handle photo selection for hero chat
+  const handleHeroPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type) || file.size > MAX_FILE_SIZE) {
+      alert(lang === 'el' ? 'Μη έγκυρο αρχείο (μέγιστο 10MB, JPEG/PNG/WEBP/HEIC)' : 'Invalid file (max 10MB, JPEG/PNG/WEBP/HEIC)');
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setHeroPhoto({ file, previewUrl });
+    // Reset input so same file can be reselected
+    e.target.value = '';
+  };
+
+  const removeHeroPhoto = () => {
+    if (heroPhoto) URL.revokeObjectURL(heroPhoto.previewUrl);
+    setHeroPhoto(null);
+  };
 
   // Rotate suggestion every 3.5s
   useEffect(() => {
@@ -483,11 +539,35 @@ export default function Landing() {
     setMeta('property', 'og:type', 'website');
   }, [lang]);
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  // Build nav URL: if photo attached, we need to go to /chat directly (can't pass binary in URL)
+  const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = chatInput.trim();
-    if (!text) return;
-    navigate(isLoggedIn ? '/chat' : `/chat?q=${encodeURIComponent(text)}`);
+    if (!text && !heroPhoto) return;
+
+    // If photo is attached, encode it and navigate to chat with the text
+    // The image will be stored in sessionStorage for Chat.tsx to pick up
+    if (heroPhoto) {
+      try {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          sessionStorage.setItem('oli_hero_attachment', JSON.stringify({
+            mimeType: heroPhoto.file.type,
+            data: base64,
+            previewUrl: heroPhoto.previewUrl,
+          }));
+          removeHeroPhoto();
+          const q = text || (lang === 'el' ? 'Ανάλυσε αυτή τη φωτογραφία' : 'Analyze this photo');
+          navigate(isLoggedIn ? `/chat?q=${encodeURIComponent(q)}` : `/chat?q=${encodeURIComponent(q)}`);
+        };
+        reader.readAsDataURL(heroPhoto.file);
+      } catch {
+        navigate(`/chat?q=${encodeURIComponent(text)}`);
+      }
+    } else {
+      navigate(isLoggedIn ? '/chat' : `/chat?q=${encodeURIComponent(text)}`);
+    }
   };
 
   const sendQuestion = (q: string) => {
@@ -557,24 +637,79 @@ export default function Landing() {
               </p>
 
               {/* Chat input */}
-              <form onSubmit={handleChatSubmit} className="relative max-w-xl mx-auto lg:mx-0 mb-3">
+              <form onSubmit={handleChatSubmit} className="max-w-xl mx-auto lg:mx-0 mb-3">
+                {/* Photo preview */}
+                {heroPhoto && (
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <div className="relative inline-block">
+                      <img src={heroPhoto.previewUrl} alt="attachment preview" className="h-14 w-14 rounded-xl object-cover border border-[#deded8]" />
+                      <button
+                        type="button"
+                        onClick={removeHeroPhoto}
+                        className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#194121] text-white shadow"
+                        aria-label={lang === 'el' ? 'Αφαίρεση φωτογραφίας' : 'Remove photo'}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <span className="text-xs text-[#606659]">{lang === 'el' ? 'Φωτογραφία επισυνάφθηκε' : 'Photo attached'}</span>
+                  </div>
+                )}
+
+                <div
+                  className="flex items-center gap-1 rounded-2xl bg-white border border-[#deded8] focus-within:border-[#194121] focus-within:ring-2 focus-within:ring-[#194121]/15 transition-all px-3 py-2"
+                  style={{ boxShadow: '0 4px 24px rgba(25,65,33,0.09)' }}>
+
+                  {/* Photo button */}
+                  <button
+                    type="button"
+                    onClick={() => heroFileInputRef.current?.click()}
+                    aria-label={lang === 'el' ? 'Ανέβασε φωτογραφία' : 'Upload photo'}
+                    className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8 transition-colors">
+                    <Camera className="h-5 w-5" />
+                  </button>
+
+                  {/* Voice button */}
+                  {recognitionRef.current && (
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      aria-label={isListening ? (lang === 'el' ? 'Σταμάτα εγγραφή' : 'Stop recording') : (lang === 'el' ? 'Ομιλία' : 'Speak')}
+                      className={`flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8'}`}>
+                      <Mic className="h-5 w-5" />
+                    </button>
+                  )}
+
+                  {/* Text input */}
+                  <input
+                    type="text"
+                    value={isListening ? (lang === 'el' ? 'Ακούω...' : 'Listening...') : chatInput}
+                    onChange={e => !isListening && setChatInput(e.target.value)}
+                    aria-label={lang === 'el' ? 'Ρώτα τον Oli' : 'Ask Oli anything'}
+                    placeholder={lang === 'el' ? 'Ρώτα ή ανέβασε φωτογραφία...' : 'Ask or upload a photo...'}
+                    className="flex-1 min-w-0 bg-transparent text-[15px] text-[#1b1c19] placeholder:text-[#9a9b93] focus:outline-none py-1.5"
+                    readOnly={isListening}
+                  />
+
+                  {/* Send button */}
+                  <button
+                    type="submit"
+                    disabled={!chatInput.trim() && !heroPhoto}
+                    aria-label={lang === 'el' ? 'Αποστολή' : 'Send'}
+                    className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl text-white transition-all disabled:opacity-30"
+                    style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Hidden file input */}
                 <input
-                  type="text"
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  aria-label={lang === 'el' ? 'Ρώτα τον Oli' : 'Ask Oli anything'}
-                  placeholder={lang === 'el' ? 'Ρώτα τον Oli οτιδήποτε...' : 'Ask Oli anything about your crops...'}
-                  className="w-full rounded-full px-5 py-3.5 pr-14 text-[15px] bg-white border border-[#deded8] focus:border-[#194121] focus:outline-none focus:ring-2 focus:ring-[#194121]/15 transition-all"
-                  style={{ boxShadow: '0 4px 24px rgba(25,65,33,0.09)' }}
+                  ref={heroFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleHeroPhoto}
                 />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim()}
-                  aria-label={lang === 'el' ? 'Αποστολή' : 'Send'}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full text-white transition-all disabled:opacity-30"
-                  style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
-                  <Send className="h-4 w-4" />
-                </button>
               </form>
 
               {/* Rotating suggestion chip */}

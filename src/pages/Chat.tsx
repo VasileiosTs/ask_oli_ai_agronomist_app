@@ -700,17 +700,31 @@ export default function Chat() {
   const sendGuestMessage = async (text: string) => {
     setGuestMessageSent(true);
 
+    // Pick up any photo attached on the landing page
+    let heroInline: InlineAttachment | undefined;
+    let heroPreviewUrl: string | undefined;
+    try {
+      const raw = sessionStorage.getItem('oli_hero_attachment');
+      if (raw) {
+        sessionStorage.removeItem('oli_hero_attachment');
+        const stored = JSON.parse(raw) as { mimeType: string; data: string; previewUrl?: string };
+        heroInline = { mimeType: stored.mimeType, data: stored.data };
+        heroPreviewUrl = stored.previewUrl;
+      }
+    } catch { /* ignore parse errors */ }
+
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content: text,
       created_at: new Date().toISOString(),
+      attachments: heroPreviewUrl ? [{ url: heroPreviewUrl, mimeType: heroInline!.mimeType, name: 'photo' }] : undefined,
     };
     dispatch({ type: 'append', message: userMsg });
     setIsTyping(true);
 
     try {
-      const result = await guestChatCompletion(text, lang);
+      const result = await guestChatCompletion(text, lang, heroInline);
 
       const assistantMsg: Message = {
         id: crypto.randomUUID(),

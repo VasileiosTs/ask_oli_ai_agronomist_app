@@ -249,12 +249,17 @@ export interface GuestChatResponse {
 export async function guestChatCompletion(
   message: string,
   lang?: string,
+  attachment?: InlineAttachment,
 ): Promise<GuestChatResponse> {
   if (!supabaseUrl || !supabasePublicKey) {
     throw createStreamError('Supabase environment variables are missing.');
   }
 
   const functionUrl = `${supabaseUrl}/functions/v1/chat`;
+  const userMessage = attachment
+    ? { role: 'user', content: message, attachments: [attachment] }
+    : { role: 'user', content: message };
+
   const response = await fetch(functionUrl, {
     method: 'POST',
     headers: {
@@ -263,10 +268,10 @@ export async function guestChatCompletion(
     },
     body: JSON.stringify({
       mode: 'guest',
-      messages: [{ role: 'user', content: message }],
+      messages: [userMessage],
       lang,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(40000),
   });
 
   if (!response.ok) {
