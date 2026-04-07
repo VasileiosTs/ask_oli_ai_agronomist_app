@@ -21,6 +21,7 @@ export default function Onboarding() {
   const [location, setLocation] = useState('');
   const [suggestions, setSuggestions] = useState<LocationResult[]>([]);
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const locationRef = useRef<HTMLDivElement>(null);
 
@@ -80,17 +81,33 @@ export default function Onboarding() {
     setSuggestionsOpen(false);
   };
 
-  // When user edits location text after selecting, clear stored coords
+  // When user edits location text after selecting, clear stored coords and any error
   const handleLocationChange = (val: string) => {
     setLocation(val);
     setLocationCoords(null);
+    setLocationError(null);
   };
 
   // ── Navigation ─────────────────────────────────────────────────────────────
   const handleNext = () => {
-    if (step === 1 && name.trim()) setStep(2);
-    else if (step === 2 && location.trim()) setStep(3);
-    else if (step === 3) setStep(4);
+    if (step === 1 && name.trim()) {
+      setStep(2);
+    } else if (step === 2) {
+      if (!location.trim()) return;
+      // Require the user to have selected from autocomplete (coords stored)
+      if (!locationCoords) {
+        setLocationError(
+          lang === 'el'
+            ? 'Παρακαλώ επιλέξτε τοποθεσία από τη λίστα για να αποθηκευτούν οι συντεταγμένες.'
+            : 'Please select a location from the list so we can store your coordinates.',
+        );
+        return;
+      }
+      setLocationError(null);
+      setStep(3);
+    } else if (step === 3) {
+      setStep(4);
+    }
   };
 
   // ── Crops ──────────────────────────────────────────────────────────────────
@@ -275,11 +292,17 @@ export default function Onboarding() {
                   </ul>
                 )}
               </div>
-              {locationCoords && (
+              {locationCoords ? (
                 <p className="text-xs text-primary/70 px-1">
                   {lang === 'el' ? '✓ Τοποθεσία επιβεβαιωμένη' : '✓ Location confirmed'}
                 </p>
-              )}
+              ) : locationError ? (
+                <p className="text-xs text-red-400 px-1">{locationError}</p>
+              ) : location.trim() ? (
+                <p className="text-xs text-amber-400/80 px-1">
+                  {lang === 'el' ? '↑ Επιλέξτε από τη λίστα για επιβεβαίωση' : '↑ Select from the list to confirm'}
+                </p>
+              ) : null}
             </div>
           )}
 

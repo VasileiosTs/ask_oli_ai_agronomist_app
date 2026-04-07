@@ -13,17 +13,63 @@ const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:hello@askoli.ai";
 
 // ── Web Push crypto helpers (using Web Crypto API) ──
 
-async function generateJWT(header: object, payload: object, privateKeyRaw: string): Promise<string> {
+function decodeBase64url(s: string): Uint8Array {
+  const padding = "=".repeat((4 - (s.length % 4)) % 4);
+  const b64 = (s + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+/**
+ * Build a valid PKCS#8 DER structure for a P-256 EC private key.
+ * Requires both the raw 32-byte private key and the 65-byte uncompressed public key
+ * (0x04 || x || y) — Web Crypto's importKey("pkcs8") requires the full structure.
+ *
+ * Outer structure (total content = 135 bytes = 0x87):
+ *   SEQUENCE {
+ *     INTEGER 0
+ *     SEQUENCE { OID ecPublicKey, OID P-256 }
+ *     OCTET STRING {
+ *       SEQUENCE (ECPrivateKey, RFC 5915) {
+ *         INTEGER 1
+ *         OCTET STRING { [32 bytes raw private key] }
+ *         [1] { BIT STRING { 0x00, [65 bytes public key] } }
+ *       }
+ *     }
+ *   }
+ */
+function buildPkcs8(rawPrivKey: Uint8Array, rawPubKey: Uint8Array): ArrayBuffer {
+  const prefix = new Uint8Array([
+    0x30, 0x81, 0x87, // SEQUENCE (135 bytes)
+    0x02, 0x01, 0x00, // INTEGER 0
+    0x30, 0x13,       // SEQUENCE (19 bytes) — algorithm identifier
+    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, // OID ecPublicKey
+    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, // OID P-256
+    0x04, 0x6d,       // OCTET STRING (109 bytes)
+    0x30, 0x6b,       // SEQUENCE (107 bytes) — ECPrivateKey
+    0x02, 0x01, 0x01, // INTEGER 1
+    0x04, 0x20,       // OCTET STRING (32 bytes) — private key
+  ]);
+  const midfix = new Uint8Array([
+    0xa1, 0x44,       // CONTEXT [1] (68 bytes)
+    0x03, 0x42, 0x00, // BIT STRING (66 bytes, 0 unused bits)
+  ]);
+  const result = new Uint8Array(prefix.length + 32 + midfix.length + 65);
+  result.set(prefix);
+  result.set(rawPrivKey.slice(0, 32), prefix.length);
+  result.set(midfix, prefix.length + 32);
+  result.set(rawPubKey.slice(0, 65), prefix.length + 32 + midfix.length);
+  return result.buffer;
+}
+
+async function generateJWT(header: object, payload: object, privateKeyRaw: string, publicKeyRaw: string): Promise<string> {
   const enc = new TextEncoder();
 
-  // Import VAPID private key (base64url → ECDSA P-256)
-  const padding = "=".repeat((4 - (privateKeyRaw.length % 4)) % 4);
-  const b64 = (privateKeyRaw + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const keyBytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const privKeyBytes = decodeBase64url(privateKeyRaw); // 32 bytes
+  const pubKeyBytes = decodeBase64url(publicKeyRaw);   // 65 bytes (0x04 || x || y)
 
   const key = await crypto.subtle.importKey(
     "pkcs8",
-    buildPkcs8(keyBytes),
+    buildPkcs8(privKeyBytes, pubKeyBytes),
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["sign"]
@@ -39,30 +85,12 @@ async function generateJWT(header: object, payload: object, privateKeyRaw: strin
   return `${headerB64}.${payloadB64}.${sigB64}`;
 }
 
-function buildPkcs8(rawKey: Uint8Array): ArrayBuffer {
-  // Wrap raw 32-byte private key in PKCS#8 DER for P-256
-  const prefix = new Uint8Array([
-    0x30, 0x81, 0x87, 0x02, 0x01, 0x00, 0x30, 0x13,
-    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d,
-    0x03, 0x01, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02,
-    0x01, 0x01, 0x04, 0x20
-  ]);
-  const suffix = new Uint8Array([
-    0xa1, 0x44, 0x03, 0x42, 0x00
-  ]);
-  // For this simplified version, we just need the raw key
-  const result = new Uint8Array(prefix.length + rawKey.length + suffix.length + 65);
-  result.set(prefix, 0);
-  result.set(rawKey, prefix.length);
-  // We'll skip the public key part and use a simpler approach
-  return result.buffer.slice(0, prefix.length + rawKey.length);
-}
-
-// Simplified push sender using fetch with VAPID auth
+// Send a VAPID-authenticated ping (no body) to the push endpoint.
+// Payload encryption (RFC 8291) is intentionally omitted: a silent push is
+// reliable across all push services and the service worker shows a helpful
+// default notification. Specific VIO details are visible in-app via the banner.
 async function sendPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: object
 ): Promise<boolean> {
   try {
     const audience = new URL(subscription.endpoint).origin;
@@ -71,17 +99,17 @@ async function sendPushNotification(
     const jwt = await generateJWT(
       { typ: "JWT", alg: "ES256" },
       { aud: audience, exp: expiry, sub: VAPID_SUBJECT },
-      VAPID_PRIVATE_KEY
+      VAPID_PRIVATE_KEY,
+      VAPID_PUBLIC_KEY,
     );
 
     const resp = await fetch(subscription.endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "TTL": "86400",
         "Authorization": `vapid t=${jwt}, k=${VAPID_PUBLIC_KEY}`,
       },
-      body: JSON.stringify(payload),
+      // No body — silent push; service worker shows notification with default text
     });
 
     if (resp.status === 410 || resp.status === 404) {
@@ -97,17 +125,17 @@ async function sendPushNotification(
 }
 
 // ── CORS ──
-const ALLOWED_ORIGINS = [
-  "https://codex-ask-oli-app.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:3000",
-];
+const ALLOWED_ORIGIN =
+  Deno.env.get("ALLOWED_ORIGIN") || "https://codex-ask-oli-app.vercel.app";
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const isAllowed =
+    origin === ALLOWED_ORIGIN ||
+    origin === "http://localhost:5173" ||
+    origin === "http://localhost:3000";
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGIN,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
@@ -202,12 +230,7 @@ serve(async (req) => {
       let sent = 0;
       const now = new Date().toISOString();
       for (const sub of subs) {
-        const ok = await sendPushNotification(sub, {
-          title,
-          body: pushBody,
-          url: pushUrl,
-          tag: body.tag || "oli-vio",
-        });
+        const ok = await sendPushNotification(sub);
         if (ok) {
           sent++;
           // Track send time for rate limiting
@@ -252,24 +275,18 @@ serve(async (req) => {
       let processed = 0;
       for (const iv of dueInterventions) {
         const step = iv.vio_step ?? 1;
-        const title = "Oli";
-        const msgBody = step <= 1
-          ? `Did you apply the treatment for ${iv.problem || iv.crop_type || "your crop"}?`
-          : `Any improvement with ${iv.problem || iv.crop_type || "your crop"}?`;
 
         const { data: subs } = await supabase
           .from("push_subscriptions")
           .select("*")
           .eq("user_id", iv.user_id);
 
+        let notificationSent = 0;
         for (const sub of (subs || [])) {
-          const ok = await sendPushNotification(sub, {
-            title,
-            body: msgBody,
-            url: "/chat",
-            tag: `vio-${iv.id}`,
-          });
-          if (!ok) {
+          const ok = await sendPushNotification(sub);
+          if (ok) {
+            notificationSent++;
+          } else {
             await logOperationalEvent(supabase, {
               userId: iv.user_id,
               eventType: "push_delivery_failed",
@@ -284,6 +301,24 @@ serve(async (req) => {
             await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           }
         }
+
+        // Advance VIO step only if we actually delivered a push notification.
+        // If user has no push subscriptions, the email cron (30min offset) picks it up.
+        // This prevents double-notification while also avoiding infinite cron loops.
+        if (notificationSent > 0) {
+          const nextStep = step + 1;
+          const nextFollowUpAt = nextStep < 3
+            ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+            : null;
+          await supabase
+            .from("interventions")
+            .update(nextFollowUpAt
+              ? { vio_step: nextStep, follow_up_at: nextFollowUpAt }
+              : { vio_step: nextStep, follow_up_at: null }
+            )
+            .eq("id", iv.id);
+        }
+
         processed++;
       }
 

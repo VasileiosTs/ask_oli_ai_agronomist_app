@@ -13,18 +13,18 @@ const APP_URL = Deno.env.get("APP_URL") || "https://codex-ask-oli-app.vercel.app
 const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@askoli.ai";
 
 // ── CORS ──
-const ALLOWED_ORIGINS = [
-  "https://codex-ask-oli-app.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-];
+const ALLOWED_ORIGIN =
+  Deno.env.get("ALLOWED_ORIGIN") || "https://codex-ask-oli-app.vercel.app";
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const isAllowed =
+    origin === ALLOWED_ORIGIN ||
+    origin === "http://localhost:5173" ||
+    origin === "http://localhost:3000" ||
+    origin === "http://127.0.0.1:3000";
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGIN,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
@@ -519,6 +519,22 @@ serve(async (req) => {
         const tpl = vioReminderEmail(user.name, iv.problem || iv.crop_type || "your crop", iv.vio_step ?? 1, "en");
         const ok = await sendEmail(user.email, tpl.subject, tpl.html);
         if (ok) sent++;
+
+        // Always advance VIO step regardless of email delivery success.
+        // This prevents the same intervention from being picked up on the next cron run
+        // (every 6h), which would spam users. If delivery failed, the in-app VIO banner
+        // shows the pending action when the user next opens the app.
+        const nextStep = (iv.vio_step ?? 1) + 1;
+        const nextFollowUpAt = nextStep < 3
+          ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+          : null;
+        await supabase
+          .from("interventions")
+          .update(nextFollowUpAt
+            ? { vio_step: nextStep, follow_up_at: nextFollowUpAt }
+            : { vio_step: nextStep, follow_up_at: null }
+          )
+          .eq("id", iv.id);
       }
 
       return new Response(JSON.stringify({ sent, total: due.length }), { headers });

@@ -78,7 +78,7 @@ self.addEventListener('fetch', (event) => {
 
 // ── PUSH NOTIFICATIONS ──
 self.addEventListener('push', (event) => {
-  let data = { title: 'Oli', body: 'You have a new update', url: '/chat' };
+  let data = { title: 'Oli', body: 'You have a pending crop intervention to check.', url: '/chat' };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {

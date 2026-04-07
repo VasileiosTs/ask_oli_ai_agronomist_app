@@ -157,23 +157,35 @@ export function splitIntoChunks(text: string, targetSize = 64): string[] {
   return chunks;
 }
 
+/** Fallback model used when the primary model returns a 5xx error. */
+const GEMINI_FALLBACK_MODEL = 'gemini-1.5-flash';
+
 async function postGeminiJson(
   geminiApiKey: string,
   model: string,
   payload: Record<string, unknown>,
   errorPrefix: string,
 ) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': geminiApiKey,
+  const tryFetch = async (m: string) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': geminiApiKey,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    },
-  );
+    );
+
+  let response = await tryFetch(model);
+
+  // On server-side errors (5xx), retry once with the fallback model.
+  if (response.status >= 500 && model !== GEMINI_FALLBACK_MODEL) {
+    console.warn(`[gemini] ${model} returned ${response.status} — retrying with ${GEMINI_FALLBACK_MODEL}`);
+    response = await tryFetch(GEMINI_FALLBACK_MODEL);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

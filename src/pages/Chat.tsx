@@ -17,7 +17,7 @@ import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 import { isUnlimitedTier } from '../../shared/subscription';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS } from "../lib/constants";
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS, PAYWALL_WARNING_MESSAGES_REMAINING } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
@@ -75,6 +75,7 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showPaywallWarning, setShowPaywallWarning] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   useEffect(() => {
     const on = () => setIsOnline(true);
@@ -121,6 +122,14 @@ export default function Chat() {
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
   const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
+  const [pendingVioFollowUp, setPendingVioFollowUp] = useState<{
+    id: string;
+    cropLabel: string;
+    diagnosis: string | null;
+    productApplied: string | null;
+    vioStep: number;
+    vioStepType: 'apply_check' | 'outcome_check';
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -285,7 +294,7 @@ export default function Chat() {
     showToast(lang === 'el' ? 'Καταχωρήθηκε' : 'Recorded');
   };
 
-  const handleOutcome = async (interventionId: string, outcome: 'better' | 'same' | 'worse', msgId: string) => {
+  const handleOutcome = async (interventionId: string, outcome: 'better' | 'same' | 'worse' | 'not_applied', msgId: string) => {
     if (!appUserId) return;
     await supabase.from('interventions').update({
       outcome,
@@ -536,19 +545,15 @@ export default function Chat() {
             vioStepType = 'outcome_check';
           }
 
-          const followUpMsg = {
-            id: `followup-${item.id}`,
-            role: 'assistant' as const,
-            content: followUpContent,
-            created_at: new Date().toISOString(),
-            metadata: {
-              follow_up_intervention_id: item.id,
-              is_follow_up: true,
-              vio_step: step,
-              vio_step_type: vioStepType,
-            },
-          };
-          dispatch({ type: 'set_if_empty', message: followUpMsg });
+          // Show as a persistent banner (not injected into chat thread)
+          setPendingVioFollowUp({
+            id: item.id,
+            cropLabel,
+            diagnosis: item.diagnosis,
+            productApplied: item.product_applied,
+            vioStep: step,
+            vioStepType,
+          });
         });
 
       // No API call for greeting — the empty state UI already serves as the welcome.
@@ -954,6 +959,10 @@ export default function Chat() {
 
       if (typeof completion.messageCountMonth === 'number') {
         setMessageCount(completion.messageCountMonth);
+        const remaining = FREE_LIMIT - completion.messageCountMonth;
+        if (remaining > 0 && remaining <= PAYWALL_WARNING_MESSAGES_REMAINING) {
+          setShowPaywallWarning(true);
+        }
       }
 
       let resolvedConversationId = completion.conversationId;
@@ -1392,6 +1401,26 @@ export default function Chat() {
 
         {/* Desktop: no top header — sidebar owns all navigation */}
 
+        {/* ── DESKTOP ACTIVE FIELD INDICATOR ── */}
+        {!isGuestMode && activeField && messages.length > 0 && (
+          <div className="hidden md:flex h-9 flex-shrink-0 items-center gap-2 border-b border-border/40 bg-surface/60 px-6 backdrop-blur-sm">
+            <Leaf className="h-3.5 w-3.5 text-primary/60" />
+            <span className="text-xs text-muted">{lang === 'el' ? 'Ενεργό χωράφι:' : 'Active field:'}</span>
+            <span className="text-xs font-semibold text-foreground">{activeField.name}</span>
+            {activeField.crop_type && (
+              <span className="text-xs text-muted">· {activeField.crop_type}</span>
+            )}
+            {fields.length > 1 && (
+              <FieldSelector
+                fields={fields}
+                activeFieldId={activeFieldId}
+                onSelectField={setActiveFieldId}
+                lang={lang}
+              />
+            )}
+          </div>
+        )}
+
         {/* ── OFFLINE BANNER ── */}
         {!isOnline && (
           <div className="flex items-center justify-center gap-2 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -1487,6 +1516,54 @@ export default function Chat() {
             </div>
             <div className="flex-shrink-0">
               <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl md:px-4 md:pb-4' : 'max-w-2xl md:px-2 md:pb-4'}`}>
+                {pendingVioFollowUp && (
+                  <div className="mx-4 mb-2 rounded-2xl border border-primary/30 bg-primary/6 p-4">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {lang === 'el' ? '🌿 Ενημέρωση θεραπείας' : '🌿 Treatment update'}
+                      </p>
+                      <button
+                        onClick={() => setPendingVioFollowUp(null)}
+                        className="text-muted hover:text-foreground transition-colors text-lg leading-none"
+                        aria-label="Dismiss"
+                      >×</button>
+                    </div>
+                    <p className="text-xs text-muted mb-3">
+                      {pendingVioFollowUp.vioStepType === 'apply_check'
+                        ? (lang === 'el'
+                            ? `Εφάρμοσες θεραπεία για ${pendingVioFollowUp.diagnosis || pendingVioFollowUp.cropLabel};`
+                            : `Did you apply treatment for ${pendingVioFollowUp.diagnosis || pendingVioFollowUp.cropLabel}?`)
+                        : (lang === 'el'
+                            ? `Βλέπεις βελτίωση στο ${pendingVioFollowUp.cropLabel}${pendingVioFollowUp.productApplied ? ` μετά το ${pendingVioFollowUp.productApplied}` : ''};`
+                            : `Any improvement in ${pendingVioFollowUp.cropLabel}${pendingVioFollowUp.productApplied ? ` after ${pendingVioFollowUp.productApplied}` : ''}?`)}
+                    </p>
+                    {pendingVioFollowUp.vioStepType === 'apply_check' ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { handleVioApplyConfirm(pendingVioFollowUp.id, true, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
+                          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
+                        >{lang === 'el' ? 'Ναι, εφάρμοσα' : 'Yes, I applied'}</button>
+                        <button
+                          onClick={() => { handleVioApplyConfirm(pendingVioFollowUp.id, false, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
+                          className="rounded-full border border-border/50 px-4 py-1.5 text-xs font-medium text-foreground hover:bg-muted/10 transition-colors"
+                        >{lang === 'el' ? 'Όχι ακόμα' : 'Not yet'}</button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(['better', 'same', 'worse', 'not_applied'] as const).map(v => (
+                          <button key={v}
+                            onClick={() => { handleOutcome(pendingVioFollowUp.id, v, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
+                            className="rounded-full border border-border/50 px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                          >
+                            {lang === 'el'
+                              ? { better: 'Βελτίωση', same: 'Ίδια', worse: 'Χειρότερα', not_applied: 'Δεν εφάρμοσα' }[v]
+                              : { better: 'Better', same: 'No change', worse: 'Worse', not_applied: "Didn't apply" }[v]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {pendingAutoLog && (
                   <AutoLogBanner
                     action={pendingAutoLog}
@@ -1496,6 +1573,21 @@ export default function Chat() {
                   />
                 )}
                 <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
+                {showPaywallWarning && !isGuestMode && (
+                  <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-2.5">
+                    <p className="text-xs text-amber-400">
+                      {lang === 'el'
+                        ? `Σου μένουν ${FREE_LIMIT - messageCount} δωρεάν ερωτήσεις αυτόν τον μήνα.`
+                        : `You have ${FREE_LIMIT - messageCount} free messages left this month.`}
+                    </p>
+                    <button
+                      onClick={() => { setShowPaywall(true); setShowPaywallWarning(false); }}
+                      className="flex-shrink-0 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                    >
+                      {lang === 'el' ? 'Αναβάθμιση' : 'Upgrade'}
+                    </button>
+                  </div>
+                )}
                 <ChatInputBar {...inputBarProps} />
               </div>
             </div>

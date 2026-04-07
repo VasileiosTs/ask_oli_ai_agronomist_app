@@ -84,7 +84,17 @@ function formatInterventionContext(item: InterventionContextRow, fieldName?: str
       status += ` (${item.outcome_score}/5)`;
     }
   } else if (item.follow_up_at) {
-    status = `Pending follow-up (${item.follow_up_at.split('T')[0]})`;
+    const daysUntil = Math.ceil(
+      (new Date(item.follow_up_at).getTime() - Date.now()) / 86400000,
+    );
+    const vioStepLabel = (item as any).vio_step != null
+      ? `VIO step ${(item as any).vio_step}: `
+      : '';
+    if (daysUntil <= 0) {
+      status = `${vioStepLabel}Follow-up OVERDUE (was due ${item.follow_up_at.split('T')[0]})`;
+    } else {
+      status = `${vioStepLabel}Follow-up due in ${daysUntil} day${daysUntil === 1 ? '' : 's'} (${item.follow_up_at.split('T')[0]})`;
+    }
   } else {
     status = 'No follow-up set';
   }
