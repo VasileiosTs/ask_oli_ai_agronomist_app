@@ -33,7 +33,7 @@ function getFieldStatus(field: Field): 'healthy' | 'warning' | 'critical' {
 
 export default function Fields() {
   const { appUserId, profile } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -60,6 +60,22 @@ export default function Fields() {
       const { data, error } = await supabase.from('field_context_view').select('*').eq('user_id', appUserId!).eq('is_active', true);
       if (error) throw error;
       return (data ?? []) as Field[];
+    },
+    enabled: !!appUserId,
+  });
+
+  // Global pending VIO count across all fields
+  const { data: pendingVioCount = 0 } = useQuery({
+    queryKey: ['pending-vio-count', appUserId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('interventions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', appUserId!)
+        .is('outcome', null)
+        .lte('follow_up_at', new Date().toISOString())
+        .lt('vio_step', 3);
+      return count ?? 0;
     },
     enabled: !!appUserId,
   });
@@ -139,6 +155,16 @@ export default function Fields() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
+        {pendingVioCount > 0 && (
+          <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-amber-400 flex-shrink-0" />
+            <p className="text-xs text-amber-400">
+              {lang === 'el'
+                ? `${pendingVioCount} παρέμβαση${pendingVioCount > 1 ? 'εις' : ''} περιμένουν αποτέλεσμα`
+                : `${pendingVioCount} intervention${pendingVioCount > 1 ? 's' : ''} awaiting outcome`}
+            </p>
+          </div>
+        )}
         {isLoading ? (
           <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 animate-pulse rounded-2xl bg-surface" />)}</div>
         ) : fields.length === 0 ? (

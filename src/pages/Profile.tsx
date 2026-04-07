@@ -265,7 +265,7 @@ export default function Profile() {
               ))}
             </div>
           </div>
-          {/* Push notifications — read-only status; managed via in-app prompt */}
+          {/* Push notifications — full enable/disable toggle */}
           {push.isSupported && (
             <div className="flex items-center justify-between rounded-xl p-3">
               <div className="flex items-center gap-3">
@@ -275,12 +275,28 @@ export default function Profile() {
                   {push.permission === 'denied'
                     ? <p className="text-[11px] text-red-400">{t.pushDenied}</p>
                     : push.isSubscribed
-                      ? <p className="text-[11px] text-primary">{lang === 'el' ? 'Ενεργές' : 'Enabled'}</p>
-                      : null}
+                      ? <p className="text-[11px] text-primary">{lang === 'el' ? 'Ενεργές — λαμβάνεις υπενθυμίσεις VIO' : 'Enabled — receiving VIO reminders'}</p>
+                      : <p className="text-[11px] text-muted">{lang === 'el' ? 'Ανενεργές' : 'Disabled'}</p>}
                 </div>
               </div>
-              {push.isSubscribed && (
-                <span className="text-xs font-medium text-primary">✓</span>
+              {push.permission !== 'denied' && (
+                push.isSubscribed ? (
+                  <button
+                    onClick={() => push.unsubscribe()}
+                    disabled={push.loading}
+                    className="rounded-full border border-border/50 px-3 py-1 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    {lang === 'el' ? 'Απενεργοποίηση' : 'Turn off'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => push.subscribe()}
+                    disabled={push.loading}
+                    className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {lang === 'el' ? 'Ενεργοποίηση' : 'Enable'}
+                  </button>
+                )
               )}
             </div>
           )}
