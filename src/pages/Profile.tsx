@@ -188,7 +188,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="h-[100dvh] overflow-y-auto bg-background">
+    <main className="h-[100dvh] overflow-y-auto bg-background">
       {/* Header */}
       <div className="px-4 pt-12 pb-4">
         <div className="flex items-center gap-4">
@@ -406,6 +406,6 @@ export default function Profile() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

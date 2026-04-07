@@ -11,6 +11,7 @@ interface InterventionData {
     product_applied?: string;
     dosage?: string;
     application_method?: string;
+    confidence_score?: number;
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -68,6 +69,9 @@ export function LogInterventionModal({
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
+      const confScore = typeof initialData.diagnosis_data?.confidence_score === 'number'
+        ? initialData.diagnosis_data.confidence_score
+        : null;
       const { data, error } = await supabase
         .from('interventions')
         .insert({
@@ -81,6 +85,7 @@ export function LogInterventionModal({
           notes:              notes,
           date:               new Date().toISOString().split('T')[0],
           applied_at:         new Date().toISOString(),
+          ...(confScore !== null ? { confidence_score: confScore } : {}),
         })
         .select('id')
         .single();
@@ -144,7 +149,7 @@ export function LogInterventionModal({
         .update(updatePayload)
         .eq('id', interventionId);
       if (error) throw error;
-      trackEvent(Events.INTERVENTION_OUTCOME_RECORDED, { outcome: selectedOutcome, hasNote: !!outcomeNote.trim() });
+      trackEvent(Events.VIO_OUTCOME_RECORDED, { outcome: selectedOutcome, hasNote: !!outcomeNote.trim() });
       onSuccess(interventionId);
       onClose();
     } catch (e) {
@@ -280,7 +285,7 @@ export function LogInterventionModal({
                   ? 'Γιατί δεν εφαρμόσατε; (προαιρετικό)'
                   : 'Τι παρατηρήσατε; (προαιρετικό)'
                 : selectedOutcome === 'not_applied'
-                  ? 'Why wasn't it applied? (optional)'
+                  ? "Why wasn't it applied? (optional)"
                   : 'What did you observe? (optional)'}
             </label>
             <input

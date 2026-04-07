@@ -78,7 +78,7 @@ export default function Auth() {
       style={{ background: '#faf9f4', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* Fonts are self-hosted via @fontsource in index.css — no CDN link needed */}
 
-      <div className="w-full max-w-[420px] rounded-[24px] bg-white p-8 md:p-10"
+      <main className="w-full max-w-[420px] rounded-[24px] bg-white p-8 md:p-10"
         style={{ boxShadow: '0 8px 40px rgba(25,65,33,0.08)', border: '1px solid rgba(194, 201, 187, 0.2)' }}>
 
         {/* Back to home */}
@@ -234,7 +234,7 @@ export default function Auth() {
             {t.privacyPolicy}
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

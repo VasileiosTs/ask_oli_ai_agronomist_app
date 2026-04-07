@@ -2044,6 +2044,7 @@ Return ONLY the greeting text, nothing else.`;
             await new Promise((resolve) => setTimeout(resolve, 12));
           }
 
+          const confidenceScore = aiResponse.diagnosis_data?.confidence_score ?? null;
           const { data: insertedAssistantMessage, error: insertAssistantMessageError } = await supabaseAdmin
             .from('chat_messages')
             .insert({
@@ -2052,9 +2053,11 @@ Return ONLY the greeting text, nothing else.`;
               field_id: finalFieldId,
               role: 'assistant',
               content: assistantText,
+              ai_model_version: GEMINI_MODEL,
               metadata: {
                 ...finalAssistantMetadata,
                 model: GEMINI_MODEL,
+                confidence_score: confidenceScore,
                 source: 'edge-function',
                 reply_to_message_id: userMessageId,
               },

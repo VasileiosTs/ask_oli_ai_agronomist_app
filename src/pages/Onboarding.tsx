@@ -223,7 +223,7 @@ export default function Onboarding() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background p-4">
-      <div className="mx-auto w-full max-w-[420px] flex-1 flex flex-col pt-8">
+      <main className="mx-auto w-full max-w-[420px] flex-1 flex flex-col pt-8">
 
         {/* Progress bar */}
         <div className="mb-8 flex gap-2">
@@ -412,7 +412,7 @@ export default function Onboarding() {
             </button>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

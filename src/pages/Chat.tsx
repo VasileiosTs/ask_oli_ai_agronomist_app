@@ -1344,7 +1344,7 @@ export default function Chat() {
       )}
 
       {/* ── MAIN AREA ── */}
-      <div className="flex flex-1 flex-col min-w-0">
+      <main className="flex flex-1 flex-col min-w-0">
 
         {/* Desktop guest header — sign-in bar, only shown in guest mode on md+ */}
         {isGuestMode && (
@@ -1354,7 +1354,7 @@ export default function Chat() {
               <span className="text-[16px] font-medium text-primary">Oli</span>
             </div>
             <button
-              onClick={() => setShowLoginModal(true)}
+              onClick={() => { if (input.trim()) sessionStorage.setItem('oli_pending_input', input.trim()); setShowLoginModal(true); }}
               className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
               style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}
             >
@@ -1376,7 +1376,7 @@ export default function Chat() {
           </div>
           {isGuestMode ? (
             <button
-              onClick={() => setShowLoginModal(true)}
+              onClick={() => { if (input.trim()) sessionStorage.setItem('oli_pending_input', input.trim()); setShowLoginModal(true); }}
               className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
               style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}
             >
@@ -1594,7 +1594,7 @@ export default function Chat() {
           </div>
         )}
 
-      </div>
+      </main>
 
       <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}

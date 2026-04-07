@@ -1,4 +1,4 @@
-import { X, Copy, Share2, Check } from 'lucide-react';
+import { X, Copy, Share2, Check, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -20,6 +20,12 @@ export default function ShareModal({ isOpen, onClose, url, title, lang }: Props)
     copied: { en: 'Copied!', el: 'Αντιγράφηκε!' },
     scanQR: { en: 'Scan QR code', el: 'Σαρώστε τον κωδικό QR' },
     nativeShare: { en: 'Share via...', el: 'Κοινοποίηση μέσω...' },
+    whatsapp: { en: 'Share on WhatsApp', el: 'Κοινοποίηση στο WhatsApp' },
+  };
+
+  const handleWhatsApp = () => {
+    const text = (title ? `${title}\n` : '') + url;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
   };
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
@@ -67,6 +73,16 @@ export default function ShareModal({ isOpen, onClose, url, title, lang }: Props)
           >
             {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4 text-muted" />}
             {copied ? labels.copied[l] : labels.copyLink[l]}
+          </button>
+
+          {/* WhatsApp — primary share for farming communities */}
+          <button
+            onClick={handleWhatsApp}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors"
+            style={{ background: '#25D366' }}
+          >
+            <MessageCircle className="h-4 w-4" />
+            {labels.whatsapp[l]}
           </button>
 
           {/* Native share (mobile) */}
