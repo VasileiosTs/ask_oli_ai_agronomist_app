@@ -17,7 +17,11 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | Auth: PKCE magic link working end-to-end | P0 | /auth/callback route |
 | ✅ | Auth: shared React context (no more hook isolation bugs) | P0 | AuthProvider in main.tsx |
 | ✅ | Onboarding flow: name → location → multi-crop | P0 | Saves profile, navigates to chat |
+| ✅ | Onboarding: OAuth name pre-fill (skip step 1 for Google/Facebook users) | P0 | Reads user_metadata.full_name |
+| ✅ | Onboarding: age range auto-advance (no extra "Next" tap needed) | P1 | 180ms delay then setStep(4) |
+| ✅ | Onboarding: mobile keyboard no longer hides Next button | P1 | Scrollable content + sticky CTA |
 | ✅ | RLS policies on all tables | P0 | Data isolation per user |
+| ✅ | FORCE ROW LEVEL SECURITY on all sensitive tables | P0 | migration 20260407000001 — prevents owner bypass |
 | ⬜ | Custom domain (e.g. askoli.app) | P1 | Before any real user acquisition |
 | ⬜ | Storage bucket RLS policy verified | P1 | chat_uploads bucket access |
 | ⬜ | Supabase backups enabled | P1 | Point-in-time recovery |
@@ -41,11 +45,11 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | Conversation title from first message | P0 | Edge function sets it |
 | ✅ | Sidebar loading state when switching convos | P1 | Spinner during fetch |
 | ✅ | Skip extractAndApply for short messages | P1 | Saves Gemini API calls |
-| ⬜ | Voice input language matches app language | P1 | el-GR / en-US — done in code, needs testing |
+| ✅ | Voice input language matches app language | P1 | SpeechRecognition — el-GR / en-US wired + tested |
 | ⬜ | PDF analysis (upload + Gemini reads it) | P1 | Partially built, needs real test |
-| ⬜ | Conversation search | P2 | Search through history |
-| ⬜ | Message pagination (load more) in sidebar | P2 | Currently capped at 50 |
-| ⬜ | Proactive greeting on app open | P2 | Seasonal tip based on crop + location |
+| ✅ | Conversation search | P2 | Client-side filter + highlight in ConversationSidebar |
+| ✅ | Message pagination (load more) in sidebar | P2 | PAGE_SIZE pagination with "load more" button |
+| ✅ | Proactive greeting on app open | P2 | dynamicGreeting from edge function greeting mode |
 | ⬜ | Weekly plan as Monday chat message | P2 | Wave 2 feature |
 
 ---
@@ -61,7 +65,7 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | field_context_view in DB | P0 | Fields + last intervention + crop count |
 | ⬜ | Auto-create field from first message crop mention | P1 | When no fields exist yet |
 | ⬜ | Field name shown in conversation title | P2 | "Ελιές Βορείου 14 Mar" |
-| ⬜ | Seasonal context injection | P2 | Month + region → Gemini knows what's in season |
+| ✅ | Seasonal context injection | P2 | Month + season + hemisphere injected into growerContext |
 
 ---
 
@@ -75,9 +79,9 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | Outcome chips in chat (Better / Same / Worse) | P0 | Updates interventions.outcome |
 | ✅ | Crop status updated from outcome | P0 | healthy/warning/critical |
 | ✅ | outcome migration (outcome, outcome_note, outcome_recorded_at) | P0 | Applied to DB |
-| ⬜ | outcome_note collection (text after chip tap) | P1 | Optional "tell us more" |
+| ✅ | outcome_note collection (text after chip tap) | P1 | Implemented in LogInterventionModal.tsx |
 | ⬜ | Share diagnosis as public link (/d/:shareId) | P1 | Code exists, needs testing end-to-end |
-| ⬜ | OG image for shared diagnosis pages | P2 | Server-rendered meta tags |
+| ✅ | OG image for shared diagnosis pages | P2 | og-image edge function generates SVG OG cards |
 | ⬜ | Collective intelligence (show patterns to growers) | P3 | After 500+ VIOs |
 
 ---
@@ -106,6 +110,7 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | Status | Item | Priority | Notes |
 |--------|------|----------|-------|
 | ✅ | PaywallModal (UI only, no Stripe) | P0 | Shows at 20 msg/month |
+| ✅ | PaywallModal: price corrected to €4.99/month (was €8.99) | P0 | Consistent with landing + i18n |
 | ✅ | Free tier enforced (20 msg/month) in edge function | P0 | 429 response + reset logic |
 | ✅ | Message count + progress bar in Profile | P0 | Visual usage indicator |
 | ⬜ | Stripe Checkout integration | P0 | €4.99/mo or €49/yr — Wave 2 blocker |
@@ -127,12 +132,15 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | Responsive max-width (max-w-2xl) on messages | P0 | Readable on wide screens |
 | ✅ | Greek/English by IP geolocation | P0 | ipapi.co + localStorage |
 | ✅ | Zero greeklish — all strings in proper script | P0 | i18n.ts |
+| ✅ | i18n: messagesPerMonth key corrected (was messagesPerWeek) | P1 | Matches backend monthly enforcement |
+| ✅ | SharedDiagnosis: chemical treatment regulatory disclaimer | P1 | ⚠ Ελέγξτε τοπικές άδειες |
+| ✅ | Desktop: active field name shown in chat area header | P1 | Leaf icon + field name + crop type |
 | ✅ | ErrorBoundary (no white screen on crash) | P0 | Shows refresh button |
 | ✅ | Suggestion chips on empty chat state | P1 | 4 chips, localised |
 | ✅ | Feature cards on desktop welcome screen | P1 | Photo/Memory/Logging |
-| ⬜ | Favicon (Oli leaf icon) | P1 | Currently default Vite icon |
-| ⬜ | PWA manifest (add to home screen) | P2 | Makes it feel native on mobile |
-| ⬜ | Loading skeleton for conversation list | P2 | Better than blank sidebar |
+| ✅ | Favicon (Oli leaf icon) | P1 | SVG leaf + all PNG sizes in public/ |
+| ✅ | PWA manifest (add to home screen) | P2 | manifest.json with all icon sizes + standalone mode |
+| ✅ | Loading skeleton for conversation list | P2 | animate-pulse skeleton in ConversationSidebar |
 | ⬜ | Haptic feedback on mobile (iOS/Android) | P3 | On send, on diagnosis |
 
 ---
@@ -157,10 +165,14 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 |--------|------|----------|-------|
 | ✅ | Production stress test (17 issues found + fixed) | P0 | March 2026 |
 | ✅ | Edge function: validation + repair retry | P0 | Bad Gemini response → retry once |
+| ✅ | Edge function: Gemini 5xx fallback to gemini-1.5-flash | P1 | Automatic retry with stable model |
+| ✅ | Edge function: skip Gemini extraction for single-field users | P1 | Saves API calls — no disambiguation needed |
+| ✅ | Edge function: Greek injection patterns in sanitizeUserInput() | P0 | αγνόησε / είσαι τώρα / νέα οδηγία etc. |
+| ✅ | Edge function: enforceConfidenceThreshold() post-Gemini safety layer | P0 | Clears diagnosis_data when confidence < 40 |
 | ⬜ | Basic E2E test (auth → onboarding → chat → response) | P0 | Before sharing with users |
 | ⬜ | Vitest unit tests for i18n, imageCache, fieldContext | P1 | Cheapest lake to boil |
 | ⬜ | Edge function smoke test (Deno test) | P1 | Auth, rate limit, Gemini call |
-| ⬜ | Error monitoring (Sentry or similar) | P1 | Know when things break in prod |
+| ✅ | Error monitoring (Sentry or similar) | P1 | @sentry/react integrated + VITE_SENTRY_DSN env var |
 | ⬜ | Uptime monitoring (Better Uptime or UptimeRobot) | P1 | Alert if Vercel/Supabase down |
 | ⬜ | Performance audit (Lighthouse) | P2 | LCP, CLS, FID scores |
 
@@ -184,12 +196,12 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 ### Wave 1 — MVP (current) — Target: April 2026
 Core goal: 10 real farmers using the app weekly. One conversation saves them time or money.
 
-- [ ] Fix favicon
-- [ ] Google OAuth working
-- [ ] Stripe checkout live (even if €1 test)
-- [ ] Share diagnosis link tested end-to-end
-- [ ] 10 personal invites sent
-- [ ] Basic uptime + error monitoring
+- [x] Fix favicon — ✅ Oli leaf SVG in public/
+- [x] Sentry error monitoring — ✅ @sentry/react integrated
+- [ ] Google OAuth working — needs Google Cloud OAuth client (external)
+- [ ] Stripe checkout live — needs Stripe account (external, Wave 2 blocker)
+- [ ] Share diagnosis link — route + page done, needs E2E test with real data
+- [ ] 10 personal invites sent — go do this
 
 ### Wave 2 — Monetisation — Target: June 2026
 Core goal: First €500 MRR. First cooperative conversation.
@@ -199,7 +211,7 @@ Core goal: First €500 MRR. First cooperative conversation.
 - [ ] Landing page live with Greek SEO content
 - [ ] Weekly plan message (Monday morning)
 - [ ] Proactive greeting (seasonal tip on app open)
-- [ ] Push notifications for follow-ups
+- [x] Push notifications infrastructure — ✅ send-push edge function + usePushSubscription hook done; needs VAPID key in prod
 - [ ] First cooperative pilot (embed widget)
 
 ### Wave 3 — Data Moat — Target: Q4 2026
@@ -218,12 +230,15 @@ Core goal: 500+ VIOs collected. Collective intelligence live.
 | Issue | Severity | Status |
 |-------|----------|--------|
 | Facebook OAuth not configured (no App review) | Medium | ⬜ Pending |
-| Conversation pagination missing (>50 msgs truncated) | Low | ⬜ Wave 2 |
-| outcome_note never written (column exists, UI missing) | Low | ⬜ Wave 2 |
+| ~~Conversation pagination missing~~ | Low | ✅ PAGE_SIZE pagination with load-more in sidebar |
+| ~~outcome_note never written~~ | Low | ✅ Fixed — LogInterventionModal writes it |
 | No test suite (no safety net for future changes) | Medium | ⬜ Wave 1 |
-| Favicon is still default Vite icon | Low | ⬜ This week |
+| ~~Favicon is default Vite icon~~ | Low | ✅ Fixed — Oli leaf SVG |
+| Stripe Checkout not integrated | High | ⬜ Wave 2 blocker |
+| ~~Admin dashboard UI not implemented~~ | Medium | ✅ AdminMetrics.tsx — KPIs, retention, VIO, revenue table |
+| ~~Voice input not wired~~ | Low | ✅ SpeechRecognition API wired in Chat.tsx |
 
 ---
 
-*Last updated: March 2026*
+*Last updated: April 2026*
 *Built with Claude (Sonnet 4.6) + Codex*

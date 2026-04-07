@@ -318,9 +318,10 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-// H3: Strip prompt injection markers from user input
+// H3: Strip prompt injection markers from user input (English + Greek)
 function sanitizeUserInput(text: string): string {
   return text
+    // English injection markers
     .replace(/\[SYSTEM[^\]]*\]/gi, '')
     .replace(/\[INSTRUCTION[^\]]*\]/gi, '')
     .replace(/\[ADMIN[^\]]*\]/gi, '')
@@ -328,7 +329,48 @@ function sanitizeUserInput(text: string): string {
     .replace(/<<SYS>>[\s\S]*?<<\/SYS>>/gi, '')
     .replace(/\bignore previous instructions\b/gi, '***')
     .replace(/\byou are now\b/gi, '***')
+    // Greek injection markers (S5: Greek prompt injection protection)
+    .replace(/\bαγνόησε τις προηγούμενες οδηγίες\b/gi, '***')
+    .replace(/\bείσαι τώρα\b/gi, '***')
+    .replace(/\bνέα οδηγία\b/gi, '***')
+    .replace(/\bσύστημα\b.*\bοδηγία\b/gi, '***')
+    .replace(/\[ΣΥΣΤΗΜΑ[^\]]*\]/gi, '')
+    .replace(/\[ΟΔΗΓΙΑ[^\]]*\]/gi, '')
     .trim();
+}
+
+/**
+ * S1: Confidence-score safety enforcer.
+ * When confidence_score < 40, the AI is instructed not to name diseases,
+ * but we also strip any leaked disease names from the structured response
+ * as a second line of defence.
+ */
+function enforceConfidenceThreshold(response: AiResponseJson): AiResponseJson {
+  const dd = response.diagnosis_data;
+  if (!dd) return response;
+
+  const score = typeof dd.confidence_score === 'number' ? dd.confidence_score : 100;
+
+  if (score < 40) {
+    // Strip specific disease/pest names from structured fields.
+    // The response_text itself is written by the AI which is already
+    // instructed not to name diseases below 40 — leave it unchanged.
+    return {
+      ...response,
+      diagnosis_data: {
+        ...dd,
+        problem: null,          // no disease name
+        cause: null,            // no causal organism
+        severity: null,         // severity without disease name is misleading
+        product_applied: null,  // no treatment product at this confidence
+        chemical_treatments: [], // no chemical recommendations
+        organic_treatments: [],  // no organic recommendations — only general safe advice
+        // keep confidence_score and missing_pillars so UI can show what's needed
+      },
+    };
+  }
+
+  return response;
 }
 
 // H2: Safe error message that doesn't leak internals
@@ -554,9 +596,37 @@ async function callGemini(
     },
   );
 
+  // I2: On 5xx, retry once with gemini-1.5-flash as a fallback model
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini request failed (${response.status}):`, errorText);
+
+    if (response.status >= 500 && GEMINI_MODEL !== 'gemini-1.5-flash') {
+      console.warn('Primary model returned 5xx — retrying with gemini-1.5-flash fallback');
+      const fallbackResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': geminiApiKey,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!fallbackResponse.ok) {
+        const fbErr = await fallbackResponse.text();
+        console.error(`Gemini fallback also failed (${fallbackResponse.status}):`, fbErr);
+        throw new Error(`Gemini request failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
+      }
+      const fallbackData = await fallbackResponse.json();
+      const fallbackParsed = parseGeminiPayload<AiResponseJson>(fallbackData);
+      return {
+        ...fallbackParsed,
+        response_text: cleanAssistantText(fallbackParsed.response_text),
+      };
+    }
+
     throw new Error(`Gemini request failed (${response.status})`);
   }
 
@@ -602,9 +672,33 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     },
   );
 
+  // I2: On 5xx, retry once with gemini-1.5-flash fallback
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini extraction failed (${response.status}):`, errorText);
+
+    if (response.status >= 500 && GEMINI_MODEL !== 'gemini-1.5-flash') {
+      console.warn('Primary extraction model returned 5xx — retrying with gemini-1.5-flash fallback');
+      const fallbackResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': geminiApiKey,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!fallbackResponse.ok) {
+        const fbErr = await fallbackResponse.text();
+        console.error(`Gemini extraction fallback also failed (${fallbackResponse.status}):`, fbErr);
+        throw new Error(`Gemini extraction failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
+      }
+      const fallbackData = await fallbackResponse.json();
+      return parseGeminiPayload<ExtractionResult>(fallbackData);
+    }
+
     throw new Error(`Gemini extraction failed (${response.status})`);
   }
 
@@ -628,9 +722,12 @@ async function generateValidatedResponse(
     json = await callGemini(geminiApiKey, messages, systemPrompt, repairInstruction);
   }
 
+  // S1: Enforce confidence threshold — strip specific disease data below 40%
+  const safeJson = enforceConfidenceThreshold(json);
+
   return {
-    ...json,
-    response_text: cleanAssistantText(json.response_text),
+    ...safeJson,
+    response_text: cleanAssistantText(safeJson.response_text),
   };
 }
 
@@ -1535,6 +1632,33 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Extraction mode requires a message' }, 400);
       }
 
+      // I3: Skip Gemini extraction for single-field users — no disambiguation needed.
+      // If the user has exactly 1 field, auto-set it without an API call.
+      const { data: userFields } = await supabaseAdmin
+        .from('fields')
+        .select('id, name')
+        .eq('user_id', appUser.id)
+        .limit(2);
+
+      if (Array.isArray(userFields) && userFields.length === 1) {
+        const onlyField = userFields[0];
+        const result = await applyExtractedFieldContext(supabaseAdmin, appUser.id, body.messageId ?? null, {
+          crop_type: null,
+          field_mention: onlyField.name,
+          confidence: 1.0,
+          problem: null,
+          location_hint: null,
+          intervention_hint: null,
+        });
+        return jsonResponse(result);
+      }
+
+      // Zero fields — nothing to extract into
+      if (Array.isArray(userFields) && userFields.length === 0) {
+        return jsonResponse({ action: 'none', fieldId: null });
+      }
+
+      // 2+ fields — run full Gemini extraction
       const extracted = await callGeminiExtraction(geminiApiKey, message);
       const result = await applyExtractedFieldContext(supabaseAdmin, appUser.id, body.messageId ?? null, extracted);
       return jsonResponse(result);
@@ -1762,10 +1886,40 @@ Return ONLY the greeting text, nothing else.`;
     let assistantText = '';
     let assistantMetadata: Record<string, unknown> = {};
 
+    // Seasonal context injection — lets Gemini give month-relevant advice
+    const tz = body.timezone || 'UTC';
+    const nowLocale = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: tz }).format(now);
+    const monthNum = new Date(now.toLocaleString('en-US', { timeZone: tz })).getMonth() + 1;
+    const hemisphere =
+      appUser.location
+        ? /(south africa|australia|new zealand|argentina|chile|brazil|peru|namibia|zimbabwe|mozambique)/i.test(
+            appUser.location,
+          )
+          ? 'southern'
+          : 'northern'
+        : 'northern';
+    const season =
+      hemisphere === 'northern'
+        ? monthNum >= 3 && monthNum <= 5
+          ? 'spring'
+          : monthNum >= 6 && monthNum <= 8
+            ? 'summer'
+            : monthNum >= 9 && monthNum <= 11
+              ? 'autumn'
+              : 'winter'
+        : monthNum >= 3 && monthNum <= 5
+          ? 'autumn'
+          : monthNum >= 6 && monthNum <= 8
+            ? 'winter'
+            : monthNum >= 9 && monthNum <= 11
+              ? 'spring'
+              : 'summer';
+
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
       appUser.location ? `Location: ${appUser.location}` : '',
       appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
+      `Current month: ${nowLocale} (${season}, ${hemisphere} hemisphere)`,
     ].filter(Boolean).join('\n');
 
     try {

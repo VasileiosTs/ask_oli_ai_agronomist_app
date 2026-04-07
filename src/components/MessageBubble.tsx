@@ -99,12 +99,20 @@ function ConfidenceIndicator({ score, lang }: { score: number; lang: string }) {
 
 // ── Missing pillars card ──
 // Surfaces the missing_pillars array as a "to improve accuracy" card.
+// Keys must match exactly what the Gemini system prompt names the pillars:
+// "THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE"
 const PILLAR_LABELS: Record<string, { el: string; en: string }> = {
-  THE_EVIDENCE:   { el: 'Φωτογραφία κοντινή του προβλήματος',         en: 'A close-up photo of the affected area'      },
-  TIMING:         { el: 'Πότε εμφανίστηκε πρώτα το πρόβλημα',         en: 'When the problem first appeared'             },
-  CROP_VARIETY:   { el: 'Ποικιλία καλλιέργειας',                       en: 'Crop variety'                                },
-  SOIL_HISTORY:   { el: 'Ιστορικό εδάφους / αρδεύσεων',               en: 'Soil / irrigation history'                   },
-  WEATHER_RECENT: { el: 'Πρόσφατες καιρικές συνθήκες',                 en: 'Recent weather conditions'                   },
+  'THE VICTIM':      { el: 'Είδος / ποικιλία καλλιέργειας',              en: 'Plant species / crop variety'               },
+  'THE SYMPTOMS':    { el: 'Χρώμα, υφή και μοτίβο του προβλήματος',     en: 'Colour, texture and pattern of symptoms'    },
+  'THE TIMELINE':    { el: 'Πότε εμφανίστηκε; Στάδιο ανάπτυξης;',       en: 'When did it start? Growth stage? Season?'  },
+  'THE ENVIRONMENT': { el: 'Έδαφος, πρόσφατος καιρός, τρόπος άρδευσης', en: 'Soil type, recent weather, irrigation'      },
+  'THE EVIDENCE':    { el: 'Κοντινή φωτογραφία της πάσχουσας περιοχής', en: 'A close-up photo of the affected area'      },
+  // Legacy / alternate keys kept for backwards compat with older stored data
+  'THE_EVIDENCE':    { el: 'Κοντινή φωτογραφία της πάσχουσας περιοχής', en: 'A close-up photo of the affected area'      },
+  TIMING:            { el: 'Πότε εμφανίστηκε πρώτα το πρόβλημα',         en: 'When the problem first appeared'            },
+  CROP_VARIETY:      { el: 'Ποικιλία καλλιέργειας',                       en: 'Crop variety'                               },
+  SOIL_HISTORY:      { el: 'Ιστορικό εδάφους / αρδεύσεων',               en: 'Soil / irrigation history'                  },
+  WEATHER_RECENT:    { el: 'Πρόσφατες καιρικές συνθήκες',                 en: 'Recent weather conditions'                  },
 };
 
 function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string }) {

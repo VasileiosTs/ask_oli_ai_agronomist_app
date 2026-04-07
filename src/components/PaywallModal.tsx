@@ -24,7 +24,7 @@ const TIERS = [
     color: 'text-primary',
     borderActive: 'border-primary',
     features: { en: ['Unlimited messages', 'Unlimited fields', 'Full history', 'Unlimited reports'], el: ['Απεριόριστα μηνύματα', 'Απεριόριστα χωράφια', 'Πλήρες ιστορικό', 'Απεριόριστες αναφορές'] },
-    price: { en: '€8.99/month', el: '€8,99/μήνα' },
+    price: { en: '€4.99/month', el: '€4,99/μήνα' },
   },
   {
     key: 'agronomist' as const,

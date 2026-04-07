@@ -134,7 +134,8 @@ export interface T {
   stageDay: string;
   // Tier limits
   fieldLimitReached: string; fieldLimitBody: string;
-  messagesPerWeek: string;
+  // RL1: Renamed from messagesPerWeek — backend enforces monthly, not weekly
+  messagesPerMonth: string;
 }
 
 const el: T = {
@@ -300,7 +301,7 @@ const el: T = {
   stageDay: 'Ημέρα',
   // Tier limits
   fieldLimitReached: 'Όριο χωραφιών', fieldLimitBody: 'Αναβάθμισε σε Pro για απεριόριστα χωράφια.',
-  messagesPerWeek: 'μηνύματα/εβδομάδα',
+  messagesPerMonth: 'μηνύματα/μήνα',
 };
 
 const en: T = {
@@ -466,7 +467,7 @@ const en: T = {
   stageDay: 'Day',
   // Tier limits
   fieldLimitReached: 'Field limit reached', fieldLimitBody: 'Upgrade to Pro for unlimited fields.',
-  messagesPerWeek: 'messages/week',
+  messagesPerMonth: 'messages/month',
 };
 
 export const dict: Record<Lang, T> = { el, en };

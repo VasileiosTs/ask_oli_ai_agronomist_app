@@ -13,9 +13,28 @@ interface LocationResult {
   longitude: number;
 }
 
+/** Extract a display name from OAuth user metadata (Google, Facebook, etc.) */
+function extractOAuthName(user: { user_metadata?: Record<string, unknown> } | null): string {
+  if (!user?.user_metadata) return '';
+  const meta = user.user_metadata;
+  // Google provides full_name, Facebook provides name
+  return (
+    (meta.full_name as string) ||
+    (meta.name as string) ||
+    (meta.given_name as string) ||
+    ''
+  );
+}
+
 export default function Onboarding() {
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState('');
+  const { user, refreshProfile } = useAuth();
+  const { t, lang } = useLanguage();
+  const navigate = useNavigate();
+
+  // ── Pre-fill name from OAuth provider metadata ──────────────────────────────
+  const oauthName = extractOAuthName(user as any);
+  const [step, setStep] = useState(oauthName ? 2 : 1); // skip name step if OAuth name known
+  const [name, setName] = useState(oauthName);
 
   // Location state
   const [location, setLocation] = useState('');
@@ -34,15 +53,16 @@ export default function Onboarding() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user, refreshProfile } = useAuth();
-  const { t, lang } = useLanguage();
-  const navigate = useNavigate();
 
-  const TOTAL_STEPS = 4;
+  // Total steps: 3 when name pre-filled (skip step 1), 4 otherwise
+  const TOTAL_STEPS = oauthName ? 3 : 4;
+  // Step labels for progress bar: always show 3 or 4 dots
+  const progressStep = oauthName ? step - 1 : step; // offset when step 1 skipped
 
   // ── Location autocomplete ──────────────────────────────────────────────────
   useEffect(() => {
-    if (step !== 2) return;
+    const locationStep = oauthName ? 2 : 2;
+    if (step !== locationStep) return;
     const query = location.trim();
     if (query.length < 2) { setSuggestions([]); return; }
 
@@ -58,7 +78,7 @@ export default function Onboarding() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [location, step, lang]);
+  }, [location, step, lang, oauthName]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -81,7 +101,6 @@ export default function Onboarding() {
     setSuggestionsOpen(false);
   };
 
-  // When user edits location text after selecting, clear stored coords and any error
   const handleLocationChange = (val: string) => {
     setLocation(val);
     setLocationCoords(null);
@@ -94,7 +113,6 @@ export default function Onboarding() {
       setStep(2);
     } else if (step === 2) {
       if (!location.trim()) return;
-      // Require the user to have selected from autocomplete (coords stored)
       if (!locationCoords) {
         setLocationError(
           lang === 'el'
@@ -106,8 +124,21 @@ export default function Onboarding() {
       setLocationError(null);
       setStep(3);
     } else if (step === 3) {
+      // Age range — always passable (skip is valid)
       setStep(4);
     }
+  };
+
+  // Age range: selecting auto-advances to crops step
+  const handleAgeRangeSelect = (range: string) => {
+    setAgeRange(range);
+    // Small delay so the user sees the selection before advancing
+    setTimeout(() => setStep(4), 180);
+  };
+
+  const handleSkipAge = () => {
+    setAgeRange('');
+    setStep(4);
   };
 
   // ── Crops ──────────────────────────────────────────────────────────────────
@@ -134,7 +165,6 @@ export default function Onboarding() {
     setLoading(true);
     setError(null);
 
-    // Use stored coords if available; otherwise geocode now as fallback
     let lat = locationCoords?.lat ?? null;
     let lon = locationCoords?.lon ?? null;
 
@@ -160,7 +190,7 @@ export default function Onboarding() {
 
     const payload: Record<string, unknown> = {
       auth_id: user.id,
-      name: name.trim(),
+      name: name.trim() || oauthName,
       location: location.trim(),
       location_lat: lat,
       location_lon: lon,
@@ -188,12 +218,12 @@ export default function Onboarding() {
         return;
       }
 
-      identifyUser(user.id, { name: name.trim(), location: location.trim(), crops: finalCrops.join(', '), age_range: ageRange });
+      identifyUser(user.id, { name: (name.trim() || oauthName), location: location.trim(), crops: finalCrops.join(', '), age_range: ageRange });
       trackEvent(Events.SIGNUP, { crops: finalCrops, location: location.trim(), age_range: ageRange });
       if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
 
       supabase.functions.invoke('send-email', {
-        body: { mode: 'welcome', email: user.email, name: name.trim(), lang },
+        body: { mode: 'welcome', email: user.email, name: (name.trim() || oauthName), lang },
       }).catch(() => {});
 
       const refreshedProfile = await refreshProfile({
@@ -222,21 +252,28 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-background p-4">
-      <main className="mx-auto w-full max-w-[420px] flex-1 flex flex-col pt-8">
+    /*
+     * Layout note: flex flex-col with overflow-y-auto on the inner scroll area,
+     * and the CTA sticky at the bottom. This prevents the mobile keyboard from
+     * hiding the Next/Finish button — the page is scrollable and the button
+     * stays visible in the viewport above the keyboard.
+     */
+    <div className="flex min-h-[100dvh] flex-col bg-background">
+      <main className="mx-auto w-full max-w-[420px] flex flex-col flex-1 px-4 pt-8 pb-4">
 
         {/* Progress bar */}
-        <div className="mb-8 flex gap-2">
+        <div className="mb-8 flex gap-2 flex-shrink-0">
           {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(i => (
             <div key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-border'}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${i <= progressStep ? 'bg-primary' : 'bg-border'}`}
             />
           ))}
         </div>
 
-        <div className="flex-1 animate-fade-in">
+        {/* Scrollable step content */}
+        <div className="flex-1 overflow-y-auto animate-fade-in pb-4">
 
-          {/* Step 1 — Name */}
+          {/* Step 1 — Name (skipped if OAuth name known) */}
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">{t.step1Q}</h2>
@@ -255,6 +292,14 @@ export default function Onboarding() {
           {step === 2 && (
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">{t.step2Q}</h2>
+              {/* If OAuth name was pre-filled, greet by name */}
+              {oauthName && (
+                <p className="text-sm text-muted">
+                  {lang === 'el'
+                    ? `Γεια σου, ${oauthName}! Πού καλλιεργείς;`
+                    : `Hi, ${oauthName}! Where do you farm?`}
+                </p>
+              )}
               <div className="relative" ref={locationRef}>
                 <input
                   type="text" value={location} autoFocus
@@ -306,15 +351,19 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 3 — Age range */}
+          {/* Step 3 — Age range (selecting auto-advances) */}
           {step === 3 && (
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">{t.step4Q}</h2>
+              <p className="text-sm text-muted">
+                {lang === 'el' ? 'Προαιρετικό — βοηθάει τον Oli να σε καταλάβει καλύτερα.' : 'Optional — helps Oli understand you better.'}
+              </p>
               <div className="space-y-2">
                 {t.ageRanges.map(range => (
                   <button
                     key={range}
-                    onClick={() => setAgeRange(range)}
+                    type="button"
+                    onClick={() => handleAgeRangeSelect(range)}
                     className={`w-full rounded-[22px] border px-4 py-3 text-left text-sm font-medium transition-colors ${
                       ageRange === range
                         ? 'border-primary bg-primary/10 text-primary'
@@ -325,12 +374,9 @@ export default function Onboarding() {
                   </button>
                 ))}
                 <button
-                  onClick={() => setAgeRange('')}
-                  className={`w-full rounded-[22px] border px-4 py-3 text-left text-sm transition-colors ${
-                    ageRange === ''
-                      ? 'border-border/50 text-muted/60'
-                      : 'border-border bg-surface text-muted hover:border-primary/50'
-                  }`}
+                  type="button"
+                  onClick={handleSkipAge}
+                  className="w-full rounded-[22px] border border-border/50 bg-surface px-4 py-3 text-left text-sm text-muted hover:border-primary/30 transition-colors"
                 >
                   {t.skipAge}
                 </button>
@@ -350,7 +396,7 @@ export default function Onboarding() {
 
               <div className="flex flex-wrap gap-2">
                 {t.crops.map(c => (
-                  <button key={c} onClick={() => toggleCrop(c)}
+                  <button key={c} type="button" onClick={() => toggleCrop(c)}
                     className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                       crops.includes(c)
                         ? 'border-primary bg-primary text-white'
@@ -371,7 +417,7 @@ export default function Onboarding() {
                   className="flex-1 rounded-[22px] border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
                 />
                 {customCrop.trim() && (
-                  <button onClick={addCustomCrop}
+                  <button type="button" onClick={addCustomCrop}
                     className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white">
                     +
                   </button>
@@ -387,29 +433,38 @@ export default function Onboarding() {
           )}
         </div>
 
-        {/* Bottom CTA */}
-        <div className="mt-8 pb-safe space-y-3">
+        {/* Sticky bottom CTA — stays above keyboard on mobile */}
+        <div className="flex-shrink-0 pt-4 pb-safe space-y-3 bg-background">
           {error && (
             <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
             </p>
           )}
 
-          {step < 4 ? (
-            <button onClick={handleNext}
-              disabled={
-                (step === 1 && !name.trim()) ||
-                (step === 2 && !location.trim())
-                // step 3 (age) is always passable — skip is valid
-              }
-              className="w-full rounded-[22px] bg-primary px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-              {t.next}
-            </button>
-          ) : (
-            <button onClick={handleComplete} disabled={!canFinish || loading}
-              className="w-full rounded-[22px] bg-primary px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-              {loading ? t.saving : t.letsGo}
-            </button>
+          {/* Step 3 (age range) has no Next button — selection auto-advances */}
+          {step !== 3 && (
+            step < 4 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={
+                  (step === 1 && !name.trim()) ||
+                  (step === 2 && !location.trim())
+                }
+                className="w-full rounded-[22px] bg-primary px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {t.next}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleComplete}
+                disabled={!canFinish || loading}
+                className="w-full rounded-[22px] bg-primary px-4 py-3 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {loading ? t.saving : t.letsGo}
+              </button>
+            )
           )}
         </div>
       </main>

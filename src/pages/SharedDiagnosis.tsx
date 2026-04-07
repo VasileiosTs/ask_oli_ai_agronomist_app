@@ -270,6 +270,13 @@ export default function SharedDiagnosis() {
                 </li>
               ))}
             </ul>
+            {/* S2: Regulatory disclaimer for chemical treatments */}
+            <p className="mt-3 flex items-center gap-1.5 text-[11px] text-amber-400/80 border-t border-blue-500/10 pt-3">
+              <span>⚠</span>
+              {lang === 'el'
+                ? 'Ελέγξτε τοπικές άδειες και κανονισμούς πριν εφαρμόσετε χημικά σκευάσματα.'
+                : 'Always check local regulations and product registrations before applying chemical treatments.'}
+            </p>
           </div>
         )}
 
