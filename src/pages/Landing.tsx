@@ -421,7 +421,7 @@ function PhoneMockup({ lang }: { lang: string }) {
           </div>
           {/* Input bar */}
           <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 bg-white rounded-full border border-[#deded8] px-3 py-2" style={{ boxShadow: '0 2px 8px rgba(25,65,33,0.08)' }}>
-            <span className="flex-1 text-[9px] text-[#606659]">{lang === 'el' ? 'Ρώτα τον Oli...' : 'Ask Oli...'}</span>
+            <span className="flex-1 text-[9px] text-[#3a4035]">{lang === 'el' ? 'Ρώτα τον Oli...' : 'Ask Oli...'}</span>
             <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
               <Send className="w-2.5 h-2.5 text-white" />
             </div>
@@ -717,7 +717,8 @@ export default function Landing() {
                 <button
                   onClick={() => sendQuestion(rotatingQuestions[suggestionIdx])}
                   style={{ opacity: suggestionVisible ? 1 : 0, transition: 'opacity 0.35s ease' }}
-                  className="inline-flex items-center gap-1.5 text-xs text-[#194121] bg-[#194121]/8 hover:bg-[#194121]/15 rounded-full px-3 py-1.5 transition-colors max-w-xs sm:max-w-sm text-left">
+                  className="inline-flex items-center gap-1.5 text-xs text-[#194121] bg-[#194121]/8 hover:bg-[#194121]/15 rounded-full px-3 py-1.5 transition-colors max-w-xs sm:max-w-sm text-left"
+                  aria-hidden={!suggestionVisible}>
                   <span className="flex-shrink-0 text-[#194121]/60">→</span>
                   <span className="truncate">{rotatingQuestions[suggestionIdx]}</span>
                 </button>
@@ -739,7 +740,7 @@ export default function Landing() {
       <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Ο Oli σε δράση' : 'Oli in action'}
             </p>
             <p className="text-sm text-[#606659]">
@@ -853,7 +854,7 @@ export default function Landing() {
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Τι ρωτούν οι αγρότες' : 'Things farmers ask Oli'}
             </p>
             <h2 className="text-xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
@@ -903,7 +904,7 @@ export default function Landing() {
       <section className="py-16 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Πώς λειτουργεί' : 'How it works'}
             </p>
             <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>
@@ -936,7 +937,7 @@ export default function Landing() {
       {/* ── TESTIMONIALS ── */}
       <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-10">
+          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-10">
             {lang === 'el' ? 'Τι λένε οι αγρότες' : 'What farmers say'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -990,7 +991,7 @@ export default function Landing() {
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#194121]/70 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Τιμολόγηση' : 'Pricing'}
             </p>
             <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>

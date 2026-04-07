@@ -37,6 +37,52 @@ const OUTCOME_CHIPS: { value: OutcomeChip; labelEl: string; labelEn: string }[] 
   { value: 'not_applied', labelEl: 'Δεν εφάρμοσα',      labelEn: "Didn't apply it" },
 ];
 
+type ScoutTemplate = { problem: string; product: string; dosage: string; method: string };
+
+const SCOUTING_TEMPLATES: Record<string, ScoutTemplate[]> = {
+  tomato:   [
+    { problem: 'Early Blight (Alternaria)',    product: 'Mancozeb 80% WP',        dosage: '250g/100L', method: 'Spray'   },
+    { problem: 'Late Blight (Phytophthora)',   product: 'Metalaxyl+Mancozeb',      dosage: '250g/100L', method: 'Spray'   },
+    { problem: 'Botrytis (Grey Mould)',        product: 'Iprodione 50%',           dosage: '150g/100L', method: 'Spray'   },
+  ],
+  grape:    [
+    { problem: 'Powdery Mildew (Oidium)',      product: 'Sulphur WP 80%',          dosage: '300g/100L', method: 'Spray'   },
+    { problem: 'Downy Mildew (Peronospora)',   product: 'Copper Hydroxide 35%',    dosage: '300g/100L', method: 'Spray'   },
+    { problem: 'Botrytis Bunch Rot',           product: 'Fenhexamid 50%',          dosage: '150g/100L', method: 'Spray'   },
+  ],
+  olive:    [
+    { problem: 'Olive Knot (Pseudomonas)',     product: 'Copper Oxychloride 50%',  dosage: '300g/100L', method: 'Spray'   },
+    { problem: 'Olive Fly (Bactrocera)',       product: 'Spinosad 0.024%',         dosage: '1L/100L',   method: 'Bait spray'},
+    { problem: 'Peacock Spot (Spilocea)',      product: 'Copper Hydroxide 35%',    dosage: '300g/100L', method: 'Spray'   },
+  ],
+  citrus:   [
+    { problem: 'Brown Rot (Phytophthora)',     product: 'Fosetyl-Al 80%',          dosage: '250g/100L', method: 'Spray'   },
+    { problem: 'Citrus Canker (Xanthomonas)', product: 'Copper Oxychloride 50%',  dosage: '300g/100L', method: 'Spray'   },
+    { problem: 'Spider Mite',                  product: 'Abamectin 1.8% EC',       dosage: '50ml/100L', method: 'Spray'   },
+  ],
+  potato:   [
+    { problem: 'Late Blight (Phytophthora)',   product: 'Chlorothalonil 75% WP',   dosage: '200g/100L', method: 'Spray'   },
+    { problem: 'Common Scab (Streptomyces)',   product: 'Seed treatment — Thiram', dosage: '200g/100kg', method: 'Seed treatment'},
+    { problem: 'Colorado Beetle',             product: 'Imidacloprid 35%',         dosage: '70ml/100L', method: 'Spray'   },
+  ],
+  pepper:   [
+    { problem: 'Botrytis (Grey Mould)',        product: 'Iprodione 50%',           dosage: '150g/100L', method: 'Spray'   },
+    { problem: 'Anthracnose (Colletotrichum)', product: 'Azoxystrobin 25%',        dosage: '80ml/100L', method: 'Spray'   },
+    { problem: 'Powdery Mildew',               product: 'Myclobutanil 12.5% EC',   dosage: '40ml/100L', method: 'Spray'   },
+  ],
+};
+
+function getTemplates(cropType: string): ScoutTemplate[] {
+  const lc = cropType.toLowerCase();
+  if (lc.includes('tomat') || lc.includes('ντομάτ')) return SCOUTING_TEMPLATES.tomato;
+  if (lc.includes('grape') || lc.includes('vine') || lc.includes('αμπελ') || lc.includes('σταφύλ')) return SCOUTING_TEMPLATES.grape;
+  if (lc.includes('olive') || lc.includes('ελι') || lc.includes('ελαι')) return SCOUTING_TEMPLATES.olive;
+  if (lc.includes('citrus') || lc.includes('lemon') || lc.includes('orange') || lc.includes('εσπεριδ') || lc.includes('λεμόν') || lc.includes('πορτοκάλ')) return SCOUTING_TEMPLATES.citrus;
+  if (lc.includes('potato') || lc.includes('πατάτ')) return SCOUTING_TEMPLATES.potato;
+  if (lc.includes('pepper') || lc.includes('πιπεριά') || lc.includes('πιπερι')) return SCOUTING_TEMPLATES.pepper;
+  return [];
+}
+
 export function LogInterventionModal({
   isOpen, onClose, initialData, userId, fieldId, onSuccess,
 }: Props) {
@@ -186,6 +232,32 @@ export function LogInterventionModal({
               />
             </div>
           ))}
+
+          {/* Quick-fill scouting templates */}
+          {getTemplates(cropType).length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {lang === 'el' ? 'Γρήγορη συμπλήρωση' : 'Quick fill'}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {getTemplates(cropType).map((tpl, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setProblem(tpl.problem);
+                      setProduct(tpl.product);
+                      setDosage(tpl.dosage);
+                      setMethod(tpl.method);
+                    }}
+                    className="rounded-full border border-border/50 bg-surface px-3 py-1.5 text-xs text-muted hover:border-primary/50 hover:text-foreground transition-colors"
+                  >
+                    {tpl.problem}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">{t.notes}</label>

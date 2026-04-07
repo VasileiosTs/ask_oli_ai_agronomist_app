@@ -111,6 +111,25 @@ export default function ReportGenerator({ field, timeline, growthStage, lang }: 
     setShareUrl(reportUrl);
   };
 
+  const handleCsvExport = () => {
+    const headers = ['Date', 'Type', 'Title', 'Product', 'Outcome'];
+    const rows = timeline.map(item => [
+      new Date(item.activity_at).toLocaleDateString('en-GB'),
+      item.activity_type,
+      (item.title || '').replace(/,/g, ';'),
+      (item.product_applied || '').replace(/,/g, ';'),
+      (item.outcome || ''),
+    ]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${field.name.replace(/\s+/g, '_')}_oli_report.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const labels = {
     generate: { en: 'Generate Report', el: 'Δημιουργία Αναφοράς' },
     share: { en: 'Share', el: 'Κοινοποίηση' },
@@ -118,7 +137,7 @@ export default function ReportGenerator({ field, timeline, growthStage, lang }: 
 
   return (
     <>
-      <div className="mx-4 mt-3 flex gap-2">
+      <div className="mx-4 mt-3 flex flex-wrap gap-2">
         <button
           onClick={handleGenerate}
           disabled={generating}
@@ -133,6 +152,14 @@ export default function ReportGenerator({ field, timeline, growthStage, lang }: 
         >
           <Share2 className="h-4 w-4" />
           {labels.share[l]}
+        </button>
+        <button
+          onClick={handleCsvExport}
+          disabled={timeline.length === 0}
+          className="flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground hover:bg-background transition-colors disabled:opacity-40"
+        >
+          <Download className="h-4 w-4" />
+          CSV
         </button>
       </div>
 

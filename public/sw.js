@@ -51,7 +51,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match('/') || caches.match('/offline.html'))
+        .catch(() => caches.match('/').then(r => r || caches.match('/offline.html')))
     );
     return;
   }

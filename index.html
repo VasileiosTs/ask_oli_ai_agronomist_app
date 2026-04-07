@@ -153,6 +153,10 @@
     <link rel="dns-prefetch" href="https://api.open-meteo.com" />
     <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
 
+    <!-- Preload Material Symbols for landing page icons -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&text=photo_camera%2Bassignment_turned_in&display=swap" fetchpriority="low" />
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -168,6 +172,8 @@
   </head>
   <body>
     <div id="root"></div>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&text=photo_camera%2Bassignment_turned_in&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&text=photo_camera%2Bassignment_turned_in&display=swap" /></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
