@@ -9,6 +9,7 @@ export interface UserProfile {
   id: string;
   auth_id?: string | null;
   message_count_month?: number | null;
+  message_reset_date?: string | null;
   onboarding_complete?: boolean | null;
   [key: string]: unknown;
 }

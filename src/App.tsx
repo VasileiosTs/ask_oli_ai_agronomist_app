@@ -19,6 +19,9 @@ const Fields = lazy(() => import('./pages/Fields'));
 const SharedDiagnosis = lazy(() => import('./pages/SharedDiagnosis'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 const FieldDetail = lazy(() => import('./pages/FieldDetail'));
+const ClientDashboard = lazy(() => import('./pages/ClientDashboard'));
+const ClientDetail = lazy(() => import('./pages/ClientDetail'));
+const CooperativeAdmin = lazy(() => import('./pages/CooperativeAdmin'));
 
 const NotFound = () => {
   const { t } = useLanguage();
@@ -145,6 +148,13 @@ function UpdateBanner() {
 
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
+  const { lang } = useLanguage();
+
+  // Apply RTL direction for Arabic
+  useEffect(() => {
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   // Show spinner while auth state is being determined
   if (loading) {
@@ -215,6 +225,9 @@ function AppRoutes() {
         <Route path="/history" element={<History />} />
         <Route path="/fields" element={<Fields />} />
         <Route path="/fields/:fieldId" element={<FieldDetail />} />
+        <Route path="/clients" element={<ClientDashboard />} />
+        <Route path="/clients/:growerId" element={<ClientDetail />} />
+        <Route path="/cooperative" element={<CooperativeAdmin />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 

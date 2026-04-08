@@ -24,6 +24,7 @@ export interface MessageListProps {
   onShare: (msg: Message) => void;
   onVioApplyConfirm: (interventionId: string, applied: boolean, msgId: string) => void;
   onOutcome: (interventionId: string, outcome: 'better' | 'same' | 'worse', msgId: string) => void;
+  onRetry?: (text: string) => void;
 }
 
 export default function MessageList({
@@ -38,6 +39,7 @@ export default function MessageList({
   onShare,
   onVioApplyConfirm,
   onOutcome,
+  onRetry,
 }: MessageListProps) {
   return (
     <div className="space-y-6">
@@ -54,6 +56,7 @@ export default function MessageList({
           onShare={onShare}
           onVioApplyConfirm={onVioApplyConfirm}
           onOutcome={onOutcome}
+          onRetry={onRetry}
         />
       ))}
       {isTyping && (

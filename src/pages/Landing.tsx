@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import OliLogo from '../components/OliLogo';
 import { ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from '../lib/constants';
+import { LANG_OPTIONS } from '../lib/i18n';
 
 // ── Unit detection ────────────────────────────────────────────────────────────
 const detectImperial = (): boolean => {
@@ -788,11 +789,23 @@ export default function Landing() {
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>Oli</span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
-              className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-1.5 rounded-full bg-[#f0efea]">
-              {lang === 'el' ? 'EN' : 'EL'}
-            </button>
+            <div className="relative group">
+              <button className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-1.5 rounded-full bg-[#f0efea] flex items-center gap-1">
+                <span>{LANG_OPTIONS.find(o => o.code === lang)?.flag ?? '🌐'}</span>
+                <span className="uppercase">{lang}</span>
+              </button>
+              <div className="absolute right-0 top-full mt-1 hidden group-hover:flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg overflow-hidden z-50 min-w-[130px]">
+                {LANG_OPTIONS.map(({ code, label, flag }) => (
+                  <button
+                    key={code}
+                    onClick={() => setLang(code)}
+                    className={`flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
+                    <span>{flag}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <Link
               to={isLoggedIn ? '/chat' : '/auth'}
               className="text-white px-4 py-2 rounded-full font-semibold text-sm hover:opacity-90 transition-all"

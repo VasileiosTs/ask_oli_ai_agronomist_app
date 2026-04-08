@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check, Key, Plus } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { usePushSubscription } from '../hooks/usePushSubscription';
 import type { Lang } from '../lib/i18n';
+import { LANG_OPTIONS } from '../lib/i18n';
 import clsx from 'clsx';
 import PaywallModal from '../components/PaywallModal';
 import { formatTierLabel, isUnlimitedTier } from '../../shared/subscription';
@@ -30,6 +31,53 @@ export default function Profile() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const push = usePushSubscription(appUserId ?? null);
+
+  // ── API keys state ──
+  interface ApiKey { id: string; name: string; key_prefix: string; last_used_at: string | null; created_at: string; revoked_at: string | null }
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [apiKeyFormOpen, setApiKeyFormOpen] = useState(false);
+
+  useEffect(() => {
+    if (!appUserId || !isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null)) return;
+    supabase.functions.invoke('api-v1', {
+      body: null,
+      headers: { 'X-Resource': 'keys' },
+    }).then(() => {}); // warm up
+    // Fetch via REST path
+    supabase.from('api_keys').select('id, name, key_prefix, last_used_at, created_at, revoked_at')
+      .eq('user_id', appUserId)
+      .is('revoked_at', null)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { if (data) setApiKeys(data as ApiKey[]); });
+  }, [appUserId, profile?.tier]);
+
+  const createApiKey = async () => {
+    if (!newKeyName.trim()) return;
+    setCreatingKey(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('api-v1/keys', {
+        method: 'POST',
+        body: { name: newKeyName.trim() },
+      });
+      if (error || !data) throw error ?? new Error('No data');
+      setRevealedKey(data.key);
+      setApiKeys(prev => [data as ApiKey, ...prev]);
+      setNewKeyName('');
+      setApiKeyFormOpen(false);
+    } catch {
+      showToast(lang === 'el' ? 'Σφάλμα δημιουργίας κλειδιού' : 'Failed to create API key');
+    } finally {
+      setCreatingKey(false);
+    }
+  };
+
+  const revokeApiKey = async (id: string) => {
+    await supabase.functions.invoke(`api-v1/keys/${id}`, { method: 'DELETE' });
+    setApiKeys(prev => prev.filter(k => k.id !== id));
+  };
 
   if (!profile) {
     return (
@@ -255,12 +303,13 @@ export default function Profile() {
               <Globe className="h-5 w-5 text-muted" />
               <span className="text-sm text-foreground">{t.languageLabel}</span>
             </div>
-            <div className="flex gap-1">
-              {(['el', 'en'] as Lang[]).map(l => (
-                <button key={l} onClick={() => setLang(l)}
-                  className={clsx('rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                    lang === l ? 'bg-primary text-white' : 'bg-surface text-muted border border-border/50 hover:text-foreground')}>
-                  {l === 'el' ? 'Ελ' : 'En'}
+            <div className="flex flex-wrap gap-1 justify-end max-w-[200px]">
+              {LANG_OPTIONS.map(({ code, flag }) => (
+                <button key={code} onClick={() => setLang(code)}
+                  className={clsx('rounded-full px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1',
+                    lang === code ? 'bg-primary text-white' : 'bg-surface text-muted border border-border/50 hover:text-foreground')}>
+                  <span>{flag}</span>
+                  <span className="uppercase">{code}</span>
                 </button>
               ))}
             </div>
@@ -354,6 +403,105 @@ export default function Profile() {
       </div>
 
       <div className="h-px bg-border/50" />
+
+      {/* API Keys — agronomist/enterprise only */}
+      {isUnlimitedTier(currentTier) && (
+        <>
+          <div className="px-4 py-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                {lang === 'el' ? 'API Κλειδιά' : 'API Keys'}
+              </h2>
+              <button
+                onClick={() => setApiKeyFormOpen(v => !v)}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {lang === 'el' ? 'Νέο κλειδί' : 'New key'}
+              </button>
+            </div>
+
+            {/* New key form */}
+            {apiKeyFormOpen && (
+              <div className="mb-3 rounded-2xl border border-border/50 bg-surface p-4">
+                <p className="mb-3 text-xs text-muted leading-relaxed">
+                  {lang === 'el'
+                    ? 'Χρησιμοποίησε API κλειδιά για να ενσωματώσεις τις διαγνώσεις Oli στις δικές σου εφαρμογές.'
+                    : 'Use API keys to integrate Oli diagnoses into your own apps.'}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={e => setNewKeyName(e.target.value)}
+                    placeholder={lang === 'el' ? 'Όνομα κλειδιού' : 'Key name'}
+                    className="flex-1 rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <button
+                    onClick={createApiKey}
+                    disabled={creatingKey || !newKeyName.trim()}
+                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {creatingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : lang === 'el' ? 'Δημιουργία' : 'Create'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Revealed key (show once) */}
+            {revealedKey && (
+              <div className="mb-3 rounded-2xl border border-green-500/30 bg-green-500/5 p-4">
+                <p className="mb-1 text-xs font-semibold text-green-400">
+                  {lang === 'el' ? 'Αντέγραψε το κλειδί τώρα — δεν θα εμφανιστεί ξανά' : 'Copy your key now — it will never be shown again'}
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <code className="flex-1 truncate rounded-lg bg-background px-3 py-1.5 text-xs font-mono text-foreground">
+                    {revealedKey}
+                  </code>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(revealedKey); showToast(lang === 'el' ? 'Αντιγράφηκε!' : 'Copied!'); setRevealedKey(null); }}
+                    className="flex-shrink-0 rounded-lg bg-green-500/20 p-2 text-green-400 hover:bg-green-500/30 transition-colors"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setRevealedKey(null)}
+                    className="flex-shrink-0 rounded-lg bg-surface p-2 text-muted hover:text-foreground transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Key list */}
+            {apiKeys.length === 0 ? (
+              <p className="text-sm text-muted py-2">
+                {lang === 'el' ? 'Δεν υπάρχουν ενεργά κλειδιά.' : 'No active keys.'}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {apiKeys.map(k => (
+                  <div key={k.id} className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface px-3 py-2.5">
+                    <Key className="h-4 w-4 text-muted flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
+                      <p className="text-[11px] text-muted font-mono">{k.key_prefix}••••••••</p>
+                    </div>
+                    <button
+                      onClick={() => revokeApiKey(k.id)}
+                      className="text-xs text-red-400/70 hover:text-red-400 transition-colors"
+                    >
+                      {lang === 'el' ? 'Ακύρωση' : 'Revoke'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="h-px bg-border/50" />
+        </>
+      )}
 
       <div className="px-4 py-4 pb-12">
         <button onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl p-3 text-muted transition-colors hover:bg-surface hover:text-foreground">

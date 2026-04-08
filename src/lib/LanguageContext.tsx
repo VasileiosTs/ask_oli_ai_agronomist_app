@@ -5,10 +5,18 @@ import i18n from './i18next';
 
 interface LangCtx { lang: Lang; t: T; setLang: (l: Lang) => void; }
 
+const VALID_LANGS = Object.keys(dict) as Lang[];
+
 function getInitialLang(): Lang {
   const manual = localStorage.getItem('oli_lang_manual') as Lang | null;
-  if (manual === 'el' || manual === 'en') return manual;
-  return navigator.language?.startsWith('el') ? 'el' : 'en';
+  if (manual && VALID_LANGS.includes(manual)) return manual;
+  const browserLang = navigator.language?.toLowerCase() ?? '';
+  if (browserLang.startsWith('el')) return 'el';
+  if (browserLang.startsWith('it')) return 'it';
+  if (browserLang.startsWith('es')) return 'es';
+  if (browserLang.startsWith('fr')) return 'fr';
+  if (browserLang.startsWith('ar')) return 'ar';
+  return 'en';
 }
 
 const initialLang = typeof window !== 'undefined' ? getInitialLang() : 'en';

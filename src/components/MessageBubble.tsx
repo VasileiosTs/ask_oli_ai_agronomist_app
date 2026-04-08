@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle } from 'lucide-react';
+import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
 import type { T } from '../lib/i18n';
 import OliLogo from './OliLogo';
@@ -44,6 +44,8 @@ export interface ChatMessage {
   attachments?: MessageAttachment[];
   metadata?: MessageMetadata;
   starred?: boolean;
+  interrupted?: boolean;
+  retryText?: string;
 }
 
 interface Props {
@@ -58,6 +60,7 @@ interface Props {
   // Updated: outcome now includes 'not_applied'
   onVioApplyConfirm: (interventionId: string, applied: boolean, msgId: string) => void;
   onOutcome: (interventionId: string, outcome: 'better' | 'same' | 'worse' | 'not_applied', msgId: string) => void;
+  onRetry?: (text: string) => void;
 }
 
 function formatTime(iso: string) {
@@ -139,7 +142,7 @@ function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string
 export default function MessageBubble({
   msg, isFirstAiInSequence, t, lang,
   onStar, onFeedback, onLogIntervention, onShare,
-  onVioApplyConfirm, onOutcome,
+  onVioApplyConfirm, onOutcome, onRetry,
 }: Props) {
   const isUser = msg.role === 'user';
   const dd = msg.metadata?.diagnosis_data;
@@ -311,6 +314,17 @@ export default function MessageBubble({
               <ThumbsDown className="h-3.5 w-3.5" />
             </button>
           </div>
+        )}
+
+        {/* Stream interrupted — retry button */}
+        {!isUser && msg.interrupted && (
+          <button
+            onClick={() => onRetry?.(msg.retryText ?? '')}
+            className="mt-1 flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {lang === 'el' ? 'Επανάληψη' : 'Retry'}
+          </button>
         )}
 
         {/* Diagnosis action buttons */}

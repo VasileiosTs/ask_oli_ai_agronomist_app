@@ -163,8 +163,32 @@ const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
   'application/pdf',
 ]);
 
-function buildSystemPrompt(fieldContext: string, growerContext = ''): string {
-  return `You are Oli, an expert AI agronomist with deep knowledge of agronomy, plant science, soil science, irrigation, nutrition, crop economics, and agricultural mathematics. You help farmers with EVERYTHING agriculture-related: disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
+function buildSystemPrompt(fieldContext: string, growerContext = '', lang = 'en'): string {
+  // Language instruction — injected first so it governs the entire response
+  const langInstruction = lang === 'el'
+    ? `ΓΛΩΣΣΑ: Απάντα ΠΑΝΤΟΤΕ στα ελληνικά, ανεξαρτήτως γλώσσας ερώτησης. Χρησιμοποίησε ελληνική ορολογία για ασθένειες (π.χ. Περονόσπορος, Ωίδιο, Φουζικλάδιο), εντομολογικές επιθέσεις και αγρονομικούς όρους. Τα ονόματα επιστημονικά (λατινικά) μπορεί να αναφέρονται σε παρένθεση.`
+    : lang === 'it'
+    ? `LINGUA: Rispondi SEMPRE in italiano. Usa terminologia italiana per malattie (es. Peronospora, Oidio, Ticchiolatura) e pratiche agronomiche.`
+    : lang === 'es'
+    ? `IDIOMA: Responde SIEMPRE en español. Usa terminología española para enfermedades (ej. Mildiu, Oídio, Roña) y prácticas agronómicas.`
+    : lang === 'fr'
+    ? `LANGUE: Réponds TOUJOURS en français. Utilise la terminologie française pour les maladies (ex. Mildiou, Oïdium, Tavelure) et les pratiques agronomiques.`
+    : lang === 'ar'
+    ? `اللغة: أجب دائماً باللغة العربية. استخدم المصطلحات الزراعية العربية للأمراض والآفات والممارسات الزراعية.`
+    : `LANGUAGE: Always respond in English.`;
+
+  // Dosage simplification — always add practical equipment conversions
+  const dosageInstruction = `DOSAGE COMMUNICATION: After every technical dosage (e.g., "300g/100L"), always add a practical conversion for common farm equipment on the next line:
+- For 15L backpack sprayer: show grams or ml needed
+- For 100L tractor tank: already covered by the /100L rate
+- Use local measurement terms when the user's language is Greek (κουταλιά σούπας = 15ml, φλιτζάνι = 250ml)
+- Example: "Myclobutanil 40ml/100L → Για ψεκαστικό 15L: 6ml (1 κοφτή κουταλιά)"`;
+
+  return `${langInstruction}
+
+${dosageInstruction}
+
+You are Oli, an expert AI agronomist with deep knowledge of agronomy, plant science, soil science, irrigation, nutrition, crop economics, and agricultural mathematics. You help farmers with EVERYTHING agriculture-related: disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
 
 QUESTION TYPE DETECTION — read the farmer's message and classify it:
 A) DIAGNOSIS query — farmer describes symptoms, disease, pest, or sends a photo
@@ -712,8 +736,9 @@ async function generateValidatedResponse(
   fieldContext: string,
   hasActiveField: boolean,
   growerContext = '',
+  lang = 'en',
 ): Promise<AiResponseJson> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext);
+  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang);
   let json = await callGemini(geminiApiKey, messages, systemPrompt);
   const validation = validateResponse(json, hasActiveField);
 
@@ -1532,7 +1557,8 @@ async function handleGuestChat(
     .filter((a) => ALLOWED_INLINE_ATTACHMENT_MIME_TYPES.has(a.mimeType) && typeof a.data === 'string' && a.data.length > 0)
     .slice(0, 1); // guest: max 1 image
 
-  const systemPrompt = buildSystemPrompt('No field data or treatment history on record yet.');
+  const guestLang = body.lang || 'en';
+  const systemPrompt = buildSystemPrompt('No field data or treatment history on record yet.', '', guestLang);
   const guestMessages: ChatMessageInput[] = [{
     role: 'user',
     content: sanitized,
@@ -1915,11 +1941,14 @@ Return ONLY the greeting text, nothing else.`;
               ? 'spring'
               : 'summer';
 
+    const userLang = appUser.language || body.lang || 'en';
+
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
       appUser.location ? `Location: ${appUser.location}` : '',
       appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
       `Current month: ${nowLocale} (${season}, ${hemisphere} hemisphere)`,
+      `Language preference: ${userLang}`,
     ].filter(Boolean).join('\n');
 
     try {
@@ -2108,6 +2137,7 @@ Return ONLY the greeting text, nothing else.`;
         serverContext.fieldContext,
         serverContext.hasActiveField,
         growerContext,
+        userLang,
       );
       assistantText = aiResponse.response_text;
       assistantMetadata = buildAssistantMetadata(aiResponse);

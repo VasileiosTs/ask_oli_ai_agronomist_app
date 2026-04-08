@@ -26,6 +26,7 @@ import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
 import FieldSelector from '../components/FieldSelector';
 import ShareModal from '../components/ShareModal';
+import { enqueueMessage, drainQueue, type QueuedMessage } from '../lib/offlineQueue';
 // ── Message reducer ────────────────────────────────────────────────
 type MsgAction =
   | { type: 'set'; messages: Message[] }
@@ -78,14 +79,52 @@ export default function Chat() {
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showPaywallWarning, setShowPaywallWarning] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Initialise message count from profile so the paywall check is accurate on page load
+  // (without this, messageCount starts at 0 and the client-side gate never fires even
+  //  when the user has already exhausted their monthly quota in a previous session).
   useEffect(() => {
-    const on = () => setIsOnline(true);
+    if (!profile) return;
+    const dbCount = typeof profile.message_count_month === 'number' ? profile.message_count_month : 0;
+    const resetDate = typeof profile.message_reset_date === 'string' ? new Date(profile.message_reset_date) : null;
+    const now = new Date();
+    const sameMonth = resetDate
+      && resetDate.getUTCFullYear() === now.getUTCFullYear()
+      && resetDate.getUTCMonth() === now.getUTCMonth();
+    const count = sameMonth ? dbCount : 0;
+    setMessageCount(count);
+    const remaining = FREE_LIMIT - count;
+    if (remaining <= 0) {
+      setShowPaywall(true);
+    } else if (remaining <= PAYWALL_WARNING_MESSAGES_REMAINING) {
+      setShowPaywallWarning(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const handleSendRef = useRef<((text: string) => Promise<void>) | null>(null);
+  useEffect(() => {
+    const on = async () => {
+      setIsOnline(true);
+      // Drain any queued messages from when we were offline
+      if (handleSendRef.current) {
+        const sent = await drainQueue(async (msg: QueuedMessage) => {
+          if (handleSendRef.current) await handleSendRef.current(msg.text);
+        });
+        if (sent > 0) {
+          showToast(
+            lang === 'el'
+              ? `${sent} μήνυμα${sent > 1 ? 'τα' : ''} εστάλη${sent > 1 ? 'καν' : ''} μετά την επανασύνδεση`
+              : `${sent} queued message${sent > 1 ? 's' : ''} sent after reconnect`,
+          );
+        }
+      }
+    };
     const off = () => setIsOnline(false);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
-  }, []);
+  }, [lang]);
 
   // ── Personalised greeting (non-blocking; shown in welcome state subtitle) ──
   const [dynamicGreeting, setDynamicGreeting] = useState('');
@@ -896,15 +935,14 @@ export default function Chat() {
     const latestInlineAttachments = base64Images ?? latestUserMessage?.inlineAttachments ?? [];
     const latestAttachmentPaths = attachmentPaths ?? latestUserMessage?.attachmentPaths ?? [];
 
-    try {
-      const assistantMsgId = crypto.randomUUID();
-      let messageAdded = false;
+    const assistantMsgId = crypto.randomUUID();
+    let messageAdded = false;
+    let streamedContent = '';
 
+    try {
       // Field and treatment history are assembled server-side so the backend
       // stays authoritative as we expand field memory.
       const fieldContext = '';
-
-      let streamedContent = '';
       const completion = await streamChatCompletion(
         {
           messages: recentMessages.map((message) => ({
@@ -1001,7 +1039,8 @@ export default function Chat() {
         : undefined;
       const latestUserMessagePersisted = !!latestUserMessage?.db_id;
 
-      if (latestUserMessageId && !latestUserMessagePersisted && !controller.signal.aborted) {
+      // Only remove unpersisted user message if no partial content was streamed
+      if (!streamedContent && latestUserMessageId && !latestUserMessagePersisted && !controller.signal.aborted) {
         dispatch({ type: 'filter', predicate: (msg) => msg.id !== latestUserMessageId });
         setInput((currentInput) => currentInput || userText);
       }
@@ -1056,7 +1095,13 @@ export default function Chat() {
         await cleanupUploadedAssets(latestAttachmentPaths);
       }
 
-      dispatch({ type: 'update_by', predicate: (msg) => msg.role === 'assistant' && !msg.content, patch: { content: t.connectionError } });
+      // If partial content was streamed, mark message as interrupted (keep content + show retry)
+      // Otherwise show error text on the empty assistant bubble with retry option
+      if (streamedContent.length > 0) {
+        dispatch({ type: 'update', id: assistantMsgId, patch: { interrupted: true, retryText: userText } });
+      } else {
+        dispatch({ type: 'update_by', predicate: (msg) => msg.role === 'assistant' && !msg.content, patch: { content: t.connectionError, interrupted: true, retryText: userText } });
+      }
     } finally {
       const latestUserMessage = [...currentMessages].reverse().find((message) => message.role === 'user');
       if (latestUserMessage?.id) {
@@ -1068,6 +1113,18 @@ export default function Chat() {
   const handleSend = async (text: string = input) => {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
+
+    // Offline — queue the message and show feedback
+    if (!navigator.onLine && messageText) {
+      await enqueueMessage({ id: crypto.randomUUID(), text: messageText, enqueuedAt: Date.now() });
+      setInput('');
+      showToast(
+        lang === 'el'
+          ? 'Χωρίς σύνδεση — το μήνυμα θα σταλεί αυτόματα όταν επιστρέψει το internet'
+          : 'Offline — your message will send automatically when you reconnect',
+      );
+      return;
+    }
 
     // Guest mode: gate 2nd message with login modal — save pending input so it survives login
     if (isGuestMode) {
@@ -1200,6 +1257,9 @@ export default function Chat() {
     );
   };
 
+  // Keep ref current so the online-drain callback can call handleSend
+  handleSendRef.current = handleSend;
+
   // Disambiguation removed — field context detected silently from AI response metadata.
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1325,6 +1385,7 @@ export default function Chat() {
     onShare: handleShare,
     onVioApplyConfirm: handleVioApplyConfirm,
     onOutcome: handleOutcome,
+    onRetry: (text: string) => handleSend(text),
   };
 
   const inputBarProps = {
