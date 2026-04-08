@@ -117,6 +117,114 @@ const FEATURES = (lang: string) => [
   },
 ];
 
+// ── Role-based showcase ──────────────────────────────────────────────────────
+const ROLES = (lang: string) => [
+  {
+    id: 'farmer',
+    emoji: '🌾',
+    label:    lang === 'el' ? 'Αγρότης' : 'Farmer',
+    headline: lang === 'el' ? 'Απάντηση σε δευτερόλεπτα, στη γλώσσα σου' : 'Answers in seconds, in your language',
+    question: lang === 'el'
+      ? 'Λευκή σκόνη στα φύλλα του αμπελιού. Τι είναι και τι κάνω;'
+      : 'White powder on my vine leaves. What is it and what should I do?',
+    answer: lang === 'el'
+      ? 'Πρόκειται για Ωίδιο (Uncinula necator) — μυκητολογική ασθένεια. Confidence: 91%.\n🌿 Οργανικό: Θείο WP 80%, 300g/100L, κάθε 7–10 μέρες\n⚗️ Χημικό: Myclobutanil 12.5% EC, 40ml/100L\nΘα σε ρωτήσω σε 3 μέρες αν βελτιώθηκε.'
+      : 'This is Powdery Mildew (Oidium / Uncinula necator). Confidence: 91%.\n🌿 Organic: Sulphur WP 80%, 300g/100L every 7–10 days\n⚗️ Chemical: Myclobutanil 12.5% EC, 40ml/100L\nI\'ll follow up in 3 days to check progress.',
+    tag: lang === 'el' ? 'Διάγνωση + Θεραπεία' : 'Diagnosis + Treatment',
+    tagColor: 'text-amber-700 bg-amber-50 border-amber-200',
+  },
+  {
+    id: 'agronomist',
+    emoji: '🔬',
+    label:    lang === 'el' ? 'Γεωπόνος' : 'Agronomist',
+    headline: lang === 'el' ? 'Επιστημονικοί υπολογισμοί σε δευτερόλεπτα' : 'Scientific calculations in seconds',
+    question: lang === 'el'
+      ? 'Υπολόγισέ μου ETc αμπελώνα Ιούλιο. ET₀ = 6.2mm/ημέρα, Kc = 0.85 (ανθοφορία)'
+      : 'Calculate vineyard ETc for July. ET₀ = 6.2mm/day, Kc = 0.85 (flowering stage)',
+    answer: lang === 'el'
+      ? 'ETc = ET₀ × Kc = 6.2 × 0.85 = 5.27 mm/ημέρα\nΣε ha: 5.27mm × 10 = 52.7 m³/ha/ημέρα\nΓια 5 στρέμματα (0.5 ha): 26.4 m³/ημέρα\nΓια εβδομάδα: 184.5 m³\nΜε σταγονικό (αποδοτ. 90%): 205 m³ πρόβλεψη.'
+      : 'ETc = ET₀ × Kc = 6.2 × 0.85 = 5.27 mm/day\nPer ha: 5.27 × 10 = 52.7 m³/ha/day\nFor 1 ha: 52.7 m³/day, weekly: 368.9 m³\nWith drip (90% efficiency): schedule 410 m³/week.',
+    tag: lang === 'el' ? 'Υπολογισμός ETc' : 'ETc Calculation',
+    tagColor: 'text-blue-700 bg-blue-50 border-blue-200',
+  },
+  {
+    id: 'association',
+    emoji: '🤝',
+    label:    lang === 'el' ? 'Αγροτικός Σύλλογος' : 'Farmers\' Association',
+    headline: lang === 'el' ? 'Ετήσιο αρχείο παρεμβάσεων και εργασιών' : 'Annual intervention and field work report',
+    question: lang === 'el'
+      ? 'Δώσε μου αρχείο με όλες τις εργασίες και παρεμβάσεις στα χωράφια μου το περασμένο χρόνο'
+      : 'Give me a report of all field work and treatments done across my fields over the past year',
+    answer: lang === 'el'
+      ? '📋 Ετήσια Έκθεση Χωραφιών 2025\n\n🫒 Ελαιώνας Βοριά (8 στρ)\n• Μαρ: Κλάδεμα + Χαλκούχο (Περονόσπορος)\n• Ιούν: Λίπανση αζώτου 12kg/στρ\n• Σεπ: Ψεκασμός ολεοκτόνο (Δάκος)\n• Αποτέλεσμα: Βελτίωση ✅\n\n🍇 Αμπελώνας (5 στρ)\n• Φεβ: Κλάδεμα χειμερινό\n• Μαϊ: Θείο Ωίδιο 3× ψεκασμοί\n• Ιούλ: Άρδευση 850m³ σύνολο'
+      : '📋 Annual Field Report 2025\n\n🫒 North Olive Grove (0.8 ha)\n• Mar: Pruning + Copper spray (Downy Mildew)\n• Jun: Nitrogen top-dress 120kg/ha\n• Sep: Olicide spray (Olive fly)\n• Outcome: Improved ✅\n\n🍇 Vineyard (0.5 ha)\n• Feb: Winter pruning\n• May: Sulphur (Oidium) × 3 sprays\n• Jul: Irrigation 850m³ total',
+    tag: lang === 'el' ? 'Ετήσια Αναφορά' : 'Annual Report',
+    tagColor: 'text-green-700 bg-green-50 border-green-200',
+  },
+  {
+    id: 'garden',
+    emoji: '🌻',
+    label:    lang === 'el' ? 'Κηπουρός / Οικιακός Κήπος' : 'Garden Center / Home Garden',
+    headline: lang === 'el' ? 'Ποια φυτά πάνε μαζί στον κήπο;' : 'Which plants grow best together?',
+    question: lang === 'el'
+      ? 'Ποια λαχανικά φυτεύω μαζί για καλύτερη ανάπτυξη στον κήπο μου;'
+      : 'Which vegetables should I plant together for better growth in my garden?',
+    answer: lang === 'el'
+      ? '✅ Καλές συνδυασμοί (συνοδοί καλλιέργειες):\n• Ντομάτα + Βασιλικός — απωθεί αφίδες, βελτιώνει γεύση\n• Καρότα + Κρεμμύδια — αμοιβαία προστασία από έντομα\n• Κολοκυθάκι + Καλαμπόκι + Φασόλια (Τρία Αδέρφια)\n\n❌ Αποφύγετε:\n• Ντομάτα + Μάραθο — ανταγωνισμός ριζών\n• Κρεμμύδια + Αρακάς — αναστέλλουν ανάπτυξη'
+      : '✅ Good companion planting:\n• Tomato + Basil — repels aphids, improves flavour\n• Carrots + Onions — mutual insect deterrence\n• Courgette + Corn + Beans (Three Sisters)\n\n❌ Avoid together:\n• Tomato + Fennel — root competition\n• Onions + Peas — growth inhibition',
+    tag: lang === 'el' ? 'Συνοδοί Καλλιέργειες' : 'Companion Planting',
+    tagColor: 'text-purple-700 bg-purple-50 border-purple-200',
+  },
+  {
+    id: 'input',
+    emoji: '🏭',
+    label:    lang === 'el' ? 'Εταιρεία Εισροών' : 'Input / Agri Company',
+    headline: lang === 'el' ? 'Ποια προϊόντα συστήνει ο Oli για κάθε πρόβλημα;' : 'Which products does Oli recommend per problem?',
+    question: lang === 'el'
+      ? 'Ποια σκευάσματα για Περονόσπορο αμπελιού; Τι δόση και πότε;'
+      : 'Which fungicides for Downy Mildew (Peronospora) on grapevines? Dose and timing?',
+    answer: lang === 'el'
+      ? 'Περονόσπορος (Plasmopara viticola) — Προστατευτικά + Θεραπευτικά:\n\n⚗️ Χαλκούχα (προληπτικά): Hydroxide χαλκού 77%, 250g/100L — εφαρμογή πριν βροχή\n⚗️ Διασυστηματικά: Metalaxyl-M 4% + Mancozeb 64% WP, 250g/100L\n⚗️ Cymoxanil 45% WG, 30g/100L (θεραπευτικά έως 4 ώρες μετά λοίμωξη)\n\nΧρόνος εφαρμογής: 5–7 φύλλα έως κλείσιμο τσαμπιού'
+      : 'Downy Mildew (Plasmopara viticola) — Protectant + Curative:\n\n⚗️ Copper-based (preventive): Copper Hydroxide 77%, 250g/100L — apply before rain\n⚗️ Systemic: Metalaxyl-M 4% + Mancozeb 64% WP, 250g/100L\n⚗️ Cymoxanil 45% WG, 30g/100L (curative up to 4h post-infection)\n\nApply from 5-leaf stage through bunch closure',
+    tag: lang === 'el' ? 'Σκευάσματα & Δοσολογία' : 'Products & Dosage',
+    tagColor: 'text-slate-700 bg-slate-50 border-slate-200',
+  },
+];
+
+// ── Role-based pricing ────────────────────────────────────────────────────────
+const PRICING_ROLES = (lang: string) => [
+  {
+    id: 'farmer',
+    label: lang === 'el' ? '🌾 Αγρότης' : '🌾 Farmer',
+    free: lang === 'el'
+      ? ['20 ερωτήσεις / μήνα', 'Διάγνωση ασθενειών από φωτογραφία', 'Βιολογικό και χημικό πλάνο θεραπείας', 'Ιστορικό συνομιλιών']
+      : ['20 questions / month', 'Crop disease diagnosis from photo', 'Organic and chemical treatment plan', 'Conversation history'],
+    pro: lang === 'el'
+      ? ['Απεριόριστες ερωτήσεις', 'Μνήμη χωραφιών και καλλιεργειών', 'Follow-up σαν αληθινός γεωπόνος', 'Υπολογισμός άρδευσης (ETc)', 'Αρχείο παρεμβάσεων χωραφιών', 'Πρώτη πρόσβαση σε νέες λειτουργίες']
+      : ['Unlimited questions', 'Field and crop memory', 'Follow-up like a real agronomist', 'Irrigation calculation (ETc)', 'Field intervention log', 'Early access to new features'],
+  },
+  {
+    id: 'agronomist',
+    label: lang === 'el' ? '🔬 Γεωπόνος' : '🔬 Agronomist',
+    free: lang === 'el'
+      ? ['20 ερωτήσεις / μήνα', 'Επαλήθευση διαγνώσεων', 'Γρήγορη αναφορά σκευασμάτων & δόσεων', 'Δοκιμή με πελάτες']
+      : ['20 questions / month', 'Diagnosis cross-check', 'Quick product & dosage reference', 'Trial with clients'],
+    pro: lang === 'el'
+      ? ['Απεριόριστες ερωτήσεις', 'Επιστημονικοί υπολογισμοί (ETc, NPK, δοσολογία)', 'Ετήσια αναφορά ανά χωράφι', 'Αρχείο παρεμβάσεων για κάθε πελάτη', 'Χωρίς όριο σε χωράφια', 'API πρόσβαση (σύντομα)']
+      : ['Unlimited questions', 'Scientific calculations (ETc, NPK, dosage)', 'Annual report per field', 'Intervention history per client', 'Unlimited fields', 'API access (coming soon)'],
+  },
+  {
+    id: 'business',
+    label: lang === 'el' ? '🤝 Σύλλογος / Επιχείρηση' : '🤝 Association / Business',
+    free: lang === 'el'
+      ? ['20 ερωτήσεις / μήνα ανά χρήστη', 'Διάγνωση και αγρονομικές συμβουλές', 'Δωρεάν για μέλη που θέλετε να δοκιμάσουν']
+      : ['20 questions / month per user', 'Diagnosis and agronomic advice', 'Free for members to trial'],
+    pro: lang === 'el'
+      ? ['Απεριόριστα ανά μέλος (€4.99/χρήστη/μήνα)', 'Ετήσιες αναφορές καλλιεργειών', 'Κοινή βάση χωραφιών (σύντομα)', 'White-label για τον σύλλογο σας (σύντομα)', 'Προτεραιότητα υποστήριξης']
+      : ['Unlimited per member (€4.99/user/month)', 'Annual crop reports', 'Shared field database (coming soon)', 'White-label for your association (coming soon)', 'Priority support'],
+  },
+];
+
 const TESTIMONIALS = (lang: string) => [
   {
     quote: lang === 'el'
@@ -199,77 +307,97 @@ const DEMO_PLANNING = (lang: string, imperial: boolean) => ({
 
 const EXAMPLE_QUESTIONS = (lang: string, imperial: boolean) => [
   {
-    category: lang === 'el' ? '🔬 Διάγνωση' : '🔬 Diagnosis',
+    category: lang === 'el' ? '🔬 Διάγνωση ασθενειών' : '🔬 Disease diagnosis',
     questions: lang === 'el'
       ? [
-          'Λευκή σκόνη στα φύλλα του αμπελιού. Τι είναι;',
-          'Μικρές τρύπες στον κορμό της μηλιάς μου',
-          'Τα φύλλα της πιπεριάς μου τυλίγονται προς τα μέσα',
+          'Λευκή σκόνη στα φύλλα του αμπελιού — είναι Ωίδιο ή Περονόσπορος;',
+          'Μικρές τρύπες στον κορμό της μηλιάς μου. Τι έντομο είναι;',
+          'Κίτρινα φύλλα με μαύρα σπόρια στην κάτω επιφάνεια ελιάς',
         ]
       : [
-          'White powder on my vine leaves. Is it mildew?',
-          'Small holes appearing in my apple tree trunk',
-          'My pepper leaves are curling inward',
+          'White powder on vine leaves — is it Powdery Mildew (Oidium) or Downy Mildew (Peronospora)?',
+          'Small holes in my apple tree trunk. What insect is this?',
+          'Yellow olive leaves with black spots on the underside',
         ],
+  },
+  {
+    category: lang === 'el' ? '🧮 Επιστημονικοί υπολογισμοί' : '🧮 Scientific calculations',
+    questions: lang === 'el'
+      ? [
+          'Υπολόγισέ μου την εξατμισοδιαπνοή (ETc) στο αμπέλι μου για τον Ιούλιο με ET₀ = 6mm/ημέρα',
+          'Ποια φυτά πηγαίνουν μαζί για καλύτερο αποτέλεσμα στον λαχανόκηπό μου;',
+          'Φτιάξε μου αρχείο με όλες τις παρεμβάσεις και εργασίες του περασμένου χρόνου στα χωράφια μου',
+        ]
+      : imperial
+        ? [
+            'Calculate ETc for my vineyard in July with ET₀ = 0.24 in/day — show me the formula',
+            'Which plants grow best together for a productive kitchen garden?',
+            'Give me a report of all treatments and work done in my fields over the past year',
+          ]
+        : [
+            'Calculate ETc water requirements for my vineyard in July with ET₀ = 6mm/day',
+            'Which plants grow best together for a productive kitchen garden?',
+            'Give me a full report of all treatments and field work done in the past year',
+          ],
   },
   {
     category: lang === 'el' ? '📐 Σχεδιασμός φύτευσης' : '📐 Planting planning',
     questions: lang === 'el'
       ? [
           'Πόσες λεμονιές χωράνε σε 5 στρέμματα με σωστές αποστάσεις;',
-          'Ποιες καλλιέργειες να φυτέψω μετά την ντομάτα;',
-          'Είναι αργά να φυτέψω καρπούζια τον Απρίλιο;',
+          'Ποιες καλλιέργειες να φυτέψω μετά την ντομάτα για εναλλαγή;',
+          'Είναι αργά να φυτέψω καρπούζια τον Απρίλιο στην Πελοπόννησο;',
         ]
       : imperial
         ? [
             'How many lemon trees fit in a 3-acre field with proper spacing?',
             'Best crops to plant after tomatoes for rotation',
-            'Is April too late to plant watermelons?',
+            'Is April too late to plant watermelons in southern regions?',
           ]
         : [
             'How many lemon trees fit in a 1-hectare field with proper spacing?',
             'Best crops to plant after tomatoes for rotation',
-            'Is April too late to plant watermelons?',
+            'Is April too late to plant watermelons in southern regions?',
           ],
   },
   {
-    category: lang === 'el' ? '💧 Άρδευση και εξοπλισμός' : '💧 Irrigation and equipment',
+    category: lang === 'el' ? '💧 Άρδευση και θρέψη' : '💧 Irrigation and nutrition',
     questions: lang === 'el'
       ? [
-          'Πώς στήνω σταγονικό πότισμα για φράουλες σε 2 στρέμματα;',
-          'Πόσα λίτρα νερό χρειάζονται οι ελιές τον Αύγουστο;',
-          'Τι εξοπλισμό χρειάζομαι για να αρχίσω από μηδέν;',
+          'Πόσα m³ νερό χρειάζεται το σταγονικό πότισμα σε 3 στρέμματα ελιάς τον Αύγουστο;',
+          'Υπολόγισέ μου δόση αζώτου για ντομάτα στόχου παραγωγής 8 τόνων/στρέμμα',
+          'Είναι συμβατά χαλκούχο μυκητοκτόνο και λίπασμα φύλλου στο ίδιο ψεκαστικό;',
         ]
       : imperial
         ? [
-            'How do I set up drip irrigation for strawberries on half an acre?',
-            'How many gallons per day do olive trees need in August?',
-            'What basic equipment do I need to start from scratch?',
+            'How many gallons per day for drip irrigation on a 2-acre olive grove in August?',
+            'Calculate nitrogen dose for tomatoes targeting 14,000 lb/acre yield',
+            'Can I mix copper fungicide and foliar fertiliser in the same sprayer tank?',
           ]
         : [
-            'How do I set up drip irrigation for strawberries on 2,000 sq m?',
-            'How many litres per day do olive trees need in August?',
-            'What basic equipment do I need to start from scratch?',
+            'How many m³ of water for drip irrigation on 3,000m² of olives in August?',
+            'Calculate nitrogen dose for tomatoes targeting 8 tonnes/strema yield',
+            'Can I mix copper fungicide and foliar fertiliser in the same sprayer tank?',
           ],
   },
   {
-    category: lang === 'el' ? '🌱 Αναστήλωση χωραφιών' : '🌱 Field rehabilitation',
+    category: lang === 'el' ? '🌱 Αναστήλωση και εδαφολογία' : '🌱 Rehabilitation and soil',
     questions: lang === 'el'
       ? [
           'Εγκαταλελειμμένος ελαιώνας 5 στρεμμάτων. Από πού αρχίζω;',
-          'Τι εξοπλισμό και λιπάσματα χρειάζομαι για παλιό αμπελώνα;',
-          'Πώς ετοιμάζω βραχώδες έδαφος για πρώτη φύτευση;',
+          'Πώς βελτιώνω αργιλώδες έδαφος με κακή στράγγιση;',
+          'Τι εδαφολογική ανάλυση να κάνω πριν φυτέψω αμπέλι;',
         ]
       : imperial
         ? [
             'I have an abandoned 5-acre olive grove. Where do I start?',
-            'What equipment and fertilisers do I need to rehabilitate a neglected vineyard?',
-            'How do I prepare rocky terrain for first-time planting?',
+            'How do I improve clay soil with poor drainage?',
+            'What soil analysis should I run before planting a new vineyard?',
           ]
         : [
             'I have an abandoned 2-hectare olive grove. Where do I start?',
-            'What equipment and fertilisers do I need to rehabilitate a neglected vineyard?',
-            'How do I prepare rocky terrain for first-time planting?',
+            'How do I improve clay soil with poor drainage?',
+            'What soil analysis should I run before planting a new vineyard?',
           ],
   },
 ];
@@ -279,12 +407,12 @@ const EXAMPLE_QUESTIONS = (lang: string, imperial: boolean) => [
 const ROTATING_QUESTIONS = (lang: string, imperial: boolean): string[] =>
   lang === 'el'
     ? [
-        'Πώς στήνω σταγονικό πότισμα για φράουλες;',
-        'Έχω 10 στρέμματα. Πόσες λεμονιές να φυτέψω;',
-        'Τι εξοπλισμό χρειάζομαι για εγκαταλελειμμένο ελαιώνα;',
-        'Τα φύλλα της ντομάτας έχουν καστανούς κύκλους. Τι έχει;',
-        'Πότε και πώς κλαδεύω αμπέλι για καλύτερη παραγωγή;',
-        'Ποιες καλλιέργειες να φυτέψω μετά την ντομάτα;',
+        'Υπολόγισέ μου την εξατμισοδιαπνοή (ETc) για το αμπέλι μου τον Ιούλιο',
+        'Λευκή σκόνη στα φύλλα — Ωίδιο ή Περονόσπορος;',
+        'Ποια φυτά πηγαίνουν μαζί στον λαχανόκηπό μου;',
+        'Φτιάξε μου αρχείο με τις εργασίες των χωραφιών μου πέρσι',
+        'Πόσα m³ νερό χρειάζεται η ελιά τον Αύγουστο;',
+        'Υπολόγισέ μου δόση αζώτου για ντομάτα 8 τόνων/στρέμμα',
       ]
     : imperial
       ? [
@@ -434,6 +562,77 @@ function PhoneMockup({ lang }: { lang: string }) {
   );
 }
 
+// ── Role Showcase component ───────────────────────────────────────────────────
+
+function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => void }) {
+  const roles = useMemo(() => ROLES(lang), [lang]);
+  const [activeId, setActiveId] = useState(roles[0].id);
+  const active = roles.find(r => r.id === activeId) ?? roles[0];
+
+  return (
+    <div>
+      {/* Role tabs */}
+      <div className="flex flex-wrap justify-center gap-2 mb-8">
+        {roles.map(r => (
+          <button
+            key={r.id}
+            onClick={() => setActiveId(r.id)}
+            className={[
+              'flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all',
+              activeId === r.id
+                ? 'bg-[#194121] border-[#194121] text-white shadow-md'
+                : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
+            ].join(' ')}
+          >
+            <span>{r.emoji}</span>
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active role card */}
+      <div className="rounded-2xl border border-[#e8e8e3] bg-white overflow-hidden" style={{ boxShadow: '0 4px 24px rgba(25,65,33,0.08)' }}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#f0efea] bg-[#fafaf8]">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{active.emoji}</span>
+            <span className="text-sm font-bold text-[#1b1c19]">{active.label}</span>
+          </div>
+          <span className={`text-[11px] font-semibold border rounded-full px-2.5 py-0.5 ${active.tagColor}`}>
+            {active.tag}
+          </span>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Question bubble */}
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-[#194121] px-4 py-3 text-sm text-white leading-relaxed">
+              {active.question}
+            </div>
+          </div>
+
+          {/* Oli answer bubble */}
+          <div className="flex gap-3 items-start">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#194121]/10 flex items-center justify-center">
+              <span className="text-[#194121]" style={{ fontSize: '14px' }}>🌿</span>
+            </div>
+            <div className="flex-1 rounded-xl rounded-tl-sm border border-[#e8e8e3] bg-[#fafaf8] px-4 py-3">
+              <p className="text-sm text-[#1b1c19] leading-relaxed whitespace-pre-line">{active.answer}</p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={() => onAsk(active.question)}
+            className="w-full text-center text-sm font-semibold text-[#194121] border-2 border-[#194121] rounded-full py-2.5 hover:bg-[#194121] hover:text-white transition-all"
+          >
+            {lang === 'el' ? `Δοκίμασε ως ${active.label} →` : `Try as ${active.label} →`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Landing() {
@@ -445,6 +644,7 @@ export default function Landing() {
   const [demoTab, setDemoTab]             = useState<'disease' | 'planning'>('disease');
   const [suggestionIdx, setSuggestionIdx] = useState(0);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
+  const [pricingRole, setPricingRole]     = useState('farmer');
   const imperial = useMemo(() => detectImperial(), []);
 
   // Photo attachment for hero guest chat
@@ -884,6 +1084,24 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── ROLE SHOWCASE ── */}
+      <section className="py-16 bg-[#faf9f4] border-t border-[#f0efea]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
+              {lang === 'el' ? 'Για κάθε ρόλο στη γεωργία' : 'For every role in agriculture'}
+            </p>
+            <h2 className="text-xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
+              {lang === 'el' ? 'Ο Oli απαντάει διαφορετικά σε κάθε χρήστη' : 'Oli tailors every answer to who is asking'}
+            </h2>
+            <p className="text-sm text-[#606659]">
+              {lang === 'el' ? 'Κάνε κλικ σε ρόλο για να δεις πραγματικές ερωτήσεις και απαντήσεις' : 'Select a role to see real questions and answers'}
+            </p>
+          </div>
+          <RoleShowcase lang={lang} onAsk={sendQuestion} />
+        </div>
+      </section>
+
       {/* ── STATS BAR ── */}
       <section className="py-8 bg-[#faf9f4] border-y border-[#f0efea]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
@@ -990,76 +1208,107 @@ export default function Landing() {
       {/* ── PRICING ── */}
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Τιμολόγηση' : 'Pricing'}
             </p>
-            <h2 className="text-2xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>
+            <h2 className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
               {lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start for free'}
             </h2>
+            <p className="text-sm text-[#606659]">
+              {lang === 'el' ? 'Επέλεξε τον ρόλο σου για να δεις τα κατάλληλα πακέτα' : 'Select your role to see the right plan for you'}
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* Free tier */}
-            <div className="rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
-              <div className="mb-5">
-                <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lang === 'el' ? 'Δωρεάν' : 'Free'}</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
-                  <span className="text-sm text-[#606659]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+          {/* Role selector */}
+          {(() => {
+            const pricingRoles = PRICING_ROLES(lang);
+            const activePricingRole = pricingRoles.find(r => r.id === pricingRole) ?? pricingRoles[0];
+            return (
+              <>
+                <div className="flex flex-wrap justify-center gap-2 mb-8">
+                  {pricingRoles.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setPricingRole(r.id)}
+                      className={[
+                        'rounded-full border px-4 py-2 text-sm font-medium transition-all',
+                        pricingRole === r.id
+                          ? 'bg-[#194121] border-[#194121] text-white shadow-md'
+                          : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
+                      ].join(' ')}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-xs text-[#606659] mt-1">{lang === 'el' ? 'Χωρίς πιστωτική κάρτα' : 'No credit card required'}</p>
-              </div>
-              <ul className="space-y-2.5 mb-6">
-                {(lang === 'el'
-                  ? ['20 ερωτήσεις / μήνα', 'Διάγνωση ασθενειών', 'Βιολογικό και χημικό πλάνο', 'Ιστορικό συνομιλιών']
-                  : ['20 questions / month', 'Crop disease diagnosis', 'Organic and chemical plans', 'Conversation history']
-                ).map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
-                    <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
-                {lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Get started free'}
-              </Link>
-            </div>
 
-            {/* Pro tier */}
-            <div className="rounded-2xl p-6 relative overflow-hidden text-white"
-              style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
-              <div className="absolute top-4 right-4 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                {lang === 'el' ? 'Δημοφιλές' : 'Popular'}
-              </div>
-              <div className="mb-5">
-                <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4.99</span>
-                  <span className="text-sm text-white/70">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* Free tier */}
+                  <div className="rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
+                    <div className="mb-5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lang === 'el' ? 'Δωρεάν' : 'Free'}</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
+                        <span className="text-sm text-[#606659]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+                      </div>
+                      <p className="text-xs text-[#606659] mt-1">{lang === 'el' ? 'Χωρίς πιστωτική κάρτα' : 'No credit card required'}</p>
+                    </div>
+                    <ul className="space-y-2.5 mb-6">
+                      {activePricingRole.free.map((item, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
+                          <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to="/auth"
+                      className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
+                      {lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Get started free'}
+                    </Link>
+                  </div>
+
+                  {/* Pro tier */}
+                  <div className="rounded-2xl p-6 relative overflow-hidden text-white"
+                    style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
+                    <div className="absolute top-4 right-4 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      {lang === 'el' ? 'Δημοφιλές' : 'Popular'}
+                    </div>
+                    <div className="mb-5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4.99</span>
+                        <span className="text-sm text-white/70">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+                      </div>
+                      <p className="text-xs text-white/60 mt-1">{lang === 'el' ? 'ή €49 / χρόνο (εξοικονομείς 18%)' : 'or €49 / year (save 18%)'}</p>
+                    </div>
+                    <ul className="space-y-2.5 mb-6">
+                      {activePricingRole.pro.map((item, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm text-white/90">
+                          <Check className="w-4 h-4 text-white flex-shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to="/auth"
+                      className="block w-full text-center py-3 rounded-full text-sm font-semibold bg-white text-[#194121] hover:bg-[#c0eec0] transition-all">
+                      {lang === 'el' ? 'Δοκίμασε Pro' : 'Try Pro'}
+                    </Link>
+                  </div>
                 </div>
-                <p className="text-xs text-white/60 mt-1">{lang === 'el' ? 'ή €49 / χρόνο (εξοικονομείς 18%)' : 'or €49 / year (save 18%)'}</p>
-              </div>
-              <ul className="space-y-2.5 mb-6">
-                {(lang === 'el'
-                  ? ['Απεριόριστες ερωτήσεις', 'Μνήμη χωραφιών και καλλιεργειών', 'Follow-up σαν αληθινός γεωπόνος', 'Σχεδιασμός φύτευσης και υπολογισμοί', 'Πρώτη πρόσβαση σε νέες λειτουργίες']
-                  : ['Unlimited questions', 'Field and crop memory', 'Follow-up like a real agronomist', 'Planting plans and calculations', 'Early access to new features']
-                ).map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-white/90">
-                    <Check className="w-4 h-4 text-white flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className="block w-full text-center py-3 rounded-full text-sm font-semibold bg-white text-[#194121] hover:bg-[#c0eec0] transition-all">
-                {lang === 'el' ? 'Δοκίμασε Pro' : 'Try Pro'}
-              </Link>
-            </div>
-          </div>
+
+                {pricingRole === 'business' && (
+                  <p className="text-center text-xs text-[#606659] mt-5">
+                    {lang === 'el'
+                      ? '💬 Για μεγάλους συλλόγους ή εταιρείες με πολλούς χρήστες, επικοινωνήστε μαζί μας για ειδική τιμή.'
+                      : '💬 For large associations or companies with many users, contact us for custom pricing.'}
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
       </section>
 

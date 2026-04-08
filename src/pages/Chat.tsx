@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { useState, useEffect, useRef, useReducer } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -64,6 +64,7 @@ const GUEST_SESSION_KEY = 'oli_guest_messages';
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
   const { t, lang } = useLanguage();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const routeLocation = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1002,6 +1003,34 @@ export default function Chat() {
       if (latestUserMessageId && !latestUserMessagePersisted && !controller.signal.aborted) {
         dispatch({ type: 'filter', predicate: (msg) => msg.id !== latestUserMessageId });
         setInput((currentInput) => currentInput || userText);
+      }
+
+      // 401 — session expired. Try to refresh silently; if that fails, redirect to /auth.
+      if (status === 401) {
+        dispatch({ type: 'filter', predicate: (msg) => !(msg.role === 'assistant' && !msg.content) });
+        if (latestUserMessageId && !latestUserMessagePersisted) {
+          dispatch({ type: 'filter', predicate: (msg) => msg.id !== latestUserMessageId });
+          setInput((currentInput) => currentInput || userText);
+        }
+        try {
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) throw refreshError;
+          // Session refreshed — restore input so user can resend
+          showToast(
+            lang === 'el'
+              ? 'Η σύνδεσή σου ανανεώθηκε. Δοκίμασε ξανά.'
+              : 'Session refreshed. Please try again.',
+          );
+        } catch {
+          // Refresh failed — session is dead, send to auth
+          showToast(
+            lang === 'el'
+              ? 'Η σύνδεσή σου έληξε. Παρακαλώ συνδέσου ξανά.'
+              : 'Your session has expired. Please sign in again.',
+          );
+          setTimeout(() => navigate('/auth', { replace: true }), 1500);
+        }
+        return;
       }
 
       if (status === 429) {
