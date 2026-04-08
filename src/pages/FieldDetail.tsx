@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, MessageCircle, Sprout, Droplets, Sun,
@@ -30,6 +30,7 @@ const STATUS_CONFIG = {
 export default function FieldDetail() {
   const { fieldId } = useParams<{ fieldId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { appUserId } = useAuth();
   const { t, lang } = useLanguage();
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
@@ -235,6 +236,7 @@ export default function FieldDetail() {
           timeline={timeline}
           growthStage={growthStage ? STAGE_LABELS[growthStage.stage][lang === 'el' ? 'el' : 'en'] : null}
           lang={lang}
+          autoGenerate={searchParams.get('report') === '1'}
         />
 
         {/* ── Quick Stats ── */}

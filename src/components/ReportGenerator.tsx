@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Download, Share2, Loader2 } from 'lucide-react';
 import ShareModal from './ShareModal';
 
@@ -28,6 +28,7 @@ interface Props {
   timeline: TimelineItem[];
   growthStage: string | null;
   lang: string;
+  autoGenerate?: boolean;
 }
 
 function generateReportHTML(field: FieldData, timeline: TimelineItem[], growthStage: string | null, lang: string): string {
@@ -82,7 +83,7 @@ ${timeline.length > 0 ? `
 </body></html>`;
 }
 
-export default function ReportGenerator({ field, timeline, growthStage, lang }: Props) {
+export default function ReportGenerator({ field, timeline, growthStage, lang, autoGenerate }: Props) {
   const [generating, setGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const l = lang === 'el' ? 'el' : 'en';
@@ -105,6 +106,11 @@ export default function ReportGenerator({ field, timeline, growthStage, lang }: 
       setGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (autoGenerate) handleGenerate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate]);
 
   const handleShare = () => {
     const reportUrl = `${window.location.origin}/fields/${field.id}`;

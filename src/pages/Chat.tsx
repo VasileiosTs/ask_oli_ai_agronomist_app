@@ -25,6 +25,7 @@ import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
 import FieldSelector from '../components/FieldSelector';
+import type { HistoryDiagnosis } from '../components/HistoryCard';
 import ShareModal from '../components/ShareModal';
 import { enqueueMessage, drainQueue, type QueuedMessage } from '../lib/offlineQueue';
 // ── Message reducer ────────────────────────────────────────────────
@@ -163,6 +164,7 @@ export default function Chat() {
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
   const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
+  const [inlineLogMsgId, setInlineLogMsgId] = useState<string | null>(null);
   const [pendingVioFollowUp, setPendingVioFollowUp] = useState<{
     id: string;
     cropLabel: string;
@@ -412,13 +414,8 @@ export default function Chat() {
 
   const handleLogIntervention = (msg: Message) => {
     if (!msg.metadata?.diagnosis_data) return;
-    setLogModalData({
-      ...msg.metadata.diagnosis_data,
-      crop_mentioned: msg.metadata.crop_mentioned,
-      message_id: msg.db_id,
-      field_id: activeFieldId || null,
-      msg_id: msg.id // internal id
-    });
+    // Toggle the inline form open/close for this message
+    setInlineLogMsgId(prev => prev === msg.id ? null : msg.id);
   };
 
   const handleShare = async (msg: Message) => {
@@ -1110,6 +1107,102 @@ export default function Chat() {
     }
   };
 
+  /** Returns true if the message looks like a history / "show me what I did" query. */
+  const isHistoryQuery = (text: string): boolean => {
+    const t = text.toLowerCase();
+    const historyKeywords = [
+      'show me', 'δείξε μου', 'ιστορικό', 'history', 'what did i do', 'τι έκανα',
+      'τι έχω κάνει', 'what have i done', 'παρεμβάσεις', 'interventions',
+      'last month', 'πέρσι', 'τελευταίο μήνα', 'last week', 'τελευταία εβδομάδα',
+      'τι εφάρμοσα', 'what did i apply', 'show history', 'δες ιστορικό',
+    ];
+    return historyKeywords.some(kw => t.includes(kw));
+  };
+
+  /** Handles a history query: queries DB, appends user + HistoryCard assistant messages. */
+  const handleHistoryQuery = async (text: string) => {
+    if (!appUserId) return;
+    const userMsgId = crypto.randomUUID();
+    const assistantMsgId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // Add user message immediately
+    dispatch({ type: 'append', message: { id: userMsgId, role: 'user', content: text, created_at: now } });
+    setInput('');
+    setIsTyping(true);
+
+    try {
+      // Determine field filter from context or text
+      let fieldId: string | null = activeFieldId ?? null;
+
+      // Check if a specific field is mentioned in the text
+      if (!fieldId && fields.length > 0) {
+        const lower = text.toLowerCase();
+        const matched = fields.find(f => lower.includes(f.name.toLowerCase()));
+        if (matched) fieldId = matched.id;
+      }
+
+      // Query interventions
+      let query = supabase
+        .from('interventions')
+        .select('id, problem, cause, severity, product_applied, created_at, outcome, field_id, fields(name, crop_type)')
+        .eq('user_id', appUserId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (fieldId) query = query.eq('field_id', fieldId);
+
+      // Date filter if "last month" / "last week" mentioned
+      const lower = text.toLowerCase();
+      if (lower.includes('last month') || lower.includes('τελευταίο μήνα') || lower.includes('τελευταίο μήνα')) {
+        const cutoff = new Date();
+        cutoff.setMonth(cutoff.getMonth() - 1);
+        query = query.gte('created_at', cutoff.toISOString());
+      } else if (lower.includes('last week') || lower.includes('τελευταία εβδομάδα')) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 7);
+        query = query.gte('created_at', cutoff.toISOString());
+      }
+
+      const { data } = await query;
+      const diagnoses: HistoryDiagnosis[] = (data ?? []).map((d: Record<string, unknown>) => ({
+        id: String(d.id),
+        problem: d.problem as string | null,
+        cause: d.cause as string | null,
+        severity: d.severity as string | null,
+        product_applied: d.product_applied as string | null,
+        created_at: String(d.created_at),
+        outcome: d.outcome as string | null,
+        field_name: (d.fields as { name?: string } | null)?.name ?? null,
+        field_crop: (d.fields as { crop_type?: string } | null)?.crop_type ?? null,
+      }));
+
+      const count = diagnoses.length;
+      const responseText = count === 0
+        ? (lang === 'el' ? 'Δεν βρέθηκαν παρεμβάσεις.' : 'No interventions found.')
+        : (lang === 'el'
+            ? `Βρήκα ${count} παρέμβαση${count !== 1 ? 'εις' : ''}.`
+            : `Found ${count} intervention${count !== 1 ? 's' : ''}.`);
+
+      dispatch({ type: 'append', message: {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: responseText,
+        created_at: new Date().toISOString(),
+        metadata: { history_data: diagnoses, history_field_id: fieldId },
+      }});
+    } catch {
+      dispatch({ type: 'append', message: {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: lang === 'el' ? 'Δεν μπόρεσα να φορτώσω το ιστορικό.' : 'Could not load history.',
+        created_at: new Date().toISOString(),
+      }});
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const handleSend = async (text: string = input) => {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
@@ -1123,6 +1216,12 @@ export default function Chat() {
           ? 'Χωρίς σύνδεση — το μήνυμα θα σταλεί αυτόματα όταν επιστρέψει το internet'
           : 'Offline — your message will send automatically when you reconnect',
       );
+      return;
+    }
+
+    // History query — intercept before sending to AI, handle locally with DB query
+    if (messageText && !isGuestMode && appUserId && isHistoryQuery(messageText) && attachments.length === 0) {
+      await handleHistoryQuery(messageText);
       return;
     }
 
@@ -1386,6 +1485,29 @@ export default function Chat() {
     onVioApplyConfirm: handleVioApplyConfirm,
     onOutcome: handleOutcome,
     onRetry: (text: string) => handleSend(text),
+    inlineLogMsgId,
+    onInlineLogClose: () => setInlineLogMsgId(null),
+    onInlineLogSuccess: (interventionId: string) => {
+      setInlineLogMsgId(null);
+      showToast(lang === 'el' ? 'Καταγράφηκε! Θα επικοινωνήσω σε 7 μέρες.' : 'Logged! I\'ll follow up in 7 days.');
+      // Mark the message as having an intervention logged
+      if (inlineLogMsgId) {
+        dispatch({ type: 'update', id: inlineLogMsgId, patch: { metadata: { ...messages.find(m => m.id === inlineLogMsgId)?.metadata, intervention_id: interventionId } } });
+      }
+    },
+    userId: appUserId ?? undefined,
+    activeFieldId,
+    onGenerateReport: (fieldId: string | null) => {
+      if (fieldId) {
+        navigate(`/fields/${fieldId}?report=1`);
+      } else if (activeFieldId) {
+        navigate(`/fields/${activeFieldId}?report=1`);
+      } else if (fields.length > 0) {
+        navigate(`/fields/${fields[0].id}?report=1`);
+      } else {
+        navigate('/fields');
+      }
+    },
   };
 
   const inputBarProps = {
@@ -1408,6 +1530,8 @@ export default function Chat() {
     onRemoveAttachment: removeAttachment,
     onToggleListening: toggleListening,
     onToggleAttachmentSheet: setShowAttachmentSheet,
+    activeField: activeField ? { name: activeField.name, crop_type: activeField.crop_type } : null,
+    onChangeField: fields.length > 0 ? () => setSidebarOpen(true) : undefined,
   };
 
   const desktopInputBarProps = {

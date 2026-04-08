@@ -1,9 +1,13 @@
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle, RotateCcw } from 'lucide-react';
+import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle, RotateCcw, Check, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { useState } from 'react';
 import type { T } from '../lib/i18n';
 import OliLogo from './OliLogo';
+import HistoryCard from './HistoryCard';
+import { supabase } from '../lib/supabase';
+import { trackEvent, Events } from '../lib/analytics';
 
 interface MessageAttachment {
   url: string;
@@ -33,6 +37,9 @@ export interface MessageMetadata {
   vio_step?: number;
   vio_step_type?: 'apply_check' | 'outcome_check';
   feedback?: 'positive' | 'negative';
+  /** Present on history-query assistant messages — rendered as HistoryCard */
+  history_data?: import('./HistoryCard').HistoryDiagnosis[];
+  history_field_id?: string | null;
 }
 
 export interface ChatMessage {
@@ -61,6 +68,13 @@ interface Props {
   onVioApplyConfirm: (interventionId: string, applied: boolean, msgId: string) => void;
   onOutcome: (interventionId: string, outcome: 'better' | 'same' | 'worse' | 'not_applied', msgId: string) => void;
   onRetry?: (text: string) => void;
+  /** When true, render the inline log form below this message instead of opening a modal */
+  showInlineLogForm?: boolean;
+  onInlineLogClose?: () => void;
+  onInlineLogSuccess?: (interventionId: string) => void;
+  userId?: string;
+  activeFieldId?: string | null;
+  onGenerateReport?: (fieldId: string | null) => void;
 }
 
 function formatTime(iso: string) {
@@ -139,10 +153,144 @@ function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string
   );
 }
 
+// ── Inline log form ──────────────────────────────────────────────────────────
+// Compact intervention log card rendered directly in the chat thread.
+// Replaces the full-screen LogInterventionModal for the in-chat "Log This Treatment" flow.
+function InlineLogForm({
+  msg, lang, userId, activeFieldId, onClose, onSuccess,
+}: {
+  msg: ChatMessage;
+  lang: string;
+  userId: string;
+  activeFieldId?: string | null;
+  onClose: () => void;
+  onSuccess: (interventionId: string) => void;
+}) {
+  const dd = msg.metadata?.diagnosis_data;
+  const [product, setProduct] = useState(dd?.product_applied ?? '');
+  const [dosage, setDosage]   = useState(dd?.dosage ?? '');
+  const [notes, setNotes]     = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [done, setDone]       = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const confScore = typeof dd?.confidence_score === 'number' ? dd.confidence_score : null;
+      const { data, error } = await supabase
+        .from('interventions')
+        .insert({
+          user_id:            userId,
+          field_id:           activeFieldId || null,
+          crop_type:          msg.metadata?.crop_mentioned ?? '',
+          problem:            dd?.problem ?? '',
+          cause:              dd?.cause ?? '',
+          severity:           dd?.severity ?? null,
+          product_applied:    product,
+          dosage:             dosage,
+          application_method: dd?.application_method ?? '',
+          organic_treatments: dd?.organic_treatments ?? [],
+          chemical_treatments:dd?.chemical_treatments ?? [],
+          notes:              notes,
+          date:               new Date().toISOString().split('T')[0],
+          applied_at:         new Date().toISOString(),
+          follow_up_at:       new Date(Date.now() + 7 * 86400000).toISOString(),
+          vio_step:           1,
+          ...(confScore !== null ? { confidence_score: confScore } : {}),
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      trackEvent(Events.INTERVENTION_LOGGED, { withFollowUp: true, inline: true });
+      setDone(true);
+      setTimeout(() => onSuccess(data.id), 800);
+    } catch (e) {
+      console.error('Inline log failed', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="mt-2 flex items-center gap-2 rounded-2xl border border-green-500/30 bg-green-500/8 px-4 py-3">
+        <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+        <p className="text-sm font-medium text-green-400">
+          {lang === 'el' ? 'Καταγράφηκε! Θα επικοινωνήσω σε 7 μέρες.' : 'Logged! I\'ll follow up in 7 days.'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-2xl border border-border/50 bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground">
+          {lang === 'el' ? 'Καταγραφή θεραπείας' : 'Log treatment'}
+        </p>
+        <button onClick={onClose} className="text-muted hover:text-foreground transition-colors text-lg leading-none">×</button>
+      </div>
+
+      {dd?.problem && (
+        <p className="mb-3 text-xs text-muted">
+          {dd.problem}{dd.cause ? ` · ${dd.cause}` : ''}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-muted">
+            {lang === 'el' ? 'Σκεύασμα' : 'Product'}
+          </label>
+          <input
+            value={product}
+            onChange={e => setProduct(e.target.value)}
+            className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-muted">
+            {lang === 'el' ? 'Δόση' : 'Dosage'}
+          </label>
+          <input
+            value={dosage}
+            onChange={e => setDosage(e.target.value)}
+            className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-medium text-muted">
+            {lang === 'el' ? 'Σημειώσεις (προαιρετικό)' : 'Notes (optional)'}
+          </label>
+          <input
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder={lang === 'el' ? 'π.χ. εφαρμόστηκε το πρωί...' : 'e.g. applied in the morning...'}
+            className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none placeholder:text-muted/50"
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:bg-primary/90 transition-colors"
+      >
+        {saving
+          ? <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+          : (lang === 'el' ? 'Αποθήκευση ✓' : 'Save & Log ✓')}
+      </button>
+    </div>
+  );
+}
+
 export default function MessageBubble({
   msg, isFirstAiInSequence, t, lang,
   onStar, onFeedback, onLogIntervention, onShare,
   onVioApplyConfirm, onOutcome, onRetry,
+  showInlineLogForm, onInlineLogClose, onInlineLogSuccess,
+  userId, activeFieldId, onGenerateReport,
 }: Props) {
   const isUser = msg.role === 'user';
   const dd = msg.metadata?.diagnosis_data;
@@ -190,6 +338,17 @@ export default function MessageBubble({
               <div className="prose prose-sm prose-invert max-w-none">
                 <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{msg.content}</ReactMarkdown>
               </div>
+
+              {/* ── History card (from natural language history query) ── */}
+              {msg.metadata?.history_data && (
+                <HistoryCard
+                  diagnoses={msg.metadata.history_data}
+                  lang={lang}
+                  onGenerateReport={onGenerateReport
+                    ? () => onGenerateReport(msg.metadata?.history_field_id ?? null)
+                    : undefined}
+                />
+              )}
 
               {/* ── Confidence indicator ── */}
               {dd && typeof dd.confidence_score === 'number' && (
@@ -329,32 +488,51 @@ export default function MessageBubble({
 
         {/* Diagnosis action buttons */}
         {!isUser && msg.metadata?.diagnosis_data && !msg.metadata?.is_follow_up && (
-          <div className="mt-1 flex flex-wrap gap-2">
-            <button
-              onClick={() => onStar(msg)}
-              className={clsx(
-                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                msg.starred
-                  ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-500'
-                  : 'border-border/50 bg-surface text-muted hover:bg-muted/10 hover:text-foreground',
-              )}
-            >
-              <Star className={clsx('h-3.5 w-3.5', msg.starred && 'fill-current')} />
-              {t.savedMessage}
-            </button>
-            <button
-              onClick={() => onLogIntervention(msg)}
-              className="flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/5 px-2.5 py-1 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/10"
-            >
-              <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
-            </button>
-            <button
-              onClick={() => onShare(msg)}
-              className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
-            >
-              <Share2 className="h-3.5 w-3.5" />{t.shareLabel}
-            </button>
-          </div>
+          <>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <button
+                onClick={() => onStar(msg)}
+                className={clsx(
+                  'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                  msg.starred
+                    ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-500'
+                    : 'border-border/50 bg-surface text-muted hover:bg-muted/10 hover:text-foreground',
+                )}
+              >
+                <Star className={clsx('h-3.5 w-3.5', msg.starred && 'fill-current')} />
+                {t.savedMessage}
+              </button>
+              <button
+                onClick={() => onLogIntervention(msg)}
+                className={clsx(
+                  'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors',
+                  showInlineLogForm
+                    ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                    : 'border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10',
+                )}
+              >
+                <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
+              </button>
+              <button
+                onClick={() => onShare(msg)}
+                className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
+              >
+                <Share2 className="h-3.5 w-3.5" />{t.shareLabel}
+              </button>
+            </div>
+
+            {/* Inline log form — shown when "Log This Treatment" is tapped */}
+            {showInlineLogForm && userId && (
+              <InlineLogForm
+                msg={msg}
+                lang={lang}
+                userId={userId}
+                activeFieldId={activeFieldId}
+                onClose={onInlineLogClose ?? (() => {})}
+                onSuccess={onInlineLogSuccess ?? (() => {})}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

@@ -25,6 +25,13 @@ export interface MessageListProps {
   onVioApplyConfirm: (interventionId: string, applied: boolean, msgId: string) => void;
   onOutcome: (interventionId: string, outcome: 'better' | 'same' | 'worse', msgId: string) => void;
   onRetry?: (text: string) => void;
+  /** ID of the message currently showing the inline log form */
+  inlineLogMsgId?: string | null;
+  onInlineLogClose?: () => void;
+  onInlineLogSuccess?: (interventionId: string) => void;
+  userId?: string;
+  activeFieldId?: string | null;
+  onGenerateReport?: (fieldId: string | null) => void;
 }
 
 export default function MessageList({
@@ -40,6 +47,12 @@ export default function MessageList({
   onVioApplyConfirm,
   onOutcome,
   onRetry,
+  inlineLogMsgId,
+  onInlineLogClose,
+  onInlineLogSuccess,
+  userId,
+  activeFieldId,
+  onGenerateReport,
 }: MessageListProps) {
   return (
     <div className="space-y-6">
@@ -57,6 +70,12 @@ export default function MessageList({
           onVioApplyConfirm={onVioApplyConfirm}
           onOutcome={onOutcome}
           onRetry={onRetry}
+          showInlineLogForm={inlineLogMsgId === msg.id}
+          onInlineLogClose={onInlineLogClose}
+          onInlineLogSuccess={onInlineLogSuccess}
+          userId={userId}
+          activeFieldId={activeFieldId}
+          onGenerateReport={onGenerateReport}
         />
       ))}
       {isTyping && (

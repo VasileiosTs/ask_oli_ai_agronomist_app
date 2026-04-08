@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Paperclip, Mic, Send, Camera, Image, FileText, X } from 'lucide-react';
+import { Paperclip, Mic, Send, Camera, Image, FileText, X, MapPin } from 'lucide-react';
 import clsx from 'clsx';
 import type { T } from '../lib/i18n';
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, ALLOWED_FILE_ACCEPT } from '../lib/constants';
@@ -24,6 +24,9 @@ export interface ChatInputBarProps {
   onRemoveAttachment: (index: number) => void;
   onToggleListening: () => void;
   onToggleAttachmentSheet: (open: boolean) => void;
+  /** Active field shown as confirmation chip when an image is attached */
+  activeField?: { name: string; crop_type?: string | null } | null;
+  onChangeField?: () => void;
 }
 
 export default function ChatInputBar({
@@ -35,6 +38,7 @@ export default function ChatInputBar({
   messageCount,
   showAttachmentSheet,
   t,
+  lang,
   textareaRef,
   fileInputRef,
   cameraInputRef,
@@ -45,6 +49,8 @@ export default function ChatInputBar({
   onRemoveAttachment,
   onToggleListening,
   onToggleAttachmentSheet,
+  activeField,
+  onChangeField,
 }: ChatInputBarProps) {
   return (
     <div className="border-t border-border/50 bg-surface/95 backdrop-blur-sm mb-16 md:mb-0">
@@ -55,6 +61,37 @@ export default function ChatInputBar({
       )}
       {/* Field selector removed — field context is auto-detected per message.
            Fields are still tracked in backend for data/AI improvement. */}
+      {/* Field confirmation chip — only when an image attachment is present */}
+      {attachments.some(a => a.file.type.startsWith('image/')) && (
+        <div className="flex items-center gap-2 px-4 pt-2.5">
+          {activeField ? (
+            <div className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 pl-2 pr-1 py-1 text-xs text-primary/80">
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="font-medium">{activeField.name}</span>
+              {activeField.crop_type && <span className="text-primary/50">· {activeField.crop_type}</span>}
+              {onChangeField && (
+                <button
+                  onClick={onChangeField}
+                  className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-muted hover:text-foreground transition-colors bg-background"
+                >
+                  {lang === 'el' ? 'Αλλαγή' : 'Change'}
+                </button>
+              )}
+            </div>
+          ) : (
+            onChangeField && (
+              <button
+                onClick={onChangeField}
+                className="flex items-center gap-1 rounded-full border border-dashed border-border/60 px-3 py-1 text-xs text-muted hover:border-primary/40 hover:text-primary/70 transition-colors"
+              >
+                <MapPin className="h-3 w-3" />
+                {lang === 'el' ? 'Επιλογή χωραφιού' : 'Select field'}
+              </button>
+            )
+          )}
+        </div>
+      )}
+
       {attachments.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-4 pt-3 pb-1">
           {attachments.map((att, i) => (
