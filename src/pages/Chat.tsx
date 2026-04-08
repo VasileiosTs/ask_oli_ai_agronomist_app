@@ -25,6 +25,7 @@ import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
 import FieldSelector from '../components/FieldSelector';
+import ShareModal from '../components/ShareModal';
 // ── Message reducer ────────────────────────────────────────────────
 type MsgAction =
   | { type: 'set'; messages: Message[] }
@@ -1698,43 +1699,13 @@ export default function Chat() {
         />
       )}
 
-      {shareModalUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setShareModalUrl(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <p className="mb-3 text-sm font-medium text-foreground">
-              {lang === 'el' ? 'Σύνδεσμος κοινοποίησης' : 'Share link'}
-            </p>
-            <div className="flex gap-2">
-              <input
-                readOnly
-                value={shareModalUrl}
-                className="flex-1 rounded-xl border border-border/50 bg-background px-3 py-2 text-xs text-muted focus:outline-none"
-                onFocus={e => e.target.select()}
-              />
-              <button
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(shareModalUrl);
-                    showToast(t.linkCopied);
-                    setShareModalUrl(null);
-                  } catch {
-                    showToast(lang === 'el' ? 'Επέλεξε και αντέγραψε χειροκίνητα' : 'Select and copy manually');
-                  }
-                }}
-                className="rounded-xl bg-primary px-3 py-2 text-xs font-medium text-white"
-              >
-                {lang === 'el' ? 'Αντιγραφή' : 'Copy'}
-              </button>
-            </div>
-            <button onClick={() => setShareModalUrl(null)}
-              className="mt-3 w-full text-center text-xs text-muted hover:text-foreground">
-              {t.cancel}
-            </button>
-          </div>
-        </div>
-      )}
+      <ShareModal
+        isOpen={!!shareModalUrl}
+        onClose={() => setShareModalUrl(null)}
+        url={shareModalUrl ?? ''}
+        title={lang === 'el' ? 'Διάγνωση από τον Oli' : 'Diagnosis from Oli'}
+        lang={lang}
+      />
 
       <div role="status" aria-live="polite" aria-atomic="true" className="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2">
         {toastMessage && (
