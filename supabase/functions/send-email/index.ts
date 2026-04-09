@@ -417,11 +417,19 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
 
-    // Cron modes require service_role_key auth
-    const cronModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron"];
-    if (cronModes.includes(body.mode)) {
+    // Cron modes + vio_reminder require service_role_key auth (backend/cron only)
+    const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron", "vio_reminder"];
+    if (serviceOnlyModes.includes(body.mode)) {
       const authHeader = req.headers.get("authorization") || "";
       if (!authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+      }
+    }
+
+    // Welcome mode requires authenticated user (prevents unauthenticated spam)
+    if (body.mode === "welcome") {
+      const authHeader = req.headers.get("authorization") || "";
+      if (!authHeader.startsWith("Bearer ")) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
       }
     }

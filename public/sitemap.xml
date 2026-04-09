@@ -25,13 +25,6 @@
     <priority>0.3</priority>
   </url>
 
-  <!-- Auth page (entry point for new users — indexable for "Oli login" queries) -->
-  <url>
-    <loc>https://codex-ask-oli-app.vercel.app/auth</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-
   <!--
     Shared diagnosis pages (/d/:shareId) are dynamically generated.
     They are public and indexable. Google will discover them via links

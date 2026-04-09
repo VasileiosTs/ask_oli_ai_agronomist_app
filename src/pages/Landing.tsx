@@ -654,6 +654,7 @@ export default function Landing() {
 
   // Voice (speech-to-text) for hero guest chat
   const [isListening, setIsListening] = useState(false);
+  const [recognitionAvailable, setRecognitionAvailable] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const rotatingQuestions = useMemo(() => ROTATING_QUESTIONS(lang, imperial), [lang, imperial]);
@@ -676,6 +677,7 @@ export default function Landing() {
     rec.onerror = () => setIsListening(false);
     rec.onend = () => setIsListening(false);
     recognitionRef.current = rec;
+    setRecognitionAvailable(true);
   }, [lang]);
 
   const toggleListening = useCallback(() => {
@@ -882,7 +884,7 @@ export default function Landing() {
                   </button>
 
                   {/* Voice button */}
-                  {recognitionRef.current && (
+                  {recognitionAvailable && (
                     <button
                       type="button"
                       onClick={toggleListening}

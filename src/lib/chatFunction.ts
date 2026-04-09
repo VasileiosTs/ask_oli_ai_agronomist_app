@@ -260,7 +260,7 @@ export async function guestChatCompletion(
     ? { role: 'user', content: message, attachments: [attachment] }
     : { role: 'user', content: message };
 
-  const response = await fetch(functionUrl, {
+  const fetchPayload = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -271,17 +271,38 @@ export async function guestChatCompletion(
       messages: [userMessage],
       lang,
     }),
-    signal: AbortSignal.timeout(40000),
-  });
+  };
 
-  if (!response.ok) {
-    const { message: errorMessage, code } = await readErrorPayload(response);
-    throw createStreamError(errorMessage, response.status, code);
+  // Retry once on cold-start 500/503 to survive Deno isolate warm-up
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    const response = await fetch(functionUrl, {
+      ...fetchPayload,
+      signal: AbortSignal.timeout(40000),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        assistantText: typeof data.assistantText === 'string' ? data.assistantText : '',
+        metadata: data.metadata as ChatFunctionMetadata | undefined,
+      };
+    }
+
+    // Only retry on server errors (500, 503); surface other errors immediately
+    if (response.status !== 500 && response.status !== 503) {
+      const { message: errorMessage, code } = await readErrorPayload(response);
+      throw createStreamError(errorMessage, response.status, code);
+    }
+
+    if (attempt === 1) {
+      const { message: errorMessage, code } = await readErrorPayload(response);
+      throw createStreamError(errorMessage, response.status, code);
+    }
   }
 
-  const data = await response.json();
-  return {
-    assistantText: typeof data.assistantText === 'string' ? data.assistantText : '',
-    metadata: data.metadata as ChatFunctionMetadata | undefined,
-  };
+  // Should never reach here
+  throw createStreamError('Unexpected error in guest chat');
 }

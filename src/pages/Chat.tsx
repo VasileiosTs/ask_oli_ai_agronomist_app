@@ -282,7 +282,8 @@ export default function Chat() {
   };
 
   const handleStarMessage = async (msg: Message) => {
-    if (!appUserId || !msg.db_id) return;
+    if (!appUserId) { setShowLoginModal(true); return; }
+    if (!msg.db_id) return;
 
     const newStarred = !msg.starred;
     dispatch({ type: 'update', id: msg.id, patch: { starred: newStarred } });
@@ -423,7 +424,7 @@ export default function Chat() {
   };
 
   const handleShare = async (msg: Message) => {
-    if (!appUserId) { showToast(t.profileSyncing); return; }
+    if (!appUserId) { setShowLoginModal(true); return; }
     if (!msg.db_id) { showToast(lang === 'el' ? 'Παρακαλώ περιμένετε...' : 'Please wait...'); return; }
     if (!msg.metadata?.diagnosis_data) {
       // Try to re-fetch metadata from DB in case it wasn't set in state
@@ -833,6 +834,10 @@ export default function Chat() {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('q');
     setSearchParams(newParams, { replace: true });
+
+    // Clear any stale draft — the ?q= param is the canonical input here
+    sessionStorage.removeItem('oli_draft_input');
+    setInput('');
 
     sendGuestMessage(text);
   // eslint-disable-next-line react-hooks/exhaustive-deps
