@@ -75,7 +75,11 @@ export default function Chat() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [messages, dispatch] = useReducer(messagesReducer, []);
-  const [input, setInput] = useState('');
+  // Restore any unsent draft from sessionStorage (survives navigation away → login → back)
+  const [input, setInput] = useState(() => {
+    const draft = sessionStorage.getItem('oli_draft_input');
+    return draft || '';
+  });
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -802,6 +806,16 @@ export default function Chat() {
       setIsTyping(false);
     }
   };
+
+  // Persist unsent draft to sessionStorage so it survives navigation → login → return
+  // Cleared when the message is successfully sent (see handleSend).
+  useEffect(() => {
+    if (input) {
+      sessionStorage.setItem('oli_draft_input', input);
+    } else {
+      sessionStorage.removeItem('oli_draft_input');
+    }
+  }, [input]);
 
   // Auto-send guest query from ?q= param, or show login if quota already used
   useEffect(() => {

@@ -598,7 +598,7 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
             <span className="text-xl">{active.emoji}</span>
             <span className="text-sm font-bold text-[#1b1c19]">{active.label}</span>
           </div>
-          <span className={`text-[11px] font-semibold border rounded-full px-2.5 py-0.5 ${active.tagColor}`}>
+          <span className={`text-xs font-semibold border rounded-full px-2.5 py-0.5 ${active.tagColor}`}>
             {active.tag}
           </span>
         </div>
@@ -973,12 +973,12 @@ export default function Landing() {
               <div className="ml-auto flex items-center gap-1 bg-[#f0efea] rounded-full p-0.5">
                 <button
                   onClick={() => setDemoTab('disease')}
-                  className={`text-[11px] font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all ${demoTab === 'disease' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
+                  className={`text-xs font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all ${demoTab === 'disease' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
                   {lang === 'el' ? '🔬 Διάγνωση' : '🔬 Diagnosis'}
                 </button>
                 <button
                   onClick={() => setDemoTab('planning')}
-                  className={`text-[11px] font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all ${demoTab === 'planning' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
+                  className={`text-xs font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all ${demoTab === 'planning' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
                   {lang === 'el' ? '📐 Σχεδιασμός' : '📐 Planning'}
                 </button>
               </div>
@@ -1005,11 +1005,11 @@ export default function Landing() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="bg-white rounded-xl border border-[#e8e8e3] px-4 py-3">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1.5">{lang === 'el' ? '🌿 Βιολογικό' : '🌿 Organic'}</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-1.5">{lang === 'el' ? '🌿 Βιολογικό' : '🌿 Organic'}</p>
                           <p className="text-xs text-[#3a4035] leading-relaxed">{demoDisease.organic}</p>
                         </div>
                         <div className="bg-white rounded-xl border border-[#e8e8e3] px-4 py-3">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">{lang === 'el' ? '🧪 Χημικό' : '🧪 Chemical'}</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1.5">{lang === 'el' ? '🧪 Χημικό' : '🧪 Chemical'}</p>
                           <p className="text-xs text-[#3a4035] leading-relaxed">{demoDisease.chemical}</p>
                         </div>
                       </div>
@@ -1046,7 +1046,7 @@ export default function Landing() {
                               <span className={`text-xs font-semibold ${row.label.includes('✓') ? 'text-[#194121]' : 'text-[#3a4035]'}`}>{row.label}</span>
                               <span className={`text-xs font-bold ${row.label.includes('✓') ? 'text-[#194121]' : 'text-[#606659]'}`}>{row.value}</span>
                             </div>
-                            <p className="text-[10px] text-[#606659] leading-tight">{row.note}</p>
+                            <p className="text-xs text-[#606659] leading-tight">{row.note}</p>
                           </div>
                         ))}
                       </div>
@@ -1152,7 +1152,7 @@ export default function Landing() {
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 relative z-10 bg-white border-2 border-[#e8e8e3]"
                     style={{ boxShadow: '0 4px 16px rgba(25,65,33,0.08)' }}>
                     <Icon className="w-6 h-6 text-[#194121]" />
-                    <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#194121] text-white text-[10px] font-bold flex items-center justify-center">
+                    <span aria-hidden="true" className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#194121] text-white text-[10px] font-bold flex items-center justify-center">
                       {step.step}
                     </span>
                   </div>
@@ -1188,7 +1188,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[#1b1c19]">{t.name}</p>
-                    <p className="text-[11px] text-[#606659]">{t.crop}</p>
+                    <p className="text-xs text-[#606659]">{t.crop}</p>
                   </div>
                 </div>
               </div>
@@ -1285,7 +1285,7 @@ export default function Landing() {
                   {/* Pro tier */}
                   <div className="rounded-2xl p-6 relative overflow-hidden text-white"
                     style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
-                    <div className="absolute top-4 right-4 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <div className="absolute top-4 right-4 bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                       {lang === 'el' ? 'Δημοφιλές' : 'Popular'}
                     </div>
                     <div className="mb-5">
