@@ -39,11 +39,24 @@ const NotFound = () => {
   );
 };
 
+const LegalBackButton = () => {
+  const { t } = useLanguage();
+  return (
+    <Link to="/" className="inline-flex items-center gap-1.5 mb-6 text-sm text-muted hover:text-foreground transition-colors">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      {t.notFoundHome}
+    </Link>
+  );
+};
+
 const Privacy = () => {
   const { t } = useLanguage();
   const h2 = "text-base font-semibold text-foreground mt-4";
   return (
     <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground max-w-2xl mx-auto">
+      <LegalBackButton />
       <h1 className="mb-6 text-2xl font-bold">{t.privacyPolicy}</h1>
       <div className="space-y-4 text-sm text-muted leading-relaxed">
         <p className="text-xs text-muted">{t.legalUpdated}</p>
@@ -73,6 +86,7 @@ const Terms = () => {
   const h2 = "text-base font-semibold text-foreground mt-4";
   return (
     <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground max-w-2xl mx-auto">
+      <LegalBackButton />
       <h1 className="mb-6 text-2xl font-bold">{t.termsOfService}</h1>
       <div className="space-y-4 text-sm text-muted leading-relaxed">
         <p className="text-xs text-muted">{t.legalUpdated}</p>

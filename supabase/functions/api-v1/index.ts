@@ -18,16 +18,28 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://codex-ask-oli-app.vercel.app';
 
-function json(body: unknown, status = 200) {
+function getCorsOrigin(req: Request): string {
+  const origin = req.headers.get('origin') || '';
+  // Key management routes: restrict to production domain + localhost dev
+  // Data endpoints: allow any origin (public API, used by third-party integrations)
+  return origin;
+}
+
+function json(body: unknown, status = 200, req?: Request, restrictOrigin = false) {
+  const origin = req ? getCorsOrigin(req) : '*';
+  const allowedOrigin = restrictOrigin
+    ? (origin === ALLOWED_ORIGIN || origin.startsWith('http://localhost') ? origin : ALLOWED_ORIGIN)
+    : '*';
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': allowedOrigin },
   });
 }
 
-function err(message: string, status = 400) {
-  return json({ error: message }, status);
+function err(message: string, status = 400, req?: Request, restrictOrigin = false) {
+  return json({ error: message }, status, req, restrictOrigin);
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -96,9 +108,14 @@ async function assertApiTier(supabase: ReturnType<typeof createClient>, userId: 
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
+    const origin = req.headers.get('origin') || '';
+    const isKeyMgmt = req.url.includes('/keys');
+    const allowedOrigin = isKeyMgmt
+      ? (origin === ALLOWED_ORIGIN || origin.startsWith('http://localhost') ? origin : ALLOWED_ORIGIN)
+      : '*';
     return new Response(null, {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
       },
@@ -114,10 +131,10 @@ Deno.serve(async (req: Request) => {
 
   const authHeader = req.headers.get('Authorization');
 
-  // ── Key management endpoints (JWT auth) ──────────────────────────────────
+  // ── Key management endpoints (JWT auth, origin-restricted CORS) ──────────
   if (resource === 'keys') {
     const jwtAuth = await authenticateJwt(supabase, authHeader);
-    if (!jwtAuth) return err('Unauthorized', 401);
+    if (!jwtAuth) return err('Unauthorized', 401, req, true);
 
     // POST /keys — create new API key
     if (req.method === 'POST') {
@@ -140,10 +157,10 @@ Deno.serve(async (req: Request) => {
         .select('id, name, key_prefix, created_at')
         .single();
 
-      if (error) return err('Failed to create API key', 500);
+      if (error) return err('Failed to create API key', 500, req, true);
 
       // Return raw key ONCE — it cannot be retrieved again
-      return json({ ...data, key: rawKey }, 201);
+      return json({ ...data, key: rawKey }, 201, req, true);
     }
 
     // DELETE /keys/:id — revoke
@@ -154,8 +171,8 @@ Deno.serve(async (req: Request) => {
         .eq('id', resourceId)
         .eq('user_id', jwtAuth.userId);
 
-      if (error) return err('Failed to revoke key', 500);
-      return json({ revoked: true });
+      if (error) return err('Failed to revoke key', 500, req, true);
+      return json({ revoked: true }, 200, req, true);
     }
 
     // GET /keys — list (prefix only, never hash)
@@ -166,10 +183,10 @@ Deno.serve(async (req: Request) => {
         .eq('user_id', jwtAuth.userId)
         .order('created_at', { ascending: false });
 
-      return json({ keys: data ?? [] });
+      return json({ keys: data ?? [] }, 200, req, true);
     }
 
-    return err('Method not allowed', 405);
+    return err('Method not allowed', 405, req, true);
   }
 
   // ── Data endpoints (API key auth) ─────────────────────────────────────────
