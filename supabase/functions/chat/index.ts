@@ -163,6 +163,45 @@ const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
   'application/pdf',
 ]);
 
+// ── Weather fetch (Open-Meteo, free, no API key required) ──────────────────
+// Same API used by WeatherWidget.tsx on the frontend.
+// Called only when user has lat/lon stored; times out silently after 3s.
+interface WeatherSnapshot {
+  temperature_c: number;
+  humidity_pct: number;
+  precipitation_mm: number;
+  wind_kmh: number;
+}
+
+async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSnapshot | null> {
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&timezone=auto`;
+    const res = await Promise.race([
+      fetch(url),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]);
+    if (!res.ok) return null;
+    const json = await (res as Response).json();
+    const c = json?.current;
+    if (!c) return null;
+    return {
+      temperature_c: c.temperature_2m,
+      humidity_pct: c.relative_humidity_2m,
+      precipitation_mm: c.precipitation,
+      wind_kmh: c.wind_speed_10m,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function formatWeatherContext(w: WeatherSnapshot): string {
+  const precip = w.precipitation_mm > 0 ? `, ${w.precipitation_mm}mm rain` : '';
+  return `Current weather: ${w.temperature_c}°C, ${w.humidity_pct}% humidity${precip}, ${w.wind_kmh}km/h wind`;
+}
+
 function buildSystemPrompt(fieldContext: string, growerContext = '', lang = 'en'): string {
   // Language instruction — injected first so it governs the entire response
   const langInstruction = lang === 'el'
@@ -1644,7 +1683,7 @@ Deno.serve(async (req) => {
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, name, location, language, primary_crop, tier, message_count_month, message_reset_date')
+      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date')
       .eq('auth_id', user.id)
       .single();
 
@@ -1943,12 +1982,20 @@ Return ONLY the greeting text, nothing else.`;
 
     const userLang = appUser.language || body.lang || 'en';
 
+    // Fetch real-time weather if user has GPS coordinates stored
+    const userLat = typeof appUser.location_lat === 'number' ? appUser.location_lat : null;
+    const userLon = typeof appUser.location_lon === 'number' ? appUser.location_lon : null;
+    const weatherSnapshot = (userLat !== null && userLon !== null)
+      ? await fetchCurrentWeather(userLat, userLon)
+      : null;
+
     const growerContext = [
       appUser.name ? `Grower name: ${appUser.name}` : '',
       appUser.location ? `Location: ${appUser.location}` : '',
       appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
       `Current month: ${nowLocale} (${season}, ${hemisphere} hemisphere)`,
       `Language preference: ${userLang}`,
+      weatherSnapshot ? formatWeatherContext(weatherSnapshot) : '',
     ].filter(Boolean).join('\n');
 
     try {

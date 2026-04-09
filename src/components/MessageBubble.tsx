@@ -74,6 +74,8 @@ interface Props {
   onInlineLogSuccess?: (interventionId: string) => void;
   userId?: string;
   activeFieldId?: string | null;
+  userLat?: number | null;
+  userLon?: number | null;
   onGenerateReport?: (fieldId: string | null) => void;
 }
 
@@ -157,12 +159,14 @@ function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string
 // Compact intervention log card rendered directly in the chat thread.
 // Replaces the full-screen LogInterventionModal for the in-chat "Log This Treatment" flow.
 function InlineLogForm({
-  msg, lang, userId, activeFieldId, onClose, onSuccess,
+  msg, lang, userId, activeFieldId, userLat, userLon, onClose, onSuccess,
 }: {
   msg: ChatMessage;
   lang: string;
   userId: string;
   activeFieldId?: string | null;
+  userLat?: number | null;
+  userLon?: number | null;
   onClose: () => void;
   onSuccess: (interventionId: string) => void;
 }) {
@@ -197,6 +201,8 @@ function InlineLogForm({
           follow_up_at:       new Date(Date.now() + 7 * 86400000).toISOString(),
           vio_step:           1,
           ...(confScore !== null ? { confidence_score: confScore } : {}),
+          ...(typeof userLat === 'number' ? { location_lat: userLat } : {}),
+          ...(typeof userLon === 'number' ? { location_lon: userLon } : {}),
         })
         .select('id')
         .single();
@@ -290,7 +296,7 @@ export default function MessageBubble({
   onStar, onFeedback, onLogIntervention, onShare,
   onVioApplyConfirm, onOutcome, onRetry,
   showInlineLogForm, onInlineLogClose, onInlineLogSuccess,
-  userId, activeFieldId, onGenerateReport,
+  userId, activeFieldId, userLat, userLon, onGenerateReport,
 }: Props) {
   const isUser = msg.role === 'user';
   const dd = msg.metadata?.diagnosis_data;
@@ -528,6 +534,8 @@ export default function MessageBubble({
                 lang={lang}
                 userId={userId}
                 activeFieldId={activeFieldId}
+                userLat={userLat}
+                userLon={userLon}
                 onClose={onInlineLogClose ?? (() => {})}
                 onSuccess={onInlineLogSuccess ?? (() => {})}
               />

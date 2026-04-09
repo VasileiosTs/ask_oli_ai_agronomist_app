@@ -24,6 +24,8 @@ interface Props {
   userId: string;
   fieldId: string | null;
   onSuccess: (interventionId: string) => void;
+  userLat?: number | null;
+  userLon?: number | null;
 }
 
 // Four possible outcome responses — the fourth ("Didn't apply it") is new and
@@ -84,7 +86,7 @@ function getTemplates(cropType: string): ScoutTemplate[] {
 }
 
 export function LogInterventionModal({
-  isOpen, onClose, initialData, userId, fieldId, onSuccess,
+  isOpen, onClose, initialData, userId, fieldId, onSuccess, userLat, userLon,
 }: Props) {
   const { t, lang } = useLanguage();
 
@@ -132,6 +134,8 @@ export function LogInterventionModal({
           date:               new Date().toISOString().split('T')[0],
           applied_at:         new Date().toISOString(),
           ...(confScore !== null ? { confidence_score: confScore } : {}),
+          ...(typeof userLat === 'number' ? { location_lat: userLat } : {}),
+          ...(typeof userLon === 'number' ? { location_lon: userLon } : {}),
         })
         .select('id')
         .single();

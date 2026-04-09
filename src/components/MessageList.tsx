@@ -31,6 +31,8 @@ export interface MessageListProps {
   onInlineLogSuccess?: (interventionId: string) => void;
   userId?: string;
   activeFieldId?: string | null;
+  userLat?: number | null;
+  userLon?: number | null;
   onGenerateReport?: (fieldId: string | null) => void;
 }
 
@@ -52,6 +54,8 @@ export default function MessageList({
   onInlineLogSuccess,
   userId,
   activeFieldId,
+  userLat,
+  userLon,
   onGenerateReport,
 }: MessageListProps) {
   return (
@@ -75,6 +79,8 @@ export default function MessageList({
           onInlineLogSuccess={onInlineLogSuccess}
           userId={userId}
           activeFieldId={activeFieldId}
+          userLat={userLat}
+          userLon={userLon}
           onGenerateReport={onGenerateReport}
         />
       ))}

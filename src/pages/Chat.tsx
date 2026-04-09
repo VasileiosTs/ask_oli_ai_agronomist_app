@@ -1497,6 +1497,8 @@ export default function Chat() {
     },
     userId: appUserId ?? undefined,
     activeFieldId,
+    userLat: typeof profile?.location_lat === 'number' ? profile.location_lat : null,
+    userLon: typeof profile?.location_lon === 'number' ? profile.location_lon : null,
     onGenerateReport: (fieldId: string | null) => {
       if (fieldId) {
         navigate(`/fields/${fieldId}?report=1`);
@@ -1872,6 +1874,8 @@ export default function Chat() {
           initialData={logModalData}
           userId={appUserId || user.id}
           fieldId={logModalData.field_id as string | undefined}
+          userLat={typeof profile?.location_lat === 'number' ? profile.location_lat : null}
+          userLon={typeof profile?.location_lon === 'number' ? profile.location_lon : null}
           onSuccess={async (id) => {
             showToast(t.interventionLogged);
             const msg = messages.find(m => m.id === logModalData.msg_id);
