@@ -198,31 +198,38 @@ const PRICING_ROLES = (lang: string) => [
     id: 'farmer',
     label: lang === 'el' ? '🌾 Αγρότης' : '🌾 Farmer',
     free: lang === 'el'
-      ? ['20 ερωτήσεις / μήνα', 'Διάγνωση ασθενειών από φωτογραφία', 'Βιολογικό και χημικό πλάνο θεραπείας', 'Ιστορικό συνομιλιών']
-      : ['20 questions / month', 'Crop disease diagnosis from photo', 'Organic and chemical treatment plan', 'Conversation history'],
+      ? ['20 ερωτήσεις / μήνα', 'Διάγνωση ασθενειών από φωτογραφία', 'Πλάνο θεραπείας με δόσεις', 'Ιστορικό συνομιλιών']
+      : ['20 questions / month', 'Crop disease diagnosis from photo', 'Treatment plan with dosages', 'Conversation history'],
     pro: lang === 'el'
-      ? ['Απεριόριστες ερωτήσεις', 'Μνήμη χωραφιών και καλλιεργειών', 'Follow-up σαν αληθινός γεωπόνος', 'Υπολογισμός άρδευσης (ETc)', 'Αρχείο παρεμβάσεων χωραφιών', 'Πρώτη πρόσβαση σε νέες λειτουργίες']
-      : ['Unlimited questions', 'Field and crop memory', 'Follow-up like a real agronomist', 'Irrigation calculation (ETc)', 'Field intervention log', 'Early access to new features'],
+      ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια + μνήμη καλλιεργειών', 'Ο Oli κάνει follow-up στις θεραπείες', 'Υπολογισμοί άρδευσης και φύτευσης', 'Αρχείο παρεμβάσεων ανά χωράφι', 'Μηνιαίες αναφορές χωραφιών']
+      : ['Unlimited questions', 'Unlimited fields + crop memory', 'Oli follows up on every treatment', 'Irrigation & planting calculations', 'Field intervention log', 'Monthly field reports'],
+    proPrice: { en: '€4.99', el: '€4,99' },
+    proAnnual: { en: 'or €49 / year — save 18%', el: 'ή €49 / χρόνο — εξοικονομείς 18%' },
+    proCta: { en: 'Try Pro', el: 'Δοκίμασε Pro' },
   },
   {
     id: 'agronomist',
     label: lang === 'el' ? '🔬 Γεωπόνος' : '🔬 Agronomist',
     free: lang === 'el'
-      ? ['20 ερωτήσεις / μήνα', 'Επαλήθευση διαγνώσεων', 'Γρήγορη αναφορά σκευασμάτων & δόσεων', 'Δοκιμή με πελάτες']
-      : ['20 questions / month', 'Diagnosis cross-check', 'Quick product & dosage reference', 'Trial with clients'],
+      ? ['20 ερωτήσεις / μήνα', 'Εργαλείο επαλήθευσης διαγνώσεων', 'Αναφορά σκευασμάτων & δόσεων', 'Δοκιμή με έως 3 χωράφια πελατών']
+      : ['20 questions / month', 'Diagnosis verification tool', 'Product & dosage reference', 'Trial with up to 3 client fields'],
     pro: lang === 'el'
-      ? ['Απεριόριστες ερωτήσεις', 'Επιστημονικοί υπολογισμοί (ETc, NPK, δοσολογία)', 'Ετήσια αναφορά ανά χωράφι', 'Αρχείο παρεμβάσεων για κάθε πελάτη', 'Χωρίς όριο σε χωράφια', 'API πρόσβαση (σύντομα)']
-      : ['Unlimited questions', 'Scientific calculations (ETc, NPK, dosage)', 'Annual report per field', 'Intervention history per client', 'Unlimited fields', 'API access (coming soon)'],
+      ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια πελατών', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Επώνυμες PDF αναφορές ανά χωράφι', 'Πρόσβαση API']
+      : ['Unlimited questions', 'Unlimited client fields', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Branded PDF reports per field', 'API access'],
+    proPrice: { en: '€49', el: '€49' },
+    proAnnual: { en: 'or €490 / year — save 17%', el: 'ή €490 / χρόνο — εξοικονομείς 17%' },
+    proCta: { en: 'Start with Agronomist', el: 'Ξεκίνα Agronomist' },
   },
   {
     id: 'business',
-    label: lang === 'el' ? '🤝 Σύλλογος / Επιχείρηση' : '🤝 Association / Business',
+    label: lang === 'el' ? '🤝 Σύλλογος / Εταιρεία' : '🤝 Association / Business',
     free: lang === 'el'
-      ? ['20 ερωτήσεις / μήνα ανά χρήστη', 'Διάγνωση και αγρονομικές συμβουλές', 'Δωρεάν για μέλη που θέλετε να δοκιμάσουν']
-      : ['20 questions / month per user', 'Diagnosis and agronomic advice', 'Free for members to trial'],
-    pro: lang === 'el'
-      ? ['Απεριόριστα ανά μέλος (€4.99/χρήστη/μήνα)', 'Ετήσιες αναφορές καλλιεργειών', 'Κοινή βάση χωραφιών (σύντομα)', 'White-label για τον σύλλογο σας (σύντομα)', 'Προτεραιότητα υποστήριξης']
-      : ['Unlimited per member (€4.99/user/month)', 'Annual crop reports', 'Shared field database (coming soon)', 'White-label for your association (coming soon)', 'Priority support'],
+      ? ['20 ερωτήσεις / μήνα ανά χρήστη', 'Πλήρεις αγρονομικές συμβουλές', 'Δωρεάν για τα μέλη σας να το δοκιμάσουν']
+      : ['20 questions / month per member', 'Full agronomic advice', 'Free for your members to trial'],
+    pro: null, // business uses contact card
+    proPrice: null,
+    proAnnual: null,
+    proCta: null,
   },
 ];
 
@@ -740,6 +747,12 @@ export default function Landing() {
     document.documentElement.lang = lang;
     setMeta('property', 'og:url', 'https://codex-ask-oli-app.vercel.app/');
     setMeta('property', 'og:type', 'website');
+    // Language-specific OG image
+    const ogImg = lang === 'el'
+      ? 'https://codex-ask-oli-app.vercel.app/og-image-el.png'
+      : 'https://codex-ask-oli-app.vercel.app/og-image.png';
+    setMeta('property', 'og:image', ogImg);
+    setMeta('name', 'twitter:image', ogImg);
   }, [lang]);
 
   // Build nav URL: if photo attached, we need to go to /chat directly (can't pass binary in URL)
@@ -1284,43 +1297,54 @@ export default function Landing() {
                     </Link>
                   </div>
 
-                  {/* Pro tier */}
-                  <div className="rounded-2xl p-6 relative overflow-hidden text-white"
-                    style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
-                    <div className="absolute top-4 right-4 bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      {lang === 'el' ? 'Δημοφιλές' : 'Popular'}
-                    </div>
-                    <div className="mb-5">
-                      <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4.99</span>
-                        <span className="text-sm text-white/70">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+                  {/* Pro tier — or contact card for business */}
+                  {activePricingRole.pro ? (
+                    <div className="rounded-2xl p-6 relative overflow-hidden text-white"
+                      style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
+                      <div className="mb-5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>
+                            {activePricingRole.proPrice?.[lang === 'el' ? 'el' : 'en']}
+                          </span>
+                          <span className="text-sm text-white/70">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+                        </div>
+                        <p className="text-xs text-white/50 mt-1">{activePricingRole.proAnnual?.[lang === 'el' ? 'el' : 'en']}</p>
                       </div>
-                      <p className="text-xs text-white/60 mt-1">{lang === 'el' ? 'ή €49 / χρόνο (εξοικονομείς 18%)' : 'or €49 / year (save 18%)'}</p>
+                      <ul className="space-y-2.5 mb-6">
+                        {activePricingRole.pro.map((item, i) => (
+                          <li key={i} className="flex items-center gap-2 text-sm text-white/90">
+                            <Check className="w-4 h-4 text-white/70 flex-shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                      <Link
+                        to="/auth"
+                        className="block w-full text-center py-3 rounded-full text-sm font-semibold bg-white text-[#194121] hover:bg-[#c0eec0] transition-all">
+                        {activePricingRole.proCta?.[lang === 'el' ? 'el' : 'en']}
+                      </Link>
                     </div>
-                    <ul className="space-y-2.5 mb-6">
-                      {activePricingRole.pro.map((item, i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-white/90">
-                          <Check className="w-4 h-4 text-white flex-shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    <Link
-                      to="/auth"
-                      className="block w-full text-center py-3 rounded-full text-sm font-semibold bg-white text-[#194121] hover:bg-[#c0eec0] transition-all">
-                      {lang === 'el' ? 'Δοκίμασε Pro' : 'Try Pro'}
-                    </Link>
-                  </div>
+                  ) : (
+                    /* Business contact card */
+                    <div className="rounded-2xl border-2 border-dashed border-[#c8d4ca] bg-[#f4f8f4] p-6 flex flex-col items-center justify-center text-center">
+                      <p className="text-2xl mb-3">🤝</p>
+                      <p className="font-semibold text-[#1b1c19] mb-1">
+                        {lang === 'el' ? 'Τιμή για οργανισμούς' : 'Cooperative pricing'}
+                      </p>
+                      <p className="text-sm text-[#606659] mb-5 leading-relaxed">
+                        {lang === 'el'
+                          ? 'Για συλλόγους και εταιρείες με πολλούς χρήστες, μιλήστε μαζί μας για ειδική τιμολόγηση.'
+                          : 'For associations and companies managing many users, talk to us for a tailored arrangement.'}
+                      </p>
+                      <a
+                        href="mailto:hello@askoli.ai?subject=Oli%20cooperative%20pricing"
+                        className="inline-block px-5 py-2.5 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
+                        {lang === 'el' ? 'Επικοινωνήστε μαζί μας' : 'Get in touch'}
+                      </a>
+                    </div>
+                  )}
                 </div>
-
-                {pricingRole === 'business' && (
-                  <p className="text-center text-xs text-[#606659] mt-5">
-                    {lang === 'el'
-                      ? '💬 Για μεγάλους συλλόγους ή εταιρείες με πολλούς χρήστες, επικοινωνήστε μαζί μας για ειδική τιμή.'
-                      : '💬 For large associations or companies with many users, contact us for custom pricing.'}
-                  </p>
-                )}
               </>
             );
           })()}

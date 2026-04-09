@@ -1,4 +1,4 @@
-import { X, Crown, Check, Sprout, Briefcase, Building2 } from 'lucide-react';
+import { X, Check, Sprout, Crown, Briefcase } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -8,196 +8,274 @@ import { SUPPORT_EMAIL } from '../../shared/subscription';
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
-const TIERS = [
-  {
-    key: 'free' as const,
-    icon: Sprout,
-    color: 'text-muted',
-    borderActive: 'border-muted',
-    features: { en: ['20 messages/month', '3 fields', '7-day history', '1 report/month'], el: ['20 μηνύματα/μήνα', '3 χωράφια', 'Ιστορικό 7 ημερών', '1 αναφορά/μήνα'] },
-    price: null,
-    current: true,
-  },
-  {
-    key: 'pro' as const,
-    icon: Crown,
-    color: 'text-primary',
-    borderActive: 'border-primary',
-    features: { en: ['Unlimited messages', 'Unlimited fields', 'Full history', 'Unlimited reports'], el: ['Απεριόριστα μηνύματα', 'Απεριόριστα χωράφια', 'Πλήρες ιστορικό', 'Απεριόριστες αναφορές'] },
-    price: { en: '€4.99/month', el: '€4,99/μήνα' },
-  },
-  {
-    key: 'agronomist' as const,
-    icon: Briefcase,
-    color: 'text-amber-500',
-    borderActive: 'border-amber-500',
-    features: { en: ['Everything in Pro', 'Branded reports', 'Client management', 'Priority support'], el: ['Όλα του Pro', 'Επώνυμες αναφορές', 'Διαχείριση πελατών', 'Προτεραιότητα υποστήριξης'] },
-    price: { en: '€49/month', el: '€49/μήνα' },
-  },
-  {
-    key: 'enterprise' as const,
-    icon: Building2,
-    color: 'text-blue-500',
-    borderActive: 'border-blue-500',
-    features: { en: ['Custom integrations', 'Dedicated support', 'SLA guarantee', 'Volume pricing'], el: ['Προσαρμοσμένες ενσωματώσεις', 'Αφοσιωμένη υποστήριξη', 'Εγγύηση SLA', 'Τιμές όγκου'] },
-    price: null,
-    enterprise: true,
-  },
-] as const;
+// ── Tier definitions ──────────────────────────────────────────────────────────
+// Each tier is honest about what it includes right now.
+// No "coming soon" items — every feature listed is shipped.
+
+const TIERS = (lang: string, currentTier?: string | null) => {
+  const l = lang === 'el' ? 'el' : 'en';
+  const isCurrent = (key: string) =>
+    (currentTier ?? 'free') === key || (!currentTier && key === 'free');
+
+  return [
+    {
+      key: 'free',
+      icon: Sprout,
+      iconColor: 'text-[#606659]',
+      name: { en: 'Free', el: 'Δωρεάν' },
+      price: { en: '€0 / month', el: '€0 / μήνα' },
+      note: { en: 'No credit card', el: 'Χωρίς κάρτα' },
+      features: {
+        en: [
+          '20 questions per month',
+          'Photo disease diagnosis',
+          'Treatment plan with dosages',
+          'Conversation history',
+        ],
+        el: [
+          '20 ερωτήσεις τον μήνα',
+          'Διάγνωση ασθένειας από φωτογραφία',
+          'Πλάνο θεραπείας με δόσεις',
+          'Ιστορικό συνομιλιών',
+        ],
+      },
+      cta: null, // no action for free
+      isCurrent: isCurrent('free'),
+      accent: '#194121',
+      variant: 'outline' as const,
+    },
+    {
+      key: 'pro',
+      icon: Crown,
+      iconColor: 'text-[#194121]',
+      name: { en: 'Pro', el: 'Pro' },
+      price: { en: '€4.99 / month', el: '€4,99 / μήνα' },
+      note: { en: 'or €49 / year — 2 months free', el: 'ή €49 / χρόνο — 2 μήνες δωρεάν' },
+      features: {
+        en: [
+          'Unlimited questions',
+          'Unlimited fields + crop memory',
+          'Oli follows up on every treatment',
+          'Irrigation & planting calculations',
+          'Field intervention log',
+          'Monthly field reports',
+        ],
+        el: [
+          'Απεριόριστες ερωτήσεις',
+          'Απεριόριστα χωράφια + μνήμη καλλιεργειών',
+          'Ο Oli κάνει follow-up στις θεραπείες',
+          'Υπολογισμοί άρδευσης και φύτευσης',
+          'Αρχείο παρεμβάσεων ανά χωράφι',
+          'Μηνιαίες αναφορές χωραφιών',
+        ],
+      },
+      cta: { en: 'Upgrade to Pro', el: 'Αναβάθμιση σε Pro' },
+      isCurrent: isCurrent('pro'),
+      accent: '#194121',
+      variant: 'filled' as const,
+    },
+    {
+      key: 'agronomist',
+      icon: Briefcase,
+      iconColor: 'text-amber-600',
+      name: { en: 'Agronomist', el: 'Γεωπόνος' },
+      price: { en: '€49 / month', el: '€49 / μήνα' },
+      note: { en: 'or €490 / year — 2 months free', el: 'ή €490 / χρόνο — 2 μήνες δωρεάν' },
+      features: {
+        en: [
+          'Unlimited questions',
+          'Unlimited client fields',
+          'Intervention history per client',
+          'Scientific calculations (ETc, NPK)',
+          'Branded PDF reports per field',
+          'API access',
+        ],
+        el: [
+          'Απεριόριστες ερωτήσεις',
+          'Απεριόριστα χωράφια πελατών',
+          'Ιστορικό παρεμβάσεων ανά πελάτη',
+          'Επιστημονικοί υπολογισμοί (ETc, NPK)',
+          'Επώνυμες PDF αναφορές ανά χωράφι',
+          'Πρόσβαση API',
+        ],
+      },
+      cta: { en: 'Upgrade to Agronomist', el: 'Αναβάθμιση σε Γεωπόνο' },
+      isCurrent: isCurrent('agronomist'),
+      accent: '#92400e',
+      variant: 'amber' as const,
+    },
+  ];
+};
 
 export default function PaywallModal({ isOpen, onClose }: Props) {
   const { user, profile } = useAuth();
   const { lang } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
-  const [enterpriseEmail, setEnterpriseEmail] = useState('');
-  const [enterpriseSent, setEnterpriseSent] = useState(false);
-  const [submittingTier, setSubmittingTier] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const l = lang === 'el' ? 'el' : 'en';
-  const labels = {
-    title: { en: 'Choose Your Plan', el: 'Επιλέξτε Πλάνο' },
-    current: { en: 'Current', el: 'Τρέχον' },
-    upgrade: { en: 'Upgrade', el: 'Αναβάθμιση' },
-    comingSoon: { en: 'Coming soon', el: 'Σύντομα' },
-    requestQuote: { en: 'Request a Quote', el: 'Ζητήστε Προσφορά' },
-    enterEmail: { en: 'Your email', el: 'Το email σας' },
-    send: { en: 'Send', el: 'Αποστολή' },
-    sent: { en: 'We\'ll be in touch!', el: 'Θα επικοινωνήσουμε!' },
-    cancel: { en: 'Cancel anytime', el: 'Ακύρωση ανά πάσα στιγμή' },
-  };
+  const currentTier = typeof profile?.tier === 'string' ? profile.tier : 'free';
+  const tiers = TIERS(lang, currentTier);
+  const selectedTier = tiers.find(t => t.key === selected);
 
-  const openEmailFallback = (tier: string, emailOverride?: string) => {
+  const openEmailFallback = (tierKey: string) => {
     const body = [
       lang === 'el'
         ? 'Γεια σας, ενδιαφέρομαι για αναβάθμιση στο Oli.'
-        : 'Hi, I am interested in upgrading to Oli.',
+        : 'Hi, I am interested in upgrading my Oli account.',
       '',
-      `Tier: ${tier}`,
-      `Email: ${emailOverride || user?.email || ''}`,
+      `Tier: ${tierKey}`,
+      `Email: ${user?.email || ''}`,
       `Name: ${typeof profile?.name === 'string' ? profile.name : ''}`,
-      `Current tier: ${typeof profile?.tier === 'string' ? profile.tier : 'free'}`,
+      `Current tier: ${currentTier}`,
     ].join('\n');
-
-    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Oli upgrade interest - ${tier}`)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Oli upgrade — ${tierKey}`)}&body=${encodeURIComponent(body)}`;
   };
 
-  const submitInterest = async (tier: string, emailOverride?: string) => {
-    setSubmittingTier(tier);
+  const handleUpgrade = async (tierKey: string) => {
+    if (submitting) return;
+    setSubmitting(true);
     setNotice(null);
     trackEvent(Events.PAYWALL_UPGRADE_CLICK, {
-      tier,
+      tier: tierKey,
       source: 'paywall_modal',
-      currentTier: profile?.tier ?? 'free',
+      currentTier,
     });
 
     try {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           mode: 'upgrade_interest',
-          email: emailOverride || user?.email || '',
+          email: user?.email || '',
           name: typeof profile?.name === 'string' ? profile.name : '',
-          currentTier: typeof profile?.tier === 'string' ? profile.tier : 'free',
-          requestedTier: tier,
-          requestedPlan: tier,
+          currentTier,
+          requestedTier: tierKey,
+          requestedPlan: tierKey,
           lang,
         },
       });
 
       if (error || !data?.sent) {
-        openEmailFallback(tier, emailOverride);
+        openEmailFallback(tierKey);
         setNotice(
-          lang === 'el'
-            ? 'Άνοιξε το email σου για να ολοκληρώσεις το αίτημα αναβάθμισης.'
-            : 'Your email app has been opened to finish the upgrade request.',
+          l === 'el'
+            ? 'Άνοιξε το email σου για να ολοκληρώσεις το αίτημα.'
+            : 'Your email app has been opened to complete the request.',
         );
-        return false;
+      } else {
+        setSent(tierKey);
       }
-
-      setNotice(
-        lang === 'el'
-          ? 'Το αίτημα αναβάθμισης στάλθηκε. Η ομάδα μας θα επικοινωνήσει μαζί σου σύντομα.'
-          : 'Your upgrade request was sent. Our team will reach out shortly.',
-      );
-      return true;
     } catch {
-      openEmailFallback(tier, emailOverride);
-      setNotice(
-        lang === 'el'
-          ? 'Δεν ήταν δυνατή η αυτόματη αποστολή. Άνοιξε το email σου για να συνεχίσεις.'
-          : 'Automatic sending was unavailable, so your email app was opened instead.',
-      );
-      return false;
+      openEmailFallback(tierKey);
     } finally {
-      setSubmittingTier(null);
-    }
-  };
-
-  const handleEnterprise = async () => {
-    if (!enterpriseEmail.trim()) return;
-    const sent = await submitInterest('enterprise', enterpriseEmail.trim());
-    if (sent) {
-      setEnterpriseSent(true);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-2xl">
-        <button onClick={onClose}
-          className="absolute right-3 top-3 rounded-full p-1 text-muted hover:bg-background hover:text-foreground transition-colors z-10">
-          <X className="h-5 w-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full sm:max-w-md max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-2xl border border-border bg-surface shadow-2xl"
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-surface border-b border-border/50 px-5 pt-5 pb-4 z-10">
+          <button
+            onClick={onClose}
+            aria-label={l === 'el' ? 'Κλείσιμο' : 'Close'}
+            className="absolute right-4 top-4 rounded-full p-1.5 text-muted hover:bg-background hover:text-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <h2 className="text-lg font-bold text-foreground pr-8">
+            {l === 'el' ? 'Αναβάθμισε τον λογαριασμό σου' : 'Upgrade your account'}
+          </h2>
+          <p className="text-xs text-muted mt-0.5">
+            {l === 'el'
+              ? 'Επέλεξε το πλάνο που ταιριάζει στις ανάγκες σου.'
+              : 'Choose the plan that fits your needs.'}
+          </p>
+        </div>
 
-        <h2 className="mb-4 text-center text-xl font-bold text-foreground">{labels.title[l]}</h2>
-
-        <div className="space-y-3">
-          {TIERS.map((tier) => {
+        <div className="px-5 py-4 space-y-3">
+          {tiers.map((tier) => {
             const Icon = tier.icon;
             const isSelected = selected === tier.key;
-            const isCurrent = 'current' in tier;
-            const isEnterprise = 'enterprise' in tier;
+            const wasSent = sent === tier.key;
+
             return (
               <button
                 key={tier.key}
                 onClick={() => {
-                  setSelected(tier.key);
-                  setNotice(null);
+                  if (!tier.isCurrent) {
+                    setSelected(isSelected ? null : tier.key);
+                    setNotice(null);
+                  }
                 }}
-                className={`w-full rounded-xl border p-4 text-left transition-colors ${
-                  isSelected ? `${tier.borderActive} bg-primary/5` : 'border-border bg-background hover:border-primary/30'
-                }`}
+                disabled={tier.isCurrent}
+                className={[
+                  'w-full rounded-xl border text-left transition-all',
+                  tier.isCurrent
+                    ? 'border-border/40 bg-background/40 cursor-default opacity-60'
+                    : isSelected
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-border bg-background hover:border-primary/40 cursor-pointer',
+                ].join(' ')}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={`h-5 w-5 flex-shrink-0 ${tier.color}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground capitalize">{tier.key}</span>
-                      {isCurrent && (
-                        <span className="rounded-full bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted">
-                          {labels.current[l]}
-                        </span>
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`h-4 w-4 flex-shrink-0 ${tier.iconColor}`} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-foreground">{tier.name[l]}</span>
+                          {tier.isCurrent && (
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wide">
+                              {l === 'el' ? 'Τρέχον' : 'Current'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted mt-0.5">{tier.note[l]}</p>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <span className="text-sm font-bold text-foreground whitespace-nowrap">{tier.price[l]}</span>
+                    </div>
+                  </div>
+
+                  {/* Features — always visible */}
+                  <ul className="mt-3 space-y-1.5 pl-6">
+                    {tier.features[l].map((f, i) => (
+                      <li key={i} className="flex items-center gap-2 text-xs text-muted">
+                        <Check className="h-3 w-3 text-primary flex-shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* CTA — shown when selected */}
+                  {isSelected && tier.cta && (
+                    <div className="mt-4 animate-fade-in">
+                      {wasSent ? (
+                        <p className="text-center text-sm font-medium text-primary py-2">
+                          {l === 'el' ? '✓ Το αίτημά σου στάλθηκε. Θα επικοινωνήσουμε σύντομα.' : '✓ Request sent. We\'ll be in touch shortly.'}
+                        </p>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void handleUpgrade(tier.key); }}
+                          disabled={submitting}
+                          className="w-full py-2.5 rounded-full text-sm font-semibold bg-primary text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                        >
+                          {submitting ? (l === 'el' ? 'Αποστολή...' : 'Sending...') : tier.cta[l]}
+                        </button>
                       )}
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                      {tier.features[l].map((f) => (
-                        <span key={f} className="flex items-center gap-1 text-xs text-muted">
-                          <Check className="h-3 w-3 text-primary" />
-                          {f}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    {tier.price ? (
-                      <span className="text-sm font-bold text-foreground">{tier.price[l]}</span>
-                    ) : isEnterprise ? (
-                      <span className="text-xs font-medium text-blue-500">{labels.requestQuote[l]}</span>
-                    ) : (
-                      <span className="text-xs text-muted">{labels.current[l]}</span>
-                    )}
-                  </div>
+                  )}
                 </div>
               </button>
             );
@@ -205,51 +283,18 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
         </div>
 
         {notice && (
-          <p className="mt-3 rounded-xl bg-background px-3 py-2 text-center text-xs text-muted">
+          <p className="mx-5 mb-4 rounded-xl bg-background px-3 py-2.5 text-center text-xs text-muted border border-border">
             {notice}
           </p>
         )}
 
-        {/* Enterprise email form */}
-        {selected === 'enterprise' && (
-          <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 animate-fade-in">
-            {enterpriseSent ? (
-              <p className="text-center text-sm font-medium text-blue-500">{labels.sent[l]}</p>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={enterpriseEmail}
-                  onChange={(e) => setEnterpriseEmail(e.target.value)}
-                  placeholder={labels.enterEmail[l]}
-                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  onClick={handleEnterprise}
-                  disabled={!enterpriseEmail.trim()}
-                  className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
-                >
-                  {labels.send[l]}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Upgrade button for pro/agronomist */}
-        {(selected === 'pro' || selected === 'agronomist') && (
-          <div className="mt-3 rounded-xl bg-primary/10 p-3 text-center">
-            <button
-              onClick={() => void submitInterest(selected)}
-              disabled={submittingTier !== null}
-              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {submittingTier === selected ? labels.send[l] : labels.upgrade[l]}
-            </button>
-          </div>
-        )}
-
-        <p className="mt-3 text-center text-xs text-muted">{labels.cancel[l]}</p>
+        <div className="px-5 pb-5 pt-1">
+          <p className="text-center text-xs text-muted">
+            {l === 'el'
+              ? 'Ακύρωση ανά πάσα στιγμή · Χωρίς κρυφές χρεώσεις'
+              : 'Cancel anytime · No hidden charges'}
+          </p>
+        </div>
       </div>
     </div>
   );
