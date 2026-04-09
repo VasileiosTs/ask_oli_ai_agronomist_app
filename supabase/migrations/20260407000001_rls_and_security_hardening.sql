@@ -34,12 +34,16 @@ CREATE POLICY "users_own_push_subscriptions" ON push_subscriptions
 
 -- Service role bypasses RLS for cron jobs (no policy needed for service role)
 
--- ── 3. notification_prefs policies ───────────────────────────
-DROP POLICY IF EXISTS "users_own_notification_prefs" ON notification_prefs;
-CREATE POLICY "users_own_notification_prefs" ON notification_prefs
-  FOR ALL TO authenticated
-  USING (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
-  WITH CHECK (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()));
+-- ── 3. notification_prefs policies (table may not exist on all envs) ─────
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notification_prefs') THEN
+    DROP POLICY IF EXISTS "users_own_notification_prefs" ON notification_prefs;
+    CREATE POLICY "users_own_notification_prefs" ON notification_prefs
+      FOR ALL TO authenticated
+      USING (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
+      WITH CHECK (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()));
+  END IF;
+END $$;
 
 -- ── 4. ai_usage_events — service role write, authenticated read own ──
 DROP POLICY IF EXISTS "users_read_own_usage" ON ai_usage_events;
@@ -54,7 +58,7 @@ DROP POLICY IF EXISTS "admin_read_operational_events" ON operational_events;
 CREATE POLICY "admin_read_operational_events" ON operational_events
   FOR SELECT TO authenticated
   USING (
-    auth.uid() IN (SELECT auth_id FROM users WHERE id IN (SELECT user_id FROM admin_users))
+    auth.uid() IN (SELECT auth_id FROM admin_users)
   );
 
 -- ── 6. kpi_snapshots — admin read only ───────────────────────
@@ -62,7 +66,7 @@ DROP POLICY IF EXISTS "admin_read_kpi_snapshots" ON kpi_snapshots;
 CREATE POLICY "admin_read_kpi_snapshots" ON kpi_snapshots
   FOR SELECT TO authenticated
   USING (
-    auth.uid() IN (SELECT auth_id FROM users WHERE id IN (SELECT user_id FROM admin_users))
+    auth.uid() IN (SELECT auth_id FROM admin_users)
   );
 
 -- ── 7. admin_users — no direct access from clients ───────────
