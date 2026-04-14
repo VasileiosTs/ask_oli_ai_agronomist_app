@@ -41,7 +41,7 @@ export async function downloadFieldReport(
   userId: string,
   fields: ReportField[],
   userName: string,
-  lang: 'el' | 'en'
+  lang: string
 ): Promise<void> {
   const el = lang === 'el';
 
