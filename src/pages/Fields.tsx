@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock, FileDown, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { getTierLimits } from '../lib/constants';
+import { isAdvisorTier } from '../../shared/subscription';
+import { downloadFieldReport } from '../lib/generateReport';
 import clsx from 'clsx';
 
 interface Field {
@@ -38,6 +40,12 @@ export default function Fields() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const advisor = isAdvisorTier(profile?.tier as string | undefined);
+  const pageTitle = advisor
+    ? (lang === 'el' ? 'Οι Παραγωγοί μου' : 'My Growers')
+    : t.myFields;
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [limitToast, setLimitToast] = useState(false);
   const [form, setForm] = useState<FieldFormData>({
@@ -119,6 +127,16 @@ export default function Fields() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fields'] }),
   });
 
+  const handleDownloadReport = async () => {
+    if (!appUserId || reportLoading) return;
+    setReportLoading(true);
+    try {
+      await downloadFieldReport(appUserId, fields, (profile as any)?.name ?? '', lang);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const openAdd = () => {
     // Enforce field limit for free tier
     if (fields.length >= limits.fields) {
@@ -145,10 +163,22 @@ export default function Fields() {
     <div className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       <div className="border-b border-border/50 px-4 py-4">
         <div className="flex items-center gap-2">
-          <Sprout className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold text-foreground">{t.myFields}</h1>
+          {advisor ? <Users className="h-5 w-5 text-primary" /> : <Sprout className="h-5 w-5 text-primary" />}
+          <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
           {limits.fields !== Infinity && (
-            <span className="ml-auto text-xs text-muted">{fields.length}/{limits.fields}</span>
+            <span className="text-xs text-muted">{fields.length}/{limits.fields}</span>
+          )}
+          {fields.length > 0 && (
+            <button
+              onClick={handleDownloadReport}
+              disabled={reportLoading}
+              className="ml-auto flex items-center gap-1.5 rounded-lg border border-border/50 bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              {reportLoading
+                ? (lang === 'el' ? 'Φόρτωση...' : 'Loading...')
+                : (lang === 'el' ? 'PDF' : 'PDF')}
+            </button>
           )}
         </div>
         <p className="mt-0.5 text-xs text-muted">{t.fieldsSubtitle}</p>

@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus, MessageCircle, User, Search } from 'lucide-react';
+import { X, Plus, MessageCircle, User, Search, Sprout, Users } from 'lucide-react';
 import OliLogo from './OliLogo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import { isAdvisorTier } from '../../shared/subscription';
 import clsx from 'clsx';
 import LanguageToggle from './LanguageToggle';
 
@@ -76,6 +77,10 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
   const userName = (profile?.name as string) ?? user?.email ?? '';
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const searchPlaceholder = lang === 'el' ? 'Αναζήτηση...' : 'Search...';
+  const advisor = isAdvisorTier(profile?.tier as string | undefined);
+  const fieldsLabel = advisor
+    ? (lang === 'el' ? 'Οι Παραγωγοί μου' : 'My Growers')
+    : (lang === 'el' ? 'Τα Χωράφια μου' : 'My Fields');
   const noResults = lang === 'el' ? 'Δεν βρέθηκαν αποτελέσματα' : 'No results found';
 
   const content = (
@@ -98,6 +103,17 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
       <button onClick={() => { onNewChat(); if (!desktop) onClose(); }}
         className="mx-3 mt-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20">
         <Plus className="h-4 w-4" />{t.newChat}
+      </button>
+
+      {/* Fields / Growers nav */}
+      <button
+        onClick={() => { navigate('/fields'); if (!desktop) onClose(); }}
+        className="mx-3 mt-2 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-background/60 hover:text-foreground"
+      >
+        {advisor
+          ? <Users className="h-4 w-4 flex-shrink-0" />
+          : <Sprout className="h-4 w-4 flex-shrink-0" />}
+        {fieldsLabel}
       </button>
 
       {/* Search */}
