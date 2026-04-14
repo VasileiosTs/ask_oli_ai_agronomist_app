@@ -4,6 +4,16 @@ import { trackError } from '../lib/sentry';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
+// Warn in development if VAPID key is missing — push notifications will silently
+// fail for all users if VITE_VAPID_PUBLIC_KEY is not set in Vercel environment variables.
+if (!VAPID_PUBLIC_KEY && import.meta.env.DEV) {
+  console.warn(
+    '[Oli] VITE_VAPID_PUBLIC_KEY is not set. Push notifications (VIO follow-up reminders) are disabled.\n' +
+    'Generate keys: npx web-push generate-vapid-keys\n' +
+    'Add VITE_VAPID_PUBLIC_KEY to Vercel env vars and VAPID_PRIVATE_KEY to Supabase Edge Function secrets.'
+  );
+}
+
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');

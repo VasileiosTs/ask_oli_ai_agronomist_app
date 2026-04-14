@@ -202,7 +202,33 @@ function formatWeatherContext(w: WeatherSnapshot): string {
   return `Current weather: ${w.temperature_c}°C, ${w.humidity_pct}% humidity${precip}, ${w.wind_kmh}km/h wind`;
 }
 
-function buildSystemPrompt(fieldContext: string, growerContext = '', lang = 'en'): string {
+// ── Intent Classifier ────────────────────────────────────────────────────────
+// Cheap regex classification of the user's message — no extra API call.
+// Used to trim irrelevant prompt sections and inject a pre-classified hint,
+// so Gemini spends zero tokens deciding what type of question it is.
+type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'general';
+
+function classifyIntent(message: string, hasImages: boolean): QueryIntent {
+  if (hasImages) return 'diagnosis'; // photo = always diagnostic intent
+  const m = message.toLowerCase();
+  // Calculation: numerical, dosage, rate, or unit questions
+  if (/\b(how much|calculate|dose|dosage|rate|l\/ha|kg\/ha|ml\/|ratio|concentration|how many litre|πόσο|δόση|υπολόγισε|αραίωσ|ποσότητα|λίτρα|κιλά ανά)\b/.test(m)) return 'calculation';
+  // Follow-up: reporting back on a past treatment or asking about progress
+  if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε)\b/.test(m)) return 'followup';
+  // Diagnosis: symptoms, visual problems, disease/pest mentions
+  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ)\b/.test(m)) return 'diagnosis';
+  // Planning: what/when to do, schedules, programs
+  if (/\b(when should|what should i|plan|schedule|program|calendar|next step|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο)\b/.test(m)) return 'planning';
+  return 'general';
+}
+
+function buildSystemPrompt(
+  fieldContext: string,
+  growerContext = '',
+  lang = 'en',
+  intent: QueryIntent = 'general',
+  conversationDepth = 0,
+): string {
   // Language instruction — injected first so it governs the entire response
   const langInstruction = lang === 'el'
     ? `ΓΛΩΣΣΑ: Απάντα ΠΑΝΤΟΤΕ στα ελληνικά, ανεξαρτήτως γλώσσας ερώτησης. Χρησιμοποίησε ελληνική ορολογία για ασθένειες (π.χ. Περονόσπορος, Ωίδιο, Φουζικλάδιο), εντομολογικές επιθέσεις και αγρονομικούς όρους. Τα ονόματα επιστημονικά (λατινικά) μπορεί να αναφέρονται σε παρένθεση.`
@@ -223,9 +249,30 @@ function buildSystemPrompt(fieldContext: string, growerContext = '', lang = 'en'
 - Use local measurement terms when the user's language is Greek (κουταλιά σούπας = 15ml, φλιτζάνι = 250ml)
 - Example: "Myclobutanil 40ml/100L → Για ψεκαστικό 15L: 6ml (1 κοφτή κουταλιά)"`;
 
+  // Adaptive context: pre-classified intent hint + conversation depth
+  const intentHint = intent === 'diagnosis'
+    ? 'PRE-CLASSIFIED: This is a DIAGNOSIS query (TYPE A). Apply the five-pillar framework and confidence scoring immediately.'
+    : intent === 'calculation'
+    ? 'PRE-CLASSIFIED: This is a CALCULATION query (TYPE B). Show your formula and step-by-step working immediately.'
+    : intent === 'planning'
+    ? 'PRE-CLASSIFIED: This is a PLANNING query (TYPE C). Provide a concrete numbered plan with timings.'
+    : intent === 'followup'
+    ? 'PRE-CLASSIFIED: This is a FOLLOW-UP query (TYPE E). Acknowledge the update and adjust your recommendation.'
+    : ''; // general — let Gemini classify from TYPE DETECTION below
+
+  const depthHint = conversationDepth > 2
+    ? `CONVERSATION CONTEXT: This is message ${conversationDepth} in an ongoing conversation. The farmer has context from prior messages — do not re-introduce yourself or repeat prior advice unless asked.`
+    : '';
+
+  // Conditionally include heavy sections based on intent
+  // Saves ~150 tokens on calculation queries, ~100 tokens on diagnosis queries
+  const includeCalcGuide = intent !== 'diagnosis' && intent !== 'followup';
+  const includeDiagnosticFlow = intent !== 'calculation';
+
   return `${langInstruction}
 
 ${dosageInstruction}
+${intentHint ? `\n${intentHint}` : ''}${depthHint ? `\n${depthHint}` : ''}
 
 You are Oli, an expert AI agronomist with deep knowledge of agronomy, plant science, soil science, irrigation, nutrition, crop economics, and agricultural mathematics. You help farmers with EVERYTHING agriculture-related: disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
 
@@ -280,7 +327,7 @@ UNIVERSAL RULES (apply to all types):
 - For diseases/pests/deficiencies, always populate both organic_treatments AND chemical_treatments.
 - Crop-specific accuracy is critical: never suggest a pest or disease that doesn't affect the stated crop.
 
-AGRICULTURAL CALCULATIONS — GUIDE:
+${includeCalcGuide ? `AGRICULTURAL CALCULATIONS — GUIDE:
 You are fully capable of solving these (and more). Always show your reasoning:
 
 IRRIGATION / WATER NEEDS:
@@ -308,8 +355,8 @@ AREA & YIELD:
 ECONOMICS:
 - Gross margin = (yield × price) - variable costs
 - Break-even yield = total costs / price per unit
-
-DIAGNOSTIC WORKFLOW — THE FIVE PILLARS:
+` : ''}
+${includeDiagnosticFlow ? `DIAGNOSTIC WORKFLOW — THE FIVE PILLARS:
 For every diagnosis query, assess confidence across:
 1. THE VICTIM — Plant species/variety known? (Spot on tomato ≠ spot on olive)
 2. THE SYMPTOMS — Color, texture, pattern, spread direction?
@@ -328,7 +375,7 @@ IMAGE ANALYSIS RULES:
 - If the affected area is < 30% of frame, ask for a close-up with specific instructions ("please send a photo of just the leaf showing the spots, filling the frame").
 - Each new image is independent — do not assume it is the same plant as a previous message.
 - Poor image quality lowers your confidence_score; reflect this honestly.
-
+` : ''}
 CONTEXT INDEPENDENCE:
 - If the farmer uploads a photo that contradicts field context, trust the PHOTO.
 - Field context is background info, not a constraint.
@@ -776,8 +823,10 @@ async function generateValidatedResponse(
   hasActiveField: boolean,
   growerContext = '',
   lang = 'en',
+  intent: QueryIntent = 'general',
+  conversationDepth = 0,
 ): Promise<AiResponseJson> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang);
+  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth);
   let json = await callGemini(geminiApiKey, messages, systemPrompt);
   const validation = validateResponse(json, hasActiveField);
 
@@ -1597,7 +1646,9 @@ async function handleGuestChat(
     .slice(0, 1); // guest: max 1 image
 
   const guestLang = body.lang || 'en';
-  const systemPrompt = buildSystemPrompt('No field data or treatment history on record yet.', '', guestLang);
+  const guestHasImages = validAttachments.length > 0;
+  const guestIntent = classifyIntent(sanitized, guestHasImages);
+  const systemPrompt = buildSystemPrompt('No field data or treatment history on record yet.', '', guestLang, guestIntent, 0);
   const guestMessages: ChatMessageInput[] = [{
     role: 'user',
     content: sanitized,
@@ -2178,6 +2229,10 @@ Return ONLY the greeting text, nothing else.`;
         );
       }
 
+      const hasImages = requestMessages.some(m => Array.isArray(m.attachments) && m.attachments.length > 0);
+      const queryIntent = classifyIntent(latestUserMessage.content, hasImages);
+      const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
+
       aiResponse = await generateValidatedResponse(
         geminiApiKey,
         requestMessages,
@@ -2185,6 +2240,8 @@ Return ONLY the greeting text, nothing else.`;
         serverContext.hasActiveField,
         growerContext,
         userLang,
+        queryIntent,
+        convDepth,
       );
       assistantText = aiResponse.response_text;
       assistantMetadata = buildAssistantMetadata(aiResponse);
