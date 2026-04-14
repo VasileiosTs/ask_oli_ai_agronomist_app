@@ -8,6 +8,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// CRON_SECRET allows pg_cron to call cron modes without service role key in git history.
+// Set CRON_SECRET in Supabase Edge Function secrets (same value used in migration).
+const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Oli <noreply@askoli.ai>";
 const APP_URL = Deno.env.get("APP_URL") || "https://codex-ask-oli-app.vercel.app";
 const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@askoli.ai";
@@ -417,11 +420,13 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
 
-    // Cron modes + vio_reminder require service_role_key auth (backend/cron only)
+    // Cron modes + vio_reminder: accept service role key OR CRON_SECRET (set in edge function secrets)
     const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron", "vio_reminder"];
     if (serviceOnlyModes.includes(body.mode)) {
       const authHeader = req.headers.get("authorization") || "";
-      if (!authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
+      const validSecret = SUPABASE_SERVICE_ROLE_KEY && authHeader.includes(SUPABASE_SERVICE_ROLE_KEY);
+      const validCronKey = CRON_SECRET && authHeader.includes(CRON_SECRET);
+      if (!validSecret && !validCronKey) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
       }
     }
