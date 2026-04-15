@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Send, Clock, Leaf, Check, MessageCircle, Zap, RefreshCw, Camera, Mic, X } from 'lucide-react';
+import { Send, Clock, Leaf, Check, MessageCircle, Zap, RefreshCw, Camera, Mic, X, Globe, ClipboardCheck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import OliLogo from '../components/OliLogo';
@@ -91,9 +92,9 @@ const HOW_IT_WORKS = (lang: string) => [
   },
 ];
 
-const FEATURES = (lang: string) => [
+const FEATURES = (lang: string): { icon: LucideIcon; title: string; body: string; accent: boolean }[] => [
   {
-    icon: 'photo_camera',
+    icon: Camera,
     title: lang === 'el' ? 'Ρώτα οτιδήποτε για τις καλλιέργειές σου' : 'Ask anything about your crops',
     body: lang === 'el'
       ? 'Ασθένειες, πότισμα, λίπανση, κλάδεμα, σπορά. Αν το ξέρει ένας έμπειρος γεωπόνος, το ξέρει και ο Oli. Δεν είναι απλώς εφαρμογή αναγνώρισης. Είναι ο σύμβουλός σου.'
@@ -101,7 +102,7 @@ const FEATURES = (lang: string) => [
     accent: true,
   },
   {
-    icon: 'language',
+    icon: Globe,
     title: lang === 'el' ? 'Μιλά τη γλώσσα σου' : 'Works in your language',
     body: lang === 'el'
       ? 'Ελληνικά, Αγγλικά και περισσότερες γλώσσες σύντομα. Ιδανικός για αγρότες σε όλη την Ευρώπη και μεταναστευτικές κοινότητες. Επιλέξτε γλώσσα από το προφίλ σας.'
@@ -109,7 +110,7 @@ const FEATURES = (lang: string) => [
     accent: false,
   },
   {
-    icon: 'assignment_turned_in',
+    icon: ClipboardCheck,
     title: lang === 'el' ? 'Μαθαίνει τα χωράφια σου, παρακολουθεί' : 'Learns your fields, follows up',
     body: lang === 'el'
       ? 'Ο Oli θυμάται κάθε καλλιέργεια και παρέμβαση. Παρακολουθεί σαν αληθινός γεωπόνος αν η θεραπεία πέτυχε και προσαρμόζεται ανάλογα.'
@@ -540,17 +541,20 @@ function PhoneMockup({ lang }: { lang: string }) {
               </div>
             </div>
           </div>
-          {/* Demo indicators */}
+          {/* Demo indicators — use transform:scaleX for GPU-composited animation */}
           <div className="absolute bottom-[50px] left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
             {demos.map((_, i) => (
               <div
                 key={i}
-                className="rounded-full transition-all duration-300"
                 style={{
-                  width: i === demoIdx ? '14px' : '4px',
+                  width: '14px',
                   height: '4px',
+                  borderRadius: '9999px',
                   background: '#194121',
                   opacity: i === demoIdx ? 0.7 : 0.2,
+                  transform: i === demoIdx ? 'scaleX(1)' : 'scaleX(0.286)',
+                  transformOrigin: 'left',
+                  transition: 'transform 300ms ease, opacity 300ms ease',
                 }}
               />
             ))}
@@ -807,10 +811,6 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-[#1b1c19] overflow-x-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Load only the material symbols we actually use */}
-      <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Blanguage%2Bassignment_turned_in&display=swap" as="style" onLoad={(e) => { (e.target as HTMLLinkElement).rel = 'stylesheet'; }} />
-      <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&text=photo_camera%2Blanguage%2Bassignment_turned_in&display=swap" rel="stylesheet" /></noscript>
-
       {/* ── NAV ── */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-[#e8e8e3]">
         <div className="flex justify-between items-center max-w-5xl mx-auto px-4 sm:px-6 h-14">
@@ -1238,7 +1238,7 @@ export default function Landing() {
                 className={`rounded-2xl p-6 ${f.accent ? 'bg-[#194121] text-white' : 'bg-white'}`}
                 style={{ boxShadow: f.accent ? '0 8px 32px rgba(25,65,33,0.2)' : '0 2px 12px rgba(27,28,25,0.04)' }}>
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.accent ? 'bg-white/15' : 'bg-[#c0eec0]/30'}`}>
-                  <span className={`material-symbols-outlined ${f.accent ? 'text-white' : 'text-[#194121]'}`} style={{ fontSize: '22px' }}>{f.icon}</span>
+                  <f.icon className={f.accent ? 'text-white' : 'text-[#194121]'} style={{ width: 22, height: 22 }} />
                 </div>
                 <h3 className={`font-bold mb-1.5 ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
                 <p className={`text-sm leading-relaxed ${f.accent ? 'text-white/80' : 'text-[#5a6053]'}`}>{f.body}</p>
