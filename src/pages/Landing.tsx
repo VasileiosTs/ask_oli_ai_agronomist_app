@@ -838,7 +838,7 @@ export default function Landing() {
             </div>
             <Link
               to={isLoggedIn ? '/chat' : '/auth'}
-              className="text-white px-4 py-2 rounded-full font-semibold text-sm hover:opacity-90 transition-all"
+              className="text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:opacity-90 transition-all inline-flex items-center min-h-[44px]"
               style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
               {isLoggedIn
                 ? (lang === 'el' ? 'Άνοιξε' : 'Open app')
@@ -1100,7 +1100,7 @@ export default function Landing() {
             <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Τι ρωτούν οι αγρότες' : 'Things farmers ask Oli'}
             </p>
-            <h2 className="text-xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
+            <h2 className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
               {lang === 'el' ? 'Αν το ξέρει ένας γεωπόνος, το ξέρει ο Oli' : 'If an agronomist knows it, so does Oli'}
             </h2>
             <p className="text-sm text-[#606659]">
@@ -1134,7 +1134,7 @@ export default function Landing() {
             <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Για κάθε ρόλο στη γεωργία' : 'For every role in agriculture'}
             </p>
-            <h2 className="text-xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
+            <h2 className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
               {lang === 'el' ? 'Ο Oli απαντάει διαφορετικά σε κάθε χρήστη' : 'Oli tailors every answer to who is asking'}
             </h2>
             <p className="text-sm text-[#606659]">
@@ -1385,7 +1385,6 @@ export default function Landing() {
             to="/chat"
             className="inline-flex items-center gap-2 bg-white text-[#194121] font-semibold px-8 py-3.5 rounded-full text-sm hover:bg-[#c0eec0] transition-all relative"
             style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
-            <span>🌿</span>
             {lang === 'el' ? 'Δοκίμασε τον Oli τώρα' : 'Try Oli now'}
           </Link>
           <p className="text-xs text-white/40 mt-4 relative">
@@ -1404,7 +1403,7 @@ export default function Landing() {
             <span className="text-sm font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>Oli</span>
             <span className="text-xs text-[#606659]">&copy; 2026</span>
           </div>
-          <div className="flex gap-5 text-xs text-[#606659]">
+          <div className="flex gap-5 text-sm text-[#606659]">
             <Link to="/legal/privacy" className="hover:text-[#194121] transition-colors">
               {lang === 'el' ? 'Απόρρητο' : 'Privacy'}
             </Link>
