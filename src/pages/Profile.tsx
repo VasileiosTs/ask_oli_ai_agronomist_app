@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check, Key, Plus } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3 } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -9,6 +9,7 @@ import type { Lang } from '../lib/i18n';
 import { LANG_OPTIONS } from '../lib/i18n';
 import clsx from 'clsx';
 import PaywallModal from '../components/PaywallModal';
+import PromoCodeRedeem from '../components/PromoCodeRedeem';
 import { formatTierLabel, isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
@@ -30,7 +31,16 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const push = usePushSubscription(appUserId ?? null);
+
+  // Check admin access once
+  useEffect(() => {
+    if (!user) return;
+    Promise.resolve(supabase.from('admin_users').select('id').eq('auth_id', user.id).maybeSingle())
+      .then(({ data }) => setIsAdmin(!!data))
+      .catch(() => {});
+  }, [user]);
 
   // ── API keys state ──
   interface ApiKey { id: string; name: string; key_prefix: string; last_used_at: string | null; created_at: string; revoked_at: string | null }
@@ -290,6 +300,9 @@ export default function Profile() {
             </button>
           </div>
         )}
+        <div className="mt-3">
+          <PromoCodeRedeem onSuccess={refreshProfile} />
+        </div>
       </div>
 
       <div className="h-px bg-border/50" />
@@ -399,6 +412,17 @@ export default function Profile() {
           <button onClick={() => setDeleteOpen(true)} className="flex w-full items-center gap-3 rounded-xl p-3 text-red-400 transition-colors hover:bg-red-500/5">
             <Trash2 className="h-5 w-5" /><span className="text-sm">{t.deleteAccount}</span>
           </button>
+          {isAdmin && (
+            <button onClick={() => navigate('/admin/metrics')} className="flex w-full items-center justify-between rounded-xl p-3 transition-colors hover:bg-surface">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <span className="text-sm font-medium text-primary">
+                  {lang === 'el' ? 'Admin Dashboard' : 'Admin Dashboard'}
+                </span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-primary" />
+            </button>
+          )}
         </div>
       </div>
 

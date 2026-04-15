@@ -564,8 +564,8 @@ function PhoneMockup({ lang }: { lang: string }) {
           </div>
         </div>
       </div>
-      {/* Glow — only on sm+ to avoid bleeding into page background on mobile */}
-      <div className="absolute -inset-4 -z-10 rounded-[50%] opacity-20 blur-3xl hidden sm:block" style={{ background: 'radial-gradient(ellipse, #194121 0%, transparent 70%)' }} />
+      {/* Glow */}
+      <div className="absolute -inset-4 -z-10 rounded-[50%] opacity-20 blur-3xl" style={{ background: 'radial-gradient(ellipse, #194121 0%, transparent 70%)' }} />
     </div>
   );
 }
@@ -971,8 +971,8 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right: animated phone mockup — hidden on small mobile (decorative only) */}
-            <div className="flex-shrink-0 hidden sm:flex justify-center lg:justify-end">
+            {/* Right: animated phone mockup */}
+            <div className="flex-shrink-0 flex justify-center lg:justify-end">
               <PhoneMockup lang={lang} />
             </div>
           </div>
