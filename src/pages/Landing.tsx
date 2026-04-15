@@ -564,8 +564,8 @@ function PhoneMockup({ lang }: { lang: string }) {
           </div>
         </div>
       </div>
-      {/* Glow */}
-      <div className="absolute -inset-4 -z-10 rounded-[50%] opacity-20 blur-3xl" style={{ background: 'radial-gradient(ellipse, #194121 0%, transparent 70%)' }} />
+      {/* Glow — only on sm+ to avoid bleeding into page background on mobile */}
+      <div className="absolute -inset-4 -z-10 rounded-[50%] opacity-20 blur-3xl hidden sm:block" style={{ background: 'radial-gradient(ellipse, #194121 0%, transparent 70%)' }} />
     </div>
   );
 }
@@ -654,6 +654,21 @@ export default function Landing() {
   const [suggestionVisible, setSuggestionVisible] = useState(true);
   const [pricingRole, setPricingRole]     = useState('farmer');
   const imperial = useMemo(() => detectImperial(), []);
+
+  // Fix mobile overscroll background — the app is dark-themed (#0D1117) but the
+  // landing page is light-themed. Without this, iOS overscroll shows the dark body.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.backgroundColor;
+    const prevBody = body.style.backgroundColor;
+    html.style.backgroundColor = '#faf9f4';
+    body.style.backgroundColor = '#faf9f4';
+    return () => {
+      html.style.backgroundColor = prevHtml;
+      body.style.backgroundColor = prevBody;
+    };
+  }, []);
 
   // Photo attachment for hero guest chat
   const [heroPhoto, setHeroPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
@@ -956,8 +971,8 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right: animated phone mockup */}
-            <div className="flex-shrink-0 flex justify-center lg:justify-end">
+            {/* Right: animated phone mockup — hidden on small mobile (decorative only) */}
+            <div className="flex-shrink-0 hidden sm:flex justify-center lg:justify-end">
               <PhoneMockup lang={lang} />
             </div>
           </div>
@@ -1213,7 +1228,7 @@ export default function Landing() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section className="py-16 bg-[#f5f4ef]">
+      <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <h2 className="sr-only">{lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
