@@ -134,6 +134,21 @@ const PILLAR_LABELS: Record<string, { el: string; en: string }> = {
   WEATHER_RECENT:    { el: 'Πρόσφατες καιρικές συνθήκες',                 en: 'Recent weather conditions'                  },
 };
 
+/**
+ * Normalise a pillar key returned by Gemini to one of the canonical keys above.
+ * Gemini sometimes returns human-readable English strings instead of the exact keys,
+ * e.g. "Symptoms (detailed pattern)" instead of "THE SYMPTOMS".
+ */
+function normalisePillarKey(raw: string): string {
+  const upper = raw.toUpperCase().trim();
+  if (upper.includes('VICTIM') || upper.includes('CROP VARIETY') || upper.includes('ΠΟΙΚΙΛΙΑ') || upper.includes('SPECIES')) return 'THE VICTIM';
+  if (upper.includes('SYMPTOM') || upper.includes('ΧΡΩΜΑ') || upper.includes('ΥΦΗ') || upper.includes('COLOR') || upper.includes('COLOUR')) return 'THE SYMPTOMS';
+  if (upper.includes('TIMELINE') || upper.includes('TIMING') || upper.includes('WHEN') || upper.includes('ΕΜΦΑΝΙΣΤ') || upper.includes('ΣΤΑΔΙΟ')) return 'THE TIMELINE';
+  if (upper.includes('ENVIRONMENT') || upper.includes('ΕΔΑΦ') || upper.includes('ΑΡΔΕΥ') || upper.includes('SOIL') || upper.includes('WEATHER') || upper.includes('ΚΑΙΡ')) return 'THE ENVIRONMENT';
+  if (upper.includes('EVIDENCE') || upper.includes('PHOTO') || upper.includes('ΦΩΤΟ') || upper.includes('ΦΩΤΟΓ') || upper.includes('PICTURE') || upper.includes('IMAGE')) return 'THE EVIDENCE';
+  return raw; // already canonical or unknown — pass through for PILLAR_LABELS fallback
+}
+
 function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string }) {
   if (!pillars || pillars.length === 0) return null;
   const isEl = lang === 'el';
@@ -146,11 +161,16 @@ function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string
           {isEl ? 'Για μεγαλύτερη ακρίβεια, χρειάζομαι:' : 'To be more certain, I need:'}
         </p>
       </div>
-      {pillars.map(p => (
-        <p key={p} className="text-[12px] text-foreground/80 leading-snug">
-          &bull; {PILLAR_LABELS[p]?.[isEl ? 'el' : 'en'] ?? p}
-        </p>
-      ))}
+      {pillars.map(p => {
+        const canonical = normalisePillarKey(p);
+        const label = PILLAR_LABELS[canonical]?.[isEl ? 'el' : 'en'];
+        if (!label) return null; // skip unknown pillars
+        return (
+          <p key={p} className="text-[12px] text-foreground/80 leading-snug">
+            &bull; {label}
+          </p>
+        );
+      })}
     </div>
   );
 }

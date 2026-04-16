@@ -243,7 +243,7 @@ const el: T = {
   guestFieldsBody: 'Συνδέσου για να αποθηκεύεις τα χωράφια σου και να έχεις προστατευμένη μνήμη.',
   interventionHistory: 'Ιστορικό Παρεμβάσεων', historySubtitle: 'Χρονολόγιο εφαρμογών & αποτελεσμάτων',
   noHistoryTitle: 'Κανένα ιστορικό ακόμα', noHistoryBody: 'Καταχώρησε μια παρέμβαση από τη συνομιλία.',
-  appliedOn: 'Εφαρμογή:', followUpPending: 'Αναμονή follow-up', outcomeLabel: 'Αποτέλεσμα',
+  appliedOn: 'Εφαρμογή:', followUpPending: 'Αναμονή παρακολούθησης', outcomeLabel: 'Αποτέλεσμα',
   productLabel: 'Προϊόν', dosageLabel: 'Δόση', methodLabel: 'Μέθοδος',
   stepApplyCheck: 'Εφαρμόστηκε;', stepOutcomeCheck: 'Βελτίωση;', stepComplete: 'Ολοκληρώθηκε',
   daysAgo: 'μέρες πριν',

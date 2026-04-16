@@ -36,6 +36,18 @@ function daysAgo(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
+/**
+ * Strip English translations in parentheses that the AI sometimes adds to Greek disease names.
+ * e.g. "Κυκλοκόνιο (Olive Leaf Spot / Peacock Spot)" → "Κυκλοκόνιο"
+ * Only strips if the part before the parenthesis is non-empty Greek/Latin text.
+ */
+function cleanProblemName(problem: string | null): string | null {
+  if (!problem) return null;
+  // Remove trailing " (English Name / More English)" patterns — up to 60 chars in parens
+  const cleaned = problem.replace(/\s*\([^)]{3,60}\)\s*$/, '').trim();
+  return cleaned || problem;
+}
+
 function VioStepBadge({ step, outcome, t }: { step: number | null; outcome: string | null; t: T }) {
   if (outcome) {
     const cfg: Record<string, { color: string; label: string }> = {
@@ -171,7 +183,7 @@ export default function History() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-foreground text-sm truncate">
-                          {item.problem || item.crop_type || 'Intervention'}
+                          {cleanProblemName(item.problem) || item.crop_type || 'Intervention'}
                         </span>
                         <VioStepBadge step={item.vio_step} outcome={item.outcome} t={t} />
                       </div>

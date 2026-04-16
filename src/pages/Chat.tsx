@@ -160,6 +160,7 @@ export default function Chat() {
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
   const [activeGrowerId, setActiveGrowerId] = useState<string | undefined>();
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
+  const [sidebarRefresh, setSidebarRefresh] = useState(0);
 
   // Hydrate ?grower= / ?field= URL params (e.g. when navigating from a client's profile).
   useEffect(() => {
@@ -898,6 +899,7 @@ export default function Chat() {
 
       if (conv?.id) {
         setActiveConversationId(conv.id);
+        setSidebarRefresh(n => n + 1);
 
         // Insert user message
         await supabase.from('chat_messages').insert({
@@ -1053,6 +1055,7 @@ export default function Chat() {
 
       if (resolvedConversationId && resolvedConversationId !== currentConversationId) {
         setActiveConversationId(resolvedConversationId);
+        setSidebarRefresh(n => n + 1);
       }
 
       if (completion.fieldId && completion.fieldId !== currentActiveFieldId) {
@@ -1595,7 +1598,8 @@ export default function Chat() {
       {!isGuestMode && (
         <div className="hidden md:block flex-shrink-0">
           <ConversationSidebar isOpen={true} onClose={() => {}} desktop={true}
-            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
+            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat}
+            refreshSignal={sidebarRefresh} />
         </div>
       )}
 
@@ -1603,7 +1607,8 @@ export default function Chat() {
       {!isGuestMode && (
         <div className="md:hidden">
           <ConversationSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}
-            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat} />
+            activeId={activeConversationId} onSelect={handleSidebarSelect} onNewChat={clearChat}
+            refreshSignal={sidebarRefresh} />
         </div>
       )}
 

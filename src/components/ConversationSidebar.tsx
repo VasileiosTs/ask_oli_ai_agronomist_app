@@ -27,9 +27,11 @@ interface Props {
   onSelect: (id: string) => void;
   onNewChat: () => void;
   desktop?: boolean;
+  /** Increment this to force a conversation list refresh (e.g. after sending first message). */
+  refreshSignal?: number;
 }
 
-export default function ConversationSidebar({ isOpen, onClose, activeId, onSelect, onNewChat, desktop }: Props) {
+export default function ConversationSidebar({ isOpen, onClose, activeId, onSelect, onNewChat, desktop, refreshSignal }: Props) {
   const { appUserId, user, profile } = useAuth();
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
@@ -78,7 +80,7 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
         setFieldsList(data as FieldItem[]);
       }
     }).catch(() => {});
-  }, [appUserId, isOpen]);
+  }, [appUserId, isOpen, refreshSignal]);
 
   const loadMore = () => {
     if (!appUserId) return;

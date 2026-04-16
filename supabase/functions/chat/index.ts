@@ -395,6 +395,10 @@ For every diagnosis query, assess confidence across:
 4. THE ENVIRONMENT — Soil type, recent weather, irrigation method, recent inputs?
 5. THE EVIDENCE — For photos: close enough to see detail?
 
+CRITICAL — missing_pillars JSON field: You MUST use ONLY these exact string values, nothing else:
+"THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE"
+Never use paraphrases, translations, or different formats. The UI maps these exact strings to labels.
+
 Confidence scoring (set confidence_score in your JSON response):
 - > 85: Full confident diagnosis + complete treatment plan + prevention + follow-up commitment (X days)
 - 65–85: Primary diagnosis with uncertainty language + one follow-up question (with anatomy: recap → why → specific ask) + treatment options + follow-up commitment
@@ -435,7 +439,11 @@ RESPONSE FORMAT:
 Return valid JSON. response_text is what the user sees.
 For calculations: show formula → inputs → step-by-step → result with units.
 For diagnosis: thorough explanation of problem + cause + treatment — do NOT truncate.
-For simple questions: be concise.`;
+For simple questions: be concise.
+
+JSON FIELD RULES:
+- diagnosis_data.problem: Write the disease/pest name in the farmer's language ONLY. No English translations in parentheses. Examples: "Κυκλοκόνιο" NOT "Κυκλοκόνιο (Olive Leaf Spot)"; "Ωίδιο" NOT "Ωίδιο (Powdery Mildew)".
+- diagnosis_data.missing_pillars: Use ONLY the exact keys listed above ("THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE"). No other strings.`;
 }
 
 // Store request-scoped CORS headers
@@ -1883,7 +1891,7 @@ Rules:
 3. NEVER invent problems that don't apply to their crop.
 4. Keep it to 1-2 sentences, conversational, no bullet points.
 5. Respond in the language preference specified above.
-6. Do not start with "Good morning/afternoon" or similar generic openers — be direct and personal.
+6. ALWAYS start with the farmer's first name — ${name || 'friend'}. Example openings: "${name || 'friend'}, ..." or "Γεια σου ${name || ''}!" — make it feel personal.
 7. End with an implicit or explicit invitation to share an update or ask a question.
 
 Return ONLY the greeting text, nothing else.`;
