@@ -13,6 +13,7 @@ import PromoCodeRedeem from '../components/PromoCodeRedeem';
 import { formatTierLabel, isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
+import { unitLabel, defaultUnitForLang, type AreaUnit } from '../lib/areaUnits';
 
 export default function Profile() {
   const { user, profile, appUserId, logout, refreshProfile } = useAuth();
@@ -99,6 +100,14 @@ export default function Profile() {
 
   const currentProfile = profile;
   const currentTier = typeof currentProfile.tier === 'string' ? currentProfile.tier : null;
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
+  const areaUnit: AreaUnit = (currentProfile.area_unit as AreaUnit | undefined) ?? defaultUnitForLang(lang);
+
+  const saveAreaUnit = async (unit: AreaUnit) => {
+    if (!appUserId) return;
+    await supabase.from('users').update({ area_unit: unit }).eq('id', appUserId);
+    await refreshProfile();
+  };
   const hasUnlimitedMessages = isUnlimitedTier(
     currentTier,
   );
@@ -250,8 +259,10 @@ export default function Profile() {
       {/* Header */}
       <div className="px-4 pt-12 pb-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-full bg-primary/20">
-            <Leaf className="h-8 w-8 text-primary" />
+          <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-full bg-primary/20 overflow-hidden">
+            {avatarUrl
+              ? <img src={avatarUrl} alt={currentProfile.name as string} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              : <Leaf className="h-8 w-8 text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="truncate text-xl font-bold text-foreground">{currentProfile.name as string}</h1>
@@ -323,6 +334,22 @@ export default function Profile() {
                     lang === code ? 'bg-primary text-white' : 'bg-surface text-muted border border-border/50 hover:text-foreground')}>
                   <span>{flag}</span>
                   <span className="uppercase">{code}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Area unit preference */}
+          <div className="flex items-center justify-between rounded-xl p-3">
+            <div className="flex items-center gap-3">
+              <span className="text-base">📐</span>
+              <span className="text-sm text-foreground">{lang === 'el' ? 'Μονάδα έκτασης' : 'Area unit'}</span>
+            </div>
+            <div className="flex gap-1">
+              {(['ha', 'stremma', 'acre'] as AreaUnit[]).map(u => (
+                <button key={u} onClick={() => saveAreaUnit(u)}
+                  className={clsx('rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                    areaUnit === u ? 'bg-primary text-white' : 'bg-surface text-muted border border-border/50 hover:text-foreground')}>
+                  {unitLabel(u, lang)}
                 </button>
               ))}
             </div>

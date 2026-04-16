@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock, FileDown, Users } from 'lucide-react';
+import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock, FileDown, Users, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -9,6 +9,7 @@ import { getTierLimits } from '../lib/constants';
 import { isAdvisorTier } from '../../shared/subscription';
 import { downloadFieldReport } from '../lib/generateReport';
 import LocationAutocomplete from '../components/LocationAutocomplete';
+import { formatArea, unitLabel, displayToHa, haToDisplay, type AreaUnit } from '../lib/areaUnits';
 import clsx from 'clsx';
 
 interface Field {
@@ -41,6 +42,7 @@ export default function Fields() {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const areaUnit: AreaUnit = (profile?.area_unit as AreaUnit | undefined) ?? (lang === 'el' ? 'stremma' : 'ha');
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -109,7 +111,7 @@ export default function Fields() {
         user_id: appUserId!, name: form.name.trim(),
         crop_type: form.crop_type.trim() || null, location: form.location.trim() || null,
         location_lat: form.location_lat, location_lon: form.location_lon,
-        size_ha: form.size_ha ? parseFloat(form.size_ha) : null,
+        size_ha: form.size_ha ? displayToHa(parseFloat(form.size_ha), areaUnit) : null,
         soil_type: form.soil_type || null, irrigation_type: form.irrigation_type || null,
         growing_medium: form.growing_medium || null, is_active: true, source: 'manual' as const,
       };
@@ -157,7 +159,7 @@ export default function Fields() {
   const openEdit = (field: Field) => {
     setEditingField(field);
     setForm({ name: field.name, crop_type: field.crop_type ?? '', location: field.location ?? '',
-      size_ha: field.size_ha?.toString() ?? '', soil_type: field.soil_type ?? '',
+      size_ha: field.size_ha != null ? String(haToDisplay(field.size_ha, areaUnit)) : '', soil_type: field.soil_type ?? '',
       irrigation_type: field.irrigation_type ?? '', growing_medium: field.growing_medium ?? '',
       location_lat: field.location_lat ?? null, location_lon: field.location_lon ?? null });
     setSheetOpen(true);
@@ -169,6 +171,9 @@ export default function Fields() {
     <div className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       <div className="border-b border-border/50 px-4 py-4">
         <div className="flex items-center gap-2">
+          <button onClick={() => navigate(-1)} className="mr-1 rounded-full p-1.5 text-muted hover:bg-surface hover:text-foreground transition-colors" aria-label="Back">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           {advisor ? <Users className="h-5 w-5 text-primary" /> : <Sprout className="h-5 w-5 text-primary" />}
           <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
           {limits.fields !== Infinity && (
@@ -232,7 +237,7 @@ export default function Fields() {
                       </div>
                       {field.crop_type && <p className="mt-0.5 text-sm text-muted">{field.crop_type}</p>}
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {field.size_ha && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{field.size_ha} ha</span>}
+                        {field.size_ha && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{formatArea(field.size_ha, areaUnit, lang)}</span>}
                         {field.growing_medium && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{t.fieldOptionLabels[field.growing_medium] || field.growing_medium}</span>}
                       </div>
                     </div>
@@ -297,8 +302,11 @@ export default function Fields() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">{t.fieldSize}</label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  {t.fieldSize} ({unitLabel(areaUnit, lang)})
+                </label>
                 <input type="number" value={form.size_ha} onChange={e => setForm(f => ({ ...f, size_ha: e.target.value }))}
+                  placeholder={areaUnit === 'stremma' ? 'π.χ. 50' : 'e.g. 5'}
                   className="w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none" />
               </div>
               {[
