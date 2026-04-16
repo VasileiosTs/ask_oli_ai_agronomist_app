@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MessageCircle, User, Users, Building2 } from 'lucide-react';
+import { MessageCircle, User, Users, Building2, Sprout, History } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { useAuth } from '../hooks/useAuth';
 import { isUnlimitedTier } from '../../shared/subscription';
@@ -13,13 +13,21 @@ export default function BottomNav() {
 
   const tier = typeof profile?.tier === 'string' ? profile.tier : null;
   const showClients = isUnlimitedTier(tier);
-
   const isEnterprise = tier === 'enterprise';
 
+  // Farmer (free / pro): Chat, Fields, History, Profile
+  // Advisor (agronomist / expert): Chat, Clients, History, Profile
+  // Enterprise: Chat, Clients, Cooperative, Profile (history in sidebar)
   const tabs = [
     { path: '/chat', icon: MessageCircle, label: t.navChat },
-    ...(showClients ? [{ path: '/clients', icon: Users, label: lang === 'el' ? 'Παραγωγοί' : 'Clients' }] : []),
-    ...(isEnterprise ? [{ path: '/cooperative', icon: Building2, label: lang === 'el' ? 'Συνεταιρισμός' : 'Coop' }] : []),
+    ...(showClients
+      ? [{ path: '/clients', icon: Users, label: lang === 'el' ? 'Παραγωγοί' : 'Clients' }]
+      : [{ path: '/fields', icon: Sprout, label: lang === 'el' ? 'Χωράφια' : 'Fields' }]
+    ),
+    ...(isEnterprise
+      ? [{ path: '/cooperative', icon: Building2, label: lang === 'el' ? 'Συνεταιρισμός' : 'Coop' }]
+      : [{ path: '/history', icon: History, label: lang === 'el' ? 'Ιστορικό' : 'History' }]
+    ),
     { path: '/profile', icon: User, label: t.navProfile },
   ];
 

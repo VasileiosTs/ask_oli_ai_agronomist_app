@@ -192,8 +192,13 @@ function AppRoutes() {
       <Route path="/legal/privacy" element={<Privacy />} />
       <Route path="/legal/terms" element={<Terms />} />
 
-      {/* Admin */}
-      <Route path="/admin/metrics" element={<AdminMetrics />} />
+      {/* Admin — requires auth; AdminMetrics itself validates admin_users membership */}
+      <Route
+        path="/admin/metrics"
+        element={
+          user ? <AdminMetrics /> : <Navigate to="/auth?next=/admin/metrics" replace />
+        }
+      />
 
       {/* Auth — only for unauthenticated users */}
       <Route

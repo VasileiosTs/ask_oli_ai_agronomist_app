@@ -16,6 +16,7 @@ export interface ChatFunctionRequest {
   fieldContext: string;
   hasActiveField: boolean;
   fieldId?: string | null;
+  growerId?: string | null;
   conversationId?: string | null;
   userMessageId?: string | null;
   attachmentPaths?: string[];

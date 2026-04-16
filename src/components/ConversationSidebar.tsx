@@ -10,7 +10,14 @@ import { isAdvisorTier } from '../../shared/subscription';
 import clsx from 'clsx';
 import LanguageToggle from './LanguageToggle';
 
-interface Conversation { id: string; title: string; updated_at: string; }
+interface Conversation {
+  id: string;
+  title: string;
+  updated_at: string;
+  grower_id: string | null;
+  field_id: string | null;
+}
+interface GroupMeta { id: string; label: string; }
 
 interface Props {
   isOpen: boolean;
@@ -26,10 +33,13 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [convs, setConvs] = useState<Conversation[]>([]);
+  const [growers, setGrowers] = useState<Record<string, string>>({});
+  const [fields, setFields] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
+  const advisor = isAdvisorTier(profile?.tier as string | undefined);
 
   useEffect(() => {
     if (!appUserId) { setLoading(false); return; }
@@ -37,10 +47,23 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
     setPage(1);
     Promise.resolve(
       supabase
-        .from('conversations').select('id, title, updated_at')
+        .from('conversations').select('id, title, updated_at, grower_id, field_id')
         .eq('user_id', appUserId).order('updated_at', { ascending: false }).range(0, PAGE_SIZE - 1)
-    ).then(({ data }) => { if (data) setConvs(data); setLoading(false); })
+    ).then(({ data }) => { if (data) setConvs(data as Conversation[]); setLoading(false); })
       .catch(() => { setLoading(false); });
+
+    // Load grower + field labels for grouping (cheap, small tables).
+    Promise.resolve(
+      supabase.from('growers').select('id, name').eq('advisor_id', appUserId)
+    ).then(({ data }) => {
+      if (data) setGrowers(Object.fromEntries(data.map(g => [g.id, g.name])));
+    }).catch(() => {});
+
+    Promise.resolve(
+      supabase.from('fields').select('id, name').eq('user_id', appUserId)
+    ).then(({ data }) => {
+      if (data) setFields(Object.fromEntries(data.map(f => [f.id, f.name])));
+    }).catch(() => {});
   }, [appUserId, isOpen]);
 
   const loadMore = () => {
@@ -48,11 +71,11 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
     const nextPage = page + 1;
     Promise.resolve(
       supabase
-        .from('conversations').select('id, title, updated_at')
+        .from('conversations').select('id, title, updated_at, grower_id, field_id')
         .eq('user_id', appUserId).order('updated_at', { ascending: false })
         .range(page * PAGE_SIZE, nextPage * PAGE_SIZE - 1)
     ).then(({ data }) => {
-        if (data && data.length > 0) setConvs(prev => [...prev, ...data]);
+        if (data && data.length > 0) setConvs(prev => [...prev, ...(data as Conversation[])]);
         setPage(nextPage);
       })
       .catch(() => {});
@@ -77,11 +100,39 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
   const userName = (profile?.name as string) ?? user?.email ?? '';
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const searchPlaceholder = lang === 'el' ? 'Αναζήτηση...' : 'Search...';
-  const advisor = isAdvisorTier(profile?.tier as string | undefined);
   const fieldsLabel = advisor
     ? (lang === 'el' ? 'Οι Παραγωγοί μου' : 'My Growers')
     : (lang === 'el' ? 'Τα Χωράφια μου' : 'My Fields');
   const noResults = lang === 'el' ? 'Δεν βρέθηκαν αποτελέσματα' : 'No results found';
+  const ungroupedLabel = lang === 'el' ? 'Γενικές συζητήσεις' : 'General chats';
+
+  // Grouped view: advisors → by grower, farmers → by field. Only when not searching.
+  const grouped = useMemo(() => {
+    if (query.trim()) return null;
+    const groups: { meta: GroupMeta; items: Conversation[] }[] = [];
+    const byKey = new Map<string, number>();
+
+    const pushInto = (key: string, label: string, c: Conversation) => {
+      const idx = byKey.get(key);
+      if (idx !== undefined) { groups[idx].items.push(c); return; }
+      byKey.set(key, groups.length);
+      groups.push({ meta: { id: key, label }, items: [c] });
+    };
+
+    for (const c of filtered) {
+      if (advisor && c.grower_id && growers[c.grower_id]) {
+        pushInto(`g:${c.grower_id}`, growers[c.grower_id], c);
+      } else if (!advisor && c.field_id && fields[c.field_id]) {
+        pushInto(`f:${c.field_id}`, fields[c.field_id], c);
+      } else {
+        pushInto('__none__', ungroupedLabel, c);
+      }
+    }
+    // Only use grouping if there's at least one named group beyond "general".
+    const hasNamed = groups.some(g => g.meta.id !== '__none__');
+    return hasNamed ? groups : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, advisor, growers, fields, query, ungroupedLabel]);
 
   const content = (
     <div className={clsx(
@@ -105,10 +156,10 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
         <Plus className="h-4 w-4" />{t.newChat}
       </button>
 
-      {/* Fields / Growers nav */}
+      {/* Fields / Growers nav — hidden on mobile (bottom nav covers it), shown on desktop */}
       <button
-        onClick={() => { navigate('/fields'); if (!desktop) onClose(); }}
-        className="mx-3 mt-2 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-background/60 hover:text-foreground"
+        onClick={() => { navigate(advisor ? '/clients' : '/fields'); if (!desktop) onClose(); }}
+        className="mx-3 mt-2 hidden md:flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-background/60 hover:text-foreground"
       >
         {advisor
           ? <Users className="h-4 w-4 flex-shrink-0" />
@@ -162,7 +213,28 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
           </div>
         ) : (
           <>
-            {filtered.map(c => (
+            {grouped ? (
+              grouped.map(group => (
+                <div key={group.meta.id} className="mb-2">
+                  <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
+                    {group.meta.label}
+                  </p>
+                  {group.items.map(c => (
+                    <button key={c.id}
+                      onClick={() => { onSelect(c.id); if (!desktop) onClose(); }}
+                      className={clsx(
+                        'w-full px-4 py-2.5 text-left transition-colors hover:bg-background/60 border-b border-border/20',
+                        activeId === c.id && 'bg-background/80'
+                      )}>
+                      <p className="truncate text-sm font-medium text-foreground leading-snug">
+                        {c.title || t.newChat}
+                      </p>
+                      <p className="text-[11px] text-muted mt-0.5">{fmtDate(c.updated_at)}</p>
+                    </button>
+                  ))}
+                </div>
+              ))
+            ) : filtered.map(c => (
               <button key={c.id}
                 onClick={() => { onSelect(c.id); if (!desktop) onClose(); }}
                 className={clsx(

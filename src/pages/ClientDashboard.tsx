@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Leaf, ChevronRight, Plus, X, Loader2, Search, AlertCircle, ClipboardList } from 'lucide-react';
+import { Users, ChevronRight, Plus, X, Loader2, Search, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { isUnlimitedTier } from '../../shared/subscription';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 
 interface Grower {
   id: string;
@@ -27,7 +28,7 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', location: '', notes: '' });
+  const [form, setForm] = useState<{ name: string; phone: string; location: string; notes: string; location_lat: number | null; location_lon: number | null }>({ name: '', phone: '', location: '', notes: '', location_lat: null, location_lon: null });
   const [saving, setSaving] = useState(false);
 
   const tier = typeof profile?.tier === 'string' ? profile.tier : null;
@@ -92,7 +93,7 @@ export default function ClientDashboard() {
 
       if (error) throw error;
       setGrowers(prev => [{ ...data, diagnosis_count: 0, last_diagnosis_at: null }, ...prev]);
-      setForm({ name: '', phone: '', location: '', notes: '' });
+      setForm({ name: '', phone: '', location: '', notes: '', location_lat: null, location_lon: null });
       setAddOpen(false);
     } finally {
       setSaving(false);
@@ -217,10 +218,8 @@ export default function ClientDashboard() {
             </div>
             <div className="space-y-3">
               {([
-                { key: 'name', label: lang === 'el' ? 'Όνομα*' : 'Name*', required: true },
-                { key: 'phone', label: lang === 'el' ? 'Τηλέφωνο' : 'Phone', required: false },
-                { key: 'location', label: lang === 'el' ? 'Τοποθεσία' : 'Location', required: false },
-                { key: 'notes', label: lang === 'el' ? 'Σημειώσεις' : 'Notes', required: false },
+                { key: 'name', label: lang === 'el' ? 'Όνομα*' : 'Name*' },
+                { key: 'phone', label: lang === 'el' ? 'Τηλέφωνο' : 'Phone' },
               ] as const).map(({ key, label }) => (
                 <div key={key}>
                   <label className="mb-1 block text-xs font-medium text-muted">{label}</label>
@@ -232,6 +231,34 @@ export default function ClientDashboard() {
                   />
                 </div>
               ))}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted">
+                  {lang === 'el' ? 'Τοποθεσία' : 'Location'}
+                </label>
+                <LocationAutocomplete
+                  value={form.location}
+                  lang={lang}
+                  coords={form.location_lat && form.location_lon ? { lat: form.location_lat, lon: form.location_lon } : null}
+                  onChange={val => setForm(prev => ({ ...prev, location: val }))}
+                  onSelect={sel => setForm(prev => ({
+                    ...prev,
+                    location: sel?.label ?? prev.location,
+                    location_lat: sel?.lat ?? null,
+                    location_lon: sel?.lon ?? null,
+                  }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted">
+                  {lang === 'el' ? 'Σημειώσεις' : 'Notes'}
+                </label>
+                <input
+                  type="text"
+                  value={form.notes}
+                  onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
             </div>
             <div className="mt-5 flex gap-3">
               <button onClick={() => setAddOpen(false)}

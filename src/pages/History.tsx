@@ -24,6 +24,7 @@ interface Intervention {
   improvement_note: string | null;
   follow_up_at: string | null;
   field_id: string | null;
+  grower_id: string | null;
 }
 
 interface FieldLookup {
@@ -54,23 +55,52 @@ function VioStepBadge({ step, outcome, t }: { step: number | null; outcome: stri
 }
 
 export default function History() {
-  const { appUserId } = useAuth();
+  const { appUserId, profile } = useAuth();
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const tier = profile?.tier as string | undefined;
+  const isAdvisor = tier === 'agronomist' || tier === 'expert' || tier === 'enterprise';
 
+  // Advisors see their own interventions PLUS any interventions belonging to
+  // growers they own. Farmers just see their own.
   const { data: interventions = [], isLoading } = useQuery({
-    queryKey: ['interventions', appUserId],
+    queryKey: ['interventions', appUserId, isAdvisor],
     queryFn: async () => {
+      let growerIds: string[] = [];
+      if (isAdvisor && appUserId) {
+        const { data: gs } = await supabase
+          .from('growers').select('id').eq('advisor_id', appUserId);
+        growerIds = (gs ?? []).map((g: { id: string }) => g.id);
+      }
+
+      const orClauses: string[] = [`user_id.eq.${appUserId}`];
+      if (growerIds.length > 0) {
+        orClauses.push(`grower_id.in.(${growerIds.join(',')})`);
+      }
+
       const { data, error } = await supabase
         .from('interventions')
         .select('*')
-        .eq('user_id', appUserId!)
+        .or(orClauses.join(','))
         .order('applied_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Intervention[];
     },
     enabled: !!appUserId,
+  });
+
+  const { data: growerMap = {} } = useQuery({
+    queryKey: ['growers-lookup', appUserId],
+    queryFn: async () => {
+      if (!isAdvisor) return {};
+      const { data } = await supabase
+        .from('growers').select('id, name').eq('advisor_id', appUserId!);
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((g: { id: string; name: string }) => { map[g.id] = g.name; });
+      return map;
+    },
+    enabled: !!appUserId && isAdvisor,
   });
 
   const { data: fieldMap = {} } = useQuery({
@@ -121,6 +151,7 @@ export default function History() {
               const dateStr = item.applied_at || item.date;
               const days = dateStr ? daysAgo(dateStr) : null;
               const fieldName = item.field_id ? fieldMap[item.field_id] : null;
+              const growerName = item.grower_id ? growerMap[item.grower_id] : null;
 
               return (
                 <div key={item.id} className="rounded-2xl border border-border/50 bg-surface overflow-hidden">
@@ -149,6 +180,12 @@ export default function History() {
                           <span>
                             {days === 0 ? t.today : days === 1 ? t.yesterday : `${days} ${t.daysAgo}`}
                           </span>
+                        )}
+                        {growerName && (
+                          <>
+                            <span className="text-border">·</span>
+                            <span className="font-medium text-foreground/80">{growerName}</span>
+                          </>
                         )}
                         {fieldName && (
                           <>

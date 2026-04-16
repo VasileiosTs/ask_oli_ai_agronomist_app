@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, MessageSquare, ClipboardList, Leaf, ChevronRight, Phone, MapPin } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquare, ClipboardList, Leaf, Phone, MapPin, Sprout, Plus, Check, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -24,35 +24,86 @@ interface Diagnosis {
   fields: { name: string; crop_type: string | null } | null;
 }
 
+interface LinkedField {
+  id: string; // field id
+  name: string;
+  crop_type: string | null;
+  location: string | null;
+  size_ha: number | null;
+}
+
+type Tab = 'diagnoses' | 'fields';
+
 export default function ClientDetail() {
   const { growerId } = useParams<{ growerId: string }>();
   const { appUserId } = useAuth();
   const { lang } = useLanguage();
   const navigate = useNavigate();
 
+  const [tab, setTab] = useState<Tab>('diagnoses');
   const [grower, setGrower] = useState<Grower | null>(null);
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
+  const [linkedFields, setLinkedFields] = useState<LinkedField[]>([]);
+  const [allFields, setAllFields] = useState<LinkedField[]>([]);
   const [loading, setLoading] = useState(true);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     if (!growerId || !appUserId) return;
-    (async () => {
-      const [{ data: growerData }, { data: diagData }] = await Promise.all([
-        supabase.from('growers').select('id, name, phone, location, notes').eq('id', growerId).eq('advisor_id', appUserId).maybeSingle(),
-        supabase.from('interventions')
-          .select('id, problem, cause, severity, confidence_score, product_applied, created_at, fields(name, crop_type)')
-          .eq('grower_id', growerId)
-          .order('created_at', { ascending: false })
-          .limit(50),
-      ]);
-      if (growerData) setGrower(growerData);
-      if (diagData) setDiagnoses(diagData as unknown as Diagnosis[]);
-      setLoading(false);
-    })();
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [growerId, appUserId]);
 
-  const openChat = () => {
-    navigate(`/chat?grower=${growerId}`);
+  const reload = async () => {
+    setLoading(true);
+    const [growerRes, diagRes, linksRes, fieldsRes] = await Promise.all([
+      supabase.from('growers').select('id, name, phone, location, notes').eq('id', growerId!).eq('advisor_id', appUserId!).maybeSingle(),
+      supabase.from('interventions')
+        .select('id, problem, cause, severity, confidence_score, product_applied, created_at, fields(name, crop_type)')
+        .eq('grower_id', growerId!)
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase.from('grower_links')
+        .select('field_id, fields(id, name, crop_type, location, size_ha)')
+        .eq('grower_id', growerId!),
+      supabase.from('fields')
+        .select('id, name, crop_type, location, size_ha')
+        .eq('user_id', appUserId!)
+        .eq('is_active', true)
+        .order('name'),
+    ]);
+    if (growerRes.data) setGrower(growerRes.data);
+    if (diagRes.data) setDiagnoses(diagRes.data as unknown as Diagnosis[]);
+    if (linksRes.data) {
+      const fs = (linksRes.data as unknown as { fields: LinkedField }[])
+        .map(r => r.fields).filter(Boolean);
+      setLinkedFields(fs);
+    }
+    if (fieldsRes.data) setAllFields(fieldsRes.data as LinkedField[]);
+    setLoading(false);
+  };
+
+  const toggleLink = async (fieldId: string, currentlyLinked: boolean) => {
+    if (linking) return;
+    setLinking(true);
+    try {
+      if (currentlyLinked) {
+        await supabase.from('grower_links').delete()
+          .eq('grower_id', growerId!).eq('field_id', fieldId);
+      } else {
+        await supabase.from('grower_links').insert({ grower_id: growerId!, field_id: fieldId });
+      }
+      await reload();
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const openChat = (fieldId?: string) => {
+    const q = new URLSearchParams({ grower: growerId! });
+    if (fieldId) q.set('field', fieldId);
+    navigate(`/chat?${q.toString()}`);
   };
 
   const severityColor = (s: string | null) => {
@@ -75,6 +126,9 @@ export default function ClientDetail() {
       </div>
     );
   }
+
+  const linkedIds = new Set(linkedFields.map(f => f.id));
+  const unlinkedFields = allFields.filter(f => !linkedIds.has(f.id));
 
   return (
     <div className="flex h-full flex-col">
@@ -100,7 +154,7 @@ export default function ClientDetail() {
             </div>
           </div>
           <button
-            onClick={openChat}
+            onClick={() => openChat()}
             className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
           >
             <MessageSquare className="h-3.5 w-3.5" />
@@ -115,64 +169,167 @@ export default function ClientDetail() {
         )}
       </div>
 
-      {/* Stats strip */}
+      {/* Tabs */}
       <div className="flex-shrink-0 flex border-b border-border/50 bg-background/60">
-        <div className="flex-1 px-4 py-3 text-center border-r border-border/40">
-          <p className="text-2xl font-bold text-foreground">{diagnoses.length}</p>
-          <p className="text-[11px] text-muted mt-0.5">{lang === 'el' ? 'Διαγνώσεις' : 'Diagnoses'}</p>
-        </div>
-        <div className="flex-1 px-4 py-3 text-center">
-          <p className="text-2xl font-bold text-foreground">
-            {diagnoses.filter(d => d.severity === 'high').length}
-          </p>
-          <p className="text-[11px] text-muted mt-0.5">{lang === 'el' ? 'Υψηλής σοβαρότητας' : 'High severity'}</p>
-        </div>
+        <button
+          onClick={() => setTab('diagnoses')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors ${
+            tab === 'diagnoses' ? 'text-primary border-b-2 border-primary' : 'text-muted hover:text-foreground'
+          }`}
+        >
+          <ClipboardList className="h-4 w-4" />
+          {lang === 'el' ? 'Διαγνώσεις' : 'Diagnoses'}
+          <span className="text-xs opacity-70">({diagnoses.length})</span>
+        </button>
+        <button
+          onClick={() => setTab('fields')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors ${
+            tab === 'fields' ? 'text-primary border-b-2 border-primary' : 'text-muted hover:text-foreground'
+          }`}
+        >
+          <Sprout className="h-4 w-4" />
+          {lang === 'el' ? 'Χωράφια' : 'Fields'}
+          <span className="text-xs opacity-70">({linkedFields.length})</span>
+        </button>
       </div>
 
-      {/* Diagnoses list */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {diagnoses.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center px-8 py-12">
-            <ClipboardList className="h-10 w-10 text-muted/30" />
-            <p className="text-sm text-muted">
-              {lang === 'el' ? 'Δεν υπάρχουν διαγνώσεις ακόμα.\nΞεκίνα συνομιλία με τον παραγωγό.' : 'No diagnoses yet.\nStart a chat with this client.'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border/40">
-            {diagnoses.map(d => (
-              <div key={d.id} className="px-4 py-3.5">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
-                    <Leaf className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-foreground text-sm truncate">{d.problem ?? (lang === 'el' ? 'Άγνωστο' : 'Unknown')}</p>
-                      {d.severity && (
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${severityColor(d.severity)}`}>
-                          {lang === 'el'
-                            ? { low: 'Χαμηλή', medium: 'Μέτρια', high: 'Υψηλή' }[d.severity] ?? d.severity
-                            : d.severity}
-                        </span>
-                      )}
+        {tab === 'diagnoses' ? (
+          diagnoses.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center px-8 py-12">
+              <ClipboardList className="h-10 w-10 text-muted/30" />
+              <p className="text-sm text-muted whitespace-pre-line">
+                {lang === 'el' ? 'Δεν υπάρχουν διαγνώσεις ακόμα.\nΞεκίνα συνομιλία με τον παραγωγό.' : 'No diagnoses yet.\nStart a chat with this client.'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/40">
+              {diagnoses.map(d => (
+                <div key={d.id} className="px-4 py-3.5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
+                      <Leaf className="h-4 w-4 text-primary" />
                     </div>
-                    {d.cause && <p className="text-xs text-muted mt-0.5 truncate">{d.cause}</p>}
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {d.fields?.name && (
-                        <span className="text-[11px] text-muted">{d.fields.name}{d.fields.crop_type ? ` · ${d.fields.crop_type}` : ''}</span>
-                      )}
-                      {d.product_applied && (
-                        <span className="text-[11px] text-primary/80">{d.product_applied}</span>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-foreground text-sm truncate">{d.problem ?? (lang === 'el' ? 'Άγνωστο' : 'Unknown')}</p>
+                        {d.severity && (
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${severityColor(d.severity)}`}>
+                            {lang === 'el'
+                              ? { low: 'Χαμηλή', medium: 'Μέτρια', high: 'Υψηλή' }[d.severity] ?? d.severity
+                              : d.severity}
+                          </span>
+                        )}
+                      </div>
+                      {d.cause && <p className="text-xs text-muted mt-0.5 truncate">{d.cause}</p>}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {d.fields?.name && (
+                          <span className="text-[11px] text-muted">{d.fields.name}{d.fields.crop_type ? ` · ${d.fields.crop_type}` : ''}</span>
+                        )}
+                        {d.product_applied && (
+                          <span className="text-[11px] text-primary/80">{d.product_applied}</span>
+                        )}
+                      </div>
                     </div>
+                    <span className="flex-shrink-0 text-[11px] text-muted">
+                      {new Date(d.created_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
                   </div>
-                  <span className="flex-shrink-0 text-[11px] text-muted">
-                    {new Date(d.created_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short' })}
-                  </span>
                 </div>
+              ))}
+            </div>
+          )
+        ) : (
+          // Fields tab
+          <div className="p-4 space-y-3">
+            {linkedFields.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 text-center py-10">
+                <Sprout className="h-10 w-10 text-muted/30" />
+                <p className="text-sm text-muted">
+                  {lang === 'el' ? 'Δεν έχει συνδεθεί κανένα χωράφι ακόμα.' : 'No fields linked yet.'}
+                </p>
               </div>
-            ))}
+            ) : (
+              linkedFields.map(f => (
+                <div key={f.id} className="rounded-2xl border border-border/50 bg-surface p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <button
+                      onClick={() => navigate(`/fields/${f.id}`)}
+                      className="flex-1 text-left"
+                    >
+                      <h3 className="font-semibold text-foreground truncate">{f.name}</h3>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+                        {f.crop_type && <span>{f.crop_type}</span>}
+                        {f.size_ha && <span>· {f.size_ha} ha</span>}
+                        {f.location && <span>· {f.location}</span>}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openChat(f.id)}
+                        className="rounded-full border border-primary/30 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
+                        title={lang === 'el' ? 'Συνομιλία για αυτό το χωράφι' : 'Chat about this field'}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => toggleLink(f.id, true)}
+                        disabled={linking}
+                        className="rounded-full border border-red-500/30 bg-red-500/5 p-2 text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                        title={lang === 'el' ? 'Αφαίρεση σύνδεσης' : 'Unlink'}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* Add existing field link */}
+            {!linkOpen && unlinkedFields.length > 0 && (
+              <button
+                onClick={() => setLinkOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-surface/50 py-3 text-sm font-medium text-muted transition-colors hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" />
+                {lang === 'el' ? 'Σύνδεση υπάρχοντος χωραφιού' : 'Link existing field'}
+              </button>
+            )}
+
+            {linkOpen && (
+              <div className="rounded-2xl border border-border/50 bg-surface p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">
+                    {lang === 'el' ? 'Επιλέξτε χωράφι' : 'Pick a field'}
+                  </p>
+                  <button onClick={() => setLinkOpen(false)} className="text-muted hover:text-foreground">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                {unlinkedFields.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-muted">
+                    {lang === 'el' ? 'Όλα τα χωράφια είναι ήδη συνδεδεμένα.' : 'All fields are already linked.'}
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {unlinkedFields.map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => toggleLink(f.id, false).then(() => setLinkOpen(false))}
+                        disabled={linking}
+                        className="flex w-full items-center gap-2 rounded-xl border border-border/40 bg-background px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 disabled:opacity-50"
+                      >
+                        <Check className="h-3.5 w-3.5 text-primary opacity-0 group-hover:opacity-100" />
+                        <span className="flex-1 truncate font-medium text-foreground">{f.name}</span>
+                        {f.crop_type && <span className="text-xs text-muted">{f.crop_type}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

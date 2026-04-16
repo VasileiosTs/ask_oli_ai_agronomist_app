@@ -8,18 +8,21 @@ import { useLanguage } from '../lib/LanguageContext';
 import { getTierLimits } from '../lib/constants';
 import { isAdvisorTier } from '../../shared/subscription';
 import { downloadFieldReport } from '../lib/generateReport';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 import clsx from 'clsx';
 
 interface Field {
   id: string; name: string; crop_type: string | null; location: string | null;
   size_ha: number | null; soil_type: string | null; irrigation_type: string | null;
   growing_medium: string | null; is_active: boolean;
+  location_lat: number | null; location_lon: number | null;
   last_diagnosis: string | null; last_intervention_at: string | null; crop_count: number;
 }
 
 interface FieldFormData {
   name: string; crop_type: string; location: string; size_ha: string;
   soil_type: string; irrigation_type: string; growing_medium: string;
+  location_lat: number | null; location_lon: number | null;
 }
 
 const GROWING_MEDIUMS = ['soil', 'hydro', 'container', 'greenhouse'];
@@ -51,6 +54,7 @@ export default function Fields() {
   const [form, setForm] = useState<FieldFormData>({
     name: '', crop_type: '', location: '', size_ha: '',
     soil_type: '', irrigation_type: '', growing_medium: '',
+    location_lat: null, location_lon: null,
   });
 
   const tier = (profile as { tier?: string })?.tier || 'free';
@@ -104,6 +108,7 @@ export default function Fields() {
       const payload = {
         user_id: appUserId!, name: form.name.trim(),
         crop_type: form.crop_type.trim() || null, location: form.location.trim() || null,
+        location_lat: form.location_lat, location_lon: form.location_lon,
         size_ha: form.size_ha ? parseFloat(form.size_ha) : null,
         soil_type: form.soil_type || null, irrigation_type: form.irrigation_type || null,
         growing_medium: form.growing_medium || null, is_active: true, source: 'manual' as const,
@@ -145,7 +150,7 @@ export default function Fields() {
       return;
     }
     setEditingField(null);
-    setForm({ name: '', crop_type: '', location: '', size_ha: '', soil_type: '', irrigation_type: '', growing_medium: '' });
+    setForm({ name: '', crop_type: '', location: '', size_ha: '', soil_type: '', irrigation_type: '', growing_medium: '', location_lat: null, location_lon: null });
     setSheetOpen(true);
   };
 
@@ -153,7 +158,8 @@ export default function Fields() {
     setEditingField(field);
     setForm({ name: field.name, crop_type: field.crop_type ?? '', location: field.location ?? '',
       size_ha: field.size_ha?.toString() ?? '', soil_type: field.soil_type ?? '',
-      irrigation_type: field.irrigation_type ?? '', growing_medium: field.growing_medium ?? '' });
+      irrigation_type: field.irrigation_type ?? '', growing_medium: field.growing_medium ?? '',
+      location_lat: field.location_lat ?? null, location_lon: field.location_lon ?? null });
     setSheetOpen(true);
   };
 
@@ -268,15 +274,33 @@ export default function Fields() {
               {[
                 { label: t.fieldName, key: 'name' as const },
                 { label: t.fieldCrop, key: 'crop_type' as const },
-                { label: t.fieldLocation, key: 'location' as const },
-                { label: t.fieldSize, key: 'size_ha' as const, type: 'number' },
-              ].map(({ label, key, type }) => (
+              ].map(({ label, key }) => (
                 <div key={key}>
                   <label className="mb-1.5 block text-sm font-medium text-foreground">{label}</label>
-                  <input type={type || 'text'} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  <input type="text" value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none" />
                 </div>
               ))}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">{t.fieldLocation}</label>
+                <LocationAutocomplete
+                  value={form.location}
+                  lang={lang}
+                  coords={form.location_lat && form.location_lon ? { lat: form.location_lat, lon: form.location_lon } : null}
+                  onChange={val => setForm(f => ({ ...f, location: val }))}
+                  onSelect={sel => setForm(f => ({
+                    ...f,
+                    location: sel?.label ?? f.location,
+                    location_lat: sel?.lat ?? null,
+                    location_lon: sel?.lon ?? null,
+                  }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">{t.fieldSize}</label>
+                <input type="number" value={form.size_ha} onChange={e => setForm(f => ({ ...f, size_ha: e.target.value }))}
+                  className="w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none" />
+              </div>
               {[
                 { label: t.fieldMedium, key: 'growing_medium' as const, opts: GROWING_MEDIUMS },
                 { label: t.fieldSoil, key: 'soil_type' as const, opts: SOIL_TYPES },

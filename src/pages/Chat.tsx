@@ -158,7 +158,23 @@ export default function Chat() {
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
+  const [activeGrowerId, setActiveGrowerId] = useState<string | undefined>();
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
+
+  // Hydrate ?grower= / ?field= URL params (e.g. when navigating from a client's profile).
+  useEffect(() => {
+    const growerParam = searchParams.get('grower');
+    const fieldParam = searchParams.get('field');
+    if (growerParam) setActiveGrowerId(growerParam);
+    if (fieldParam) setActiveFieldId(fieldParam);
+    if (growerParam || fieldParam) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('grower');
+      next.delete('field');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const [attachments, setAttachments] = useState<{ file: File; previewUrl: string }[]>([]);
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
@@ -255,6 +271,7 @@ export default function Chat() {
       .insert({
         user_id: appUserId,
         field_id: fieldId,
+        grower_id: activeGrowerId ?? null,
         title: buildConversationTitle(userText),
       })
       .select('id')
@@ -874,6 +891,8 @@ export default function Chat() {
       // Create conversation
       const { data: conv } = await supabase.from('conversations').insert({
         user_id: appUserId,
+        grower_id: activeGrowerId ?? null,
+        field_id: activeFieldId ?? null,
         title: guestData.userText.slice(0, 50) + ' – ' + new Date().toLocaleString('en', { month: 'short', year: 'numeric' }),
       }).select('id').single();
 
@@ -972,6 +991,7 @@ export default function Chat() {
           fieldContext,
           hasActiveField: !!currentActiveFieldId,
           fieldId: currentActiveFieldId || null,
+          growerId: activeGrowerId || null,
           conversationId: currentConversationId || null,
           userMessageId: null,
           attachmentPaths: latestAttachmentPaths,
@@ -1403,6 +1423,7 @@ export default function Chat() {
     setIsTyping(false);
     setActiveConversationId(undefined);
     setActiveFieldId(undefined); // Reset field context — each chat starts fresh
+    setActiveGrowerId(undefined); // Reset grower context too (advisors)
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -1421,15 +1442,22 @@ export default function Chat() {
     setSidebarLoading(true);
     setActiveConversationId(id);
     try {
-      // Restore field context for this conversation
+      // Restore field + grower context for this conversation
       const { data: convData } = await supabase
         .from('conversations')
-        .select('field_id')
+        .select('field_id, grower_id')
         .eq('id', id)
         .single();
       if (loadGenerationRef.current !== thisGeneration) return; // stale load
       if (convData?.field_id) {
         setActiveFieldId(convData.field_id);
+      } else {
+        setActiveFieldId(undefined);
+      }
+      if (convData?.grower_id) {
+        setActiveGrowerId(convData.grower_id);
+      } else {
+        setActiveGrowerId(undefined);
       }
 
       const { data } = await supabase

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, MessageCircle, Sprout, Droplets, Sun,
   Calendar, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronUp,
-  Pill, Pencil,
+  Pill, Pencil, Plus, X, Loader2, Trash2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -88,19 +88,57 @@ export default function FieldDetail() {
     enabled: !!fieldId && !!appUserId,
   });
 
-  // ── Fetch crops for growth stage ──
+  // ── Fetch crops for growth stage + management ──
+  const queryClient = useQueryClient();
   const { data: fieldCrops = [] } = useQuery({
     queryKey: ['field-crops', fieldId],
     queryFn: async () => {
       const { data } = await supabase
         .from('crops')
-        .select('planted_at, name, variety')
+        .select('id, name, variety, planted_at, status, notes')
         .eq('field_id', fieldId)
-        .limit(1);
-      return data ?? [];
+        .order('created_at', { ascending: false });
+      return (data ?? []) as Array<{ id: string; name: string; variety: string | null; planted_at: string | null; status: string | null; notes: string | null }>;
     },
     enabled: !!fieldId,
   });
+
+  // ── CropManager state ──
+  const [addCropOpen, setAddCropOpen] = useState(false);
+  const [cropForm, setCropForm] = useState<{ name: string; variety: string; planted_at: string }>({ name: '', variety: '', planted_at: '' });
+  const [savingCrop, setSavingCrop] = useState(false);
+  const [removingCropId, setRemovingCropId] = useState<string | null>(null);
+
+  const addCrop = async () => {
+    if (!cropForm.name.trim() || !fieldId || !appUserId) return;
+    setSavingCrop(true);
+    try {
+      const { error } = await supabase.from('crops').insert({
+        user_id: appUserId,
+        field_id: fieldId,
+        name: cropForm.name.trim(),
+        variety: cropForm.variety.trim() || null,
+        planted_at: cropForm.planted_at || null,
+      });
+      if (!error) {
+        setCropForm({ name: '', variety: '', planted_at: '' });
+        setAddCropOpen(false);
+        await queryClient.invalidateQueries({ queryKey: ['field-crops', fieldId] });
+      }
+    } finally {
+      setSavingCrop(false);
+    }
+  };
+
+  const removeCrop = async (cropId: string) => {
+    setRemovingCropId(cropId);
+    try {
+      await supabase.from('crops').delete().eq('id', cropId);
+      await queryClient.invalidateQueries({ queryKey: ['field-crops', fieldId] });
+    } finally {
+      setRemovingCropId(null);
+    }
+  };
 
   // ── Fetch user location for weather ──
   const { data: userLocation } = useQuery({
@@ -223,10 +261,10 @@ export default function FieldDetail() {
           )}
         </div>
 
-        {/* ── Weather ── */}
+        {/* ── Weather (prefer field coords, fall back to user coords) ── */}
         <WeatherWidget
-          lat={userLocation?.location_lat ?? null}
-          lon={userLocation?.location_lon ?? null}
+          lat={field.location_lat ?? userLocation?.location_lat ?? null}
+          lon={field.location_lon ?? userLocation?.location_lon ?? null}
           lang={lang}
         />
 
@@ -285,6 +323,105 @@ export default function FieldDetail() {
             <MessageCircle className="h-4 w-4" />
             {t.fieldDetailAskOli}
           </button>
+        </div>
+
+        {/* ── Crops (add / remove) ── */}
+        <div className="mx-4 mt-6">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              {lang === 'el' ? 'Καλλιέργειες' : 'Crops'}
+              <span className="ml-2 text-xs font-normal text-muted">({fieldCrops.length})</span>
+            </h3>
+            {!addCropOpen && (
+              <button
+                onClick={() => setAddCropOpen(true)}
+                className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20"
+              >
+                <Plus className="h-3 w-3" />
+                {lang === 'el' ? 'Νέα' : 'New'}
+              </button>
+            )}
+          </div>
+
+          {addCropOpen && (
+            <div className="rounded-2xl border border-border/50 bg-surface p-3 mb-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-foreground">
+                  {lang === 'el' ? 'Νέα καλλιέργεια' : 'New crop'}
+                </p>
+                <button onClick={() => setAddCropOpen(false)} className="text-muted hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder={lang === 'el' ? 'Όνομα (π.χ. Ελιά)' : 'Name (e.g. Olive)'}
+                value={cropForm.name}
+                onChange={e => setCropForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder={lang === 'el' ? 'Ποικιλία (προαιρ.)' : 'Variety (optional)'}
+                value={cropForm.variety}
+                onChange={e => setCropForm(f => ({ ...f, variety: e.target.value }))}
+                className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+              />
+              <input
+                type="date"
+                placeholder={lang === 'el' ? 'Φύτευση' : 'Planted'}
+                value={cropForm.planted_at}
+                onChange={e => setCropForm(f => ({ ...f, planted_at: e.target.value }))}
+                className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+              />
+              <button
+                onClick={addCrop}
+                disabled={savingCrop || !cropForm.name.trim()}
+                className="w-full rounded-xl bg-primary py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingCrop ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : (lang === 'el' ? 'Αποθήκευση' : 'Save')}
+              </button>
+            </div>
+          )}
+
+          {fieldCrops.length === 0 && !addCropOpen ? (
+            <div className="rounded-xl border border-border/30 bg-surface p-4 text-center">
+              <Sprout className="mx-auto h-6 w-6 text-muted/30 mb-1" />
+              <p className="text-xs text-muted">
+                {lang === 'el' ? 'Καμία καλλιέργεια ακόμα.' : 'No crops yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {fieldCrops.map(c => (
+                <div key={c.id} className="flex items-center gap-2 rounded-xl border border-border/30 bg-surface px-3 py-2">
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Sprout className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {c.name}{c.variety ? ` · ${c.variety}` : ''}
+                    </p>
+                    {c.planted_at && (
+                      <p className="text-[11px] text-muted">
+                        {lang === 'el' ? 'Φυτεύτηκε' : 'Planted'}: {new Date(c.planted_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => removeCrop(c.id)}
+                    disabled={removingCropId === c.id}
+                    className="rounded-full p-1.5 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                    title={lang === 'el' ? 'Διαγραφή' : 'Remove'}
+                  >
+                    {removingCropId === c.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Timeline ── */}
