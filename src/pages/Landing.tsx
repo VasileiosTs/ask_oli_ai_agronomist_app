@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Send, Clock, Leaf, Check, MessageCircle, Zap, RefreshCw, Camera, Mic, X, Globe, ClipboardCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import OliLogo from '../components/OliLogo';
 import { ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from '../lib/constants';
@@ -648,8 +647,9 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Landing() {
-  const { user, profile } = useAuth();
-  const isLoggedIn = !!(user && profile);
+  // App.tsx already redirects authenticated users to /chat before Landing renders,
+  // so isLoggedIn is always false here. Avoids importing the 46kB supabase chunk.
+  const isLoggedIn = false;
   const { lang, setLang } = useLanguage();
   const navigate = useNavigate();
   const [chatInput, setChatInput]         = useState('');

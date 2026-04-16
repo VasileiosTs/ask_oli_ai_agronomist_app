@@ -17,7 +17,11 @@ function fontPreloadPlugin(): Plugin {
       const fontFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.woff2'));
       // Preload the two fonts used above-the-fold on the landing page
       const criticalPatterns = [
+        // Greek subset is the LCP font for Greek users (h1 is in Greek by default)
+        'noto-serif-greek-700-normal',
+        // Latin subset for non-Greek visitors
         'noto-serif-latin-700-normal',
+        // UI font — body/subtitle text
         'plus-jakarta-sans-latin-400-normal',
       ];
 
