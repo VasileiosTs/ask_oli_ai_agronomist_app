@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
-    "postbuild": "react-snap || true && node scripts/strip-eager-chunks.mjs",
+    "postbuild": "react-snap || true && node scripts/inline-critical-css.mjs && node scripts/strip-eager-chunks.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
@@ -41,11 +41,16 @@
   "reactSnap": {
     "source": "dist",
     "destination": "dist",
-    "include": ["/"],
+    "include": [
+      "/"
+    ],
     "crawl": false,
     "skipThirdPartyRequests": true,
-    "puppeteerArgs": ["--no-sandbox", "--disable-setuid-sandbox"],
-    "inlineCss": true,
+    "puppeteerArgs": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ],
+    "inlineCss": false,
     "minifyHtml": {
       "collapseWhitespace": false,
       "removeComments": false
@@ -57,6 +62,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
+    "critters": "^0.0.23",
     "jsdom": "^27.0.1",
     "react-snap": "^1.23.0",
     "tailwindcss": "^4.1.14",

@@ -70,9 +70,11 @@ export default defineConfig({
     },
   },
   build: {
-    // Target Chrome 78 (puppeteer bundled in react-snap) so optional-chaining
-    // and nullish-coalescing are transpiled. Modern Chrome (Lighthouse) executes
-    // the same logic — just slightly more verbose compiled output.
+    // chrome78 = react-snap's bundled Chromium version. The main bundle must be
+    // compatible so headless Chrome can execute it and prerender the Landing page.
+    // Sentry's legacy polyfills (Array.from) are in the sentry chunk which loads
+    // 2s after window.load — Lighthouse measures FCP/LCP before it arrives, so
+    // the polyfills never hit the performance score.
     target: ['chrome78'],
     rollupOptions: {
       output: {

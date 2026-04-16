@@ -146,8 +146,9 @@
     }
     </script>
 
-    <!-- Performance: preconnect to critical origins -->
-    <link rel="preconnect" href="https://julraghuunmzqxcayict.supabase.co" crossorigin />
+    <!-- Performance: preconnect/dns-prefetch for origins used by authenticated routes.
+         Supabase preconnect removed from here — Landing no longer loads Supabase,
+         and preconnect on an unused origin wastes a connection slot on mobile. -->
     <link rel="dns-prefetch" href="https://julraghuunmzqxcayict.supabase.co" />
     <link rel="dns-prefetch" href="https://api.open-meteo.com" />
     <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />

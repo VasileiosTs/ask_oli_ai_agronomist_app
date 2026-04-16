@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
-/* Self-hosted fonts — latin+greek subsets only, no math/cyrillic unicode ranges */
-@import "@fontsource/plus-jakarta-sans/400.css";
-@import "@fontsource/plus-jakarta-sans/500.css";
-@import "@fontsource/plus-jakarta-sans/600.css";
-@import "@fontsource/plus-jakarta-sans/700.css";
+/* Self-hosted fonts — latin+greek subsets only, no latin-ext/cyrillic/math.
+   latin-ext (66+65 KiB) covers ą,ć,ő etc — never appears on this app.
+   Removing it saves 132 KiB from the mobile critical bandwidth window. */
+@import "@fontsource/plus-jakarta-sans/latin-400.css";
+@import "@fontsource/plus-jakarta-sans/latin-500.css";
+@import "@fontsource/plus-jakarta-sans/latin-600.css";
+@import "@fontsource/plus-jakarta-sans/latin-700.css";
 @import "@fontsource/noto-serif/latin-600.css";
-@import "@fontsource/noto-serif/latin-ext-600.css";
 @import "@fontsource/noto-serif/greek-600.css";
 @import "@fontsource/noto-serif/latin-700.css";
-@import "@fontsource/noto-serif/latin-ext-700.css";
 @import "@fontsource/noto-serif/greek-700.css";
 
 @theme {

@@ -5,10 +5,14 @@ import { initAnalytics } from './lib/analytics';
 import App from './App.tsx';
 import './index.css';
 
-// Sentry is deferred — not in the critical render path.
-// Loads after first paint so it never blocks FCP/LCP.
-requestAnimationFrame(() => {
-  import('./lib/sentry').then(({ initSentry }) => initSentry());
+// Sentry loads 2s after the page `load` event — well past FCP/LCP measurement.
+// requestAnimationFrame fired too early (first frame ≈ first paint), causing
+// the 153 kB sentry chunk to flood the mobile bandwidth during the critical window.
+// window.load + setTimeout(2000) guarantees sentry never competes with CSS/fonts.
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    import('./lib/sentry').then(({ initSentry }) => initSentry());
+  }, 2000);
 });
 
 // analytics.ts uses dynamic import for posthog-js internally, so this call
