@@ -66,6 +66,10 @@ export default defineConfig({
     },
   },
   build: {
+    // Target Chrome 78 (puppeteer bundled in react-snap) so optional-chaining
+    // and nullish-coalescing are transpiled. Modern Chrome (Lighthouse) executes
+    // the same logic — just slightly more verbose compiled output.
+    target: ['chrome78'],
     rollupOptions: {
       output: {
         manualChunks: {
@@ -76,9 +80,8 @@ export default defineConfig({
           // Tanstack query — large; separate chunk loads in parallel with vendor
           query: ['@tanstack/react-query'],
           supabase: ['@supabase/supabase-js'],
-          // Sentry is deferred (dynamic import after first paint); isolated so it
-          // never bleeds into the critical path
-          sentry: ['@sentry/react', '@sentry/core'],
+          // Sentry: NOT pre-declared here — Vite will create its own chunk for the
+          // dynamic import in ErrorBoundary, which only loads on actual errors.
           ui: ['lucide-react', 'clsx'],
           analytics: ['posthog-js'],
         },

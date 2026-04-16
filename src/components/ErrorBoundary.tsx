@@ -1,12 +1,8 @@
 import { Component, ReactNode } from 'react';
 import { Leaf } from 'lucide-react';
 
-// Lazy Sentry reference — avoids pulling the full SDK into the critical bundle.
-// Populated by the deferred dynamic import in main.tsx after first paint.
-let _captureException: ((e: Error, extra: Record<string, unknown>) => void) | null = null;
-import('../lib/sentry').then(({ Sentry }) => {
-  _captureException = (e, extra) => Sentry.captureException(e, { extra });
-});
+// Sentry is imported lazily inside componentDidCatch only — never at module load time.
+// This keeps the sentry chunk entirely off the critical render path.
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; error?: Error; }
@@ -20,7 +16,10 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: any) {
     console.error('Oli error boundary caught:', error, info);
-    _captureException?.(error, { componentStack: info.componentStack });
+    // Dynamic import only fires when an actual error occurs — sentry stays off the critical path
+    import('../lib/sentry').then(({ Sentry }) => {
+      Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
+    });
   }
 
   render() {
