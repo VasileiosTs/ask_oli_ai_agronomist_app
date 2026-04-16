@@ -1,14 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nextProvider } from 'react-i18next';
 import ErrorBoundary from './components/ErrorBoundary';
-import { initSentry } from './lib/sentry';
 import { initAnalytics } from './lib/analytics';
-import i18n from './lib/i18next';
 import App from './App.tsx';
 import './index.css';
 
-initSentry();
+// Sentry is deferred — not in the critical render path.
+// Loads after first paint so it never blocks FCP/LCP.
+requestAnimationFrame(() => {
+  import('./lib/sentry').then(({ initSentry }) => initSentry());
+});
+
 // analytics.ts uses dynamic import for posthog-js internally, so this call
 // doesn't add posthog to the initial JS bundle — it only loads when PROD + key set.
 initAnalytics();
@@ -45,10 +47,8 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <I18nextProvider i18n={i18n}>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </I18nextProvider>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

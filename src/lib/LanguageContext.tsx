@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { detectLang, dict, type Lang, type T } from './i18n';
-// Initialize i18next (side-effect import — must run before any useTranslation calls)
-import i18n from './i18next';
 
 interface LangCtx { lang: Lang; t: T; setLang: (l: Lang) => void; }
 
@@ -28,16 +26,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     detectLang().then(l => {
       setLangState(l);
-      // Keep i18next in sync for components using useTranslation()
-      if (i18n.language !== l) i18n.changeLanguage(l);
     });
   }, []);
 
   const setLang = (l: Lang) => {
     localStorage.setItem('oli_lang_manual', l);
     setLangState(l);
-    // Propagate to i18next so useTranslation() components react immediately
-    i18n.changeLanguage(l);
   };
 
   return <Ctx.Provider value={{ lang, t: dict[lang], setLang }}>{children}</Ctx.Provider>;

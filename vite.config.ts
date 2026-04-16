@@ -69,8 +69,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          // Translation data — large static strings, split for lazy caching
+          'i18n-dict': [path.resolve(__dirname, 'src/lib/i18n-dict.ts')],
+          // Core React — tiny, loads fast, shared by everything
           vendor: ['react', 'react-dom', 'react-router-dom'],
+          // Tanstack query — large; separate chunk loads in parallel with vendor
+          query: ['@tanstack/react-query'],
           supabase: ['@supabase/supabase-js'],
+          // Sentry is deferred (dynamic import after first paint); isolated so it
+          // never bleeds into the critical path
+          sentry: ['@sentry/react', '@sentry/core'],
           ui: ['lucide-react', 'clsx'],
           analytics: ['posthog-js'],
         },
