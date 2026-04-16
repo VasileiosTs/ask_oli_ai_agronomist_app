@@ -4,6 +4,38 @@ import path from 'path';
 import { defineConfig, type Plugin } from 'vite';
 import fs from 'fs';
 
+/** Injects <link rel="preload"> for the two most critical fonts into index.html after build. */
+function fontPreloadPlugin(): Plugin {
+  return {
+    name: 'font-preload',
+    writeBundle(options) {
+      const outDir = options.dir ?? 'dist';
+      const htmlPath = path.join(outDir, 'index.html');
+      const assetsDir = path.join(outDir, 'assets');
+      if (!fs.existsSync(htmlPath) || !fs.existsSync(assetsDir)) return;
+
+      const fontFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.woff2'));
+      // Preload the two fonts used above-the-fold on the landing page
+      const criticalPatterns = [
+        'noto-serif-latin-700-normal',
+        'plus-jakarta-sans-latin-400-normal',
+      ];
+
+      const preloadTags = criticalPatterns
+        .map(pattern => fontFiles.find(f => f.includes(pattern)))
+        .filter((f): f is string => Boolean(f))
+        .map(f => `  <link rel="preload" as="font" type="font/woff2" href="/assets/${f}" crossorigin>`)
+        .join('\n');
+
+      if (!preloadTags) return;
+
+      let html = fs.readFileSync(htmlPath, 'utf-8');
+      html = html.replace('</head>', `${preloadTags}\n</head>`);
+      fs.writeFileSync(htmlPath, html);
+    },
+  };
+}
+
 /** Rewrites the CACHE_NAME token in public/sw.js at build time so it auto-busts on every deploy. */
 function swVersionPlugin(): Plugin {
   const cacheVersion = `oli-${Date.now()}`;
@@ -21,7 +53,7 @@ function swVersionPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), swVersionPlugin()],
+  plugins: [react(), tailwindcss(), fontPreloadPlugin(), swVersionPlugin()],
   test: {
     globals: true,
     environment: 'jsdom',
