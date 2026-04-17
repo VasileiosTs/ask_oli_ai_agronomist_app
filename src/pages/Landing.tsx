@@ -192,46 +192,6 @@ const ROLES = (lang: string) => [
   },
 ];
 
-// ── Role-based pricing ────────────────────────────────────────────────────────
-const PRICING_ROLES = (lang: string) => [
-  {
-    id: 'farmer',
-    label: lang === 'el' ? '🌾 Αγρότης' : '🌾 Farmer',
-    free: lang === 'el'
-      ? ['20 ερωτήσεις / μήνα', 'Διάγνωση ασθενειών από φωτογραφία', 'Πλάνο θεραπείας με δόσεις', 'Ιστορικό συνομιλιών']
-      : ['20 questions / month', 'Crop disease diagnosis from photo', 'Treatment plan with dosages', 'Conversation history'],
-    pro: lang === 'el'
-      ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια + μνήμη καλλιεργειών', 'Ο Oli κάνει follow-up στις θεραπείες', 'Υπολογισμοί άρδευσης και φύτευσης', 'Αρχείο παρεμβάσεων ανά χωράφι', 'Μηνιαίες αναφορές χωραφιών']
-      : ['Unlimited questions', 'Unlimited fields + crop memory', 'Oli follows up on every treatment', 'Irrigation & planting calculations', 'Field intervention log', 'Monthly field reports'],
-    proPrice: { en: '€4.99', el: '€4,99' },
-    proAnnual: { en: 'or €49 / year — save 18%', el: 'ή €49 / χρόνο — εξοικονομείς 18%' },
-    proCta: { en: 'Try Pro', el: 'Δοκίμασε Pro' },
-  },
-  {
-    id: 'agronomist',
-    label: lang === 'el' ? '🔬 Γεωπόνος' : '🔬 Agronomist',
-    free: lang === 'el'
-      ? ['20 ερωτήσεις / μήνα', 'Εργαλείο επαλήθευσης διαγνώσεων', 'Αναφορά σκευασμάτων & δόσεων', 'Δοκιμή με έως 3 χωράφια πελατών']
-      : ['20 questions / month', 'Diagnosis verification tool', 'Product & dosage reference', 'Trial with up to 3 client fields'],
-    pro: lang === 'el'
-      ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια πελατών', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Επώνυμες PDF αναφορές ανά χωράφι']
-      : ['Unlimited questions', 'Unlimited client fields', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Branded PDF reports per field'],
-    proPrice: { en: '€49', el: '€49' },
-    proAnnual: { en: 'or €490 / year — save 17%', el: 'ή €490 / χρόνο — εξοικονομείς 17%' },
-    proCta: { en: 'Start with Agronomist', el: 'Ξεκίνα Agronomist' },
-  },
-  {
-    id: 'business',
-    label: lang === 'el' ? '🤝 Σύλλογος / Εταιρεία' : '🤝 Association / Business',
-    free: lang === 'el'
-      ? ['20 ερωτήσεις / μήνα ανά χρήστη', 'Πλήρεις αγρονομικές συμβουλές', 'Δωρεάν για τα μέλη σας να το δοκιμάσουν']
-      : ['20 questions / month per member', 'Full agronomic advice', 'Free for your members to trial'],
-    pro: null, // business uses contact card
-    proPrice: null,
-    proAnnual: null,
-    proCta: null,
-  },
-];
 
 const TESTIMONIALS = (lang: string) => [
   {
@@ -656,7 +616,6 @@ export default function Landing() {
   const [demoTab, setDemoTab]             = useState<'disease' | 'planning'>('disease');
   const [suggestionIdx, setSuggestionIdx] = useState(0);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
-  const [pricingRole, setPricingRole]     = useState('farmer');
   const imperial = useMemo(() => detectImperial(), []);
 
   // Fix mobile overscroll background — the app is dark-themed (#0D1117) but the
@@ -1250,8 +1209,8 @@ export default function Landing() {
 
       {/* ── PRICING ── */}
       <section className="py-16 bg-white">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Τιμολόγηση' : 'Pricing'}
             </p>
@@ -1259,110 +1218,124 @@ export default function Landing() {
               {lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Start for free'}
             </h2>
             <p className="text-sm text-[#606659]">
-              {lang === 'el' ? 'Επέλεξε τον ρόλο σου για να δεις τα κατάλληλα πακέτα' : 'Select your role to see the right plan for you'}
+              {lang === 'el' ? 'Αναβάθμισε όταν χρειαστείς περισσότερα' : 'Upgrade when you need more'}
             </p>
           </div>
 
-          {/* Role selector */}
-          {(() => {
-            const pricingRoles = PRICING_ROLES(lang);
-            const activePricingRole = pricingRoles.find(r => r.id === pricingRole) ?? pricingRoles[0];
-            return (
-              <>
-                <div className="flex flex-wrap justify-center gap-2 mb-8">
-                  {pricingRoles.map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => setPricingRole(r.id)}
-                      className={[
-                        'rounded-full border px-4 py-2 text-sm font-medium transition-all min-h-[44px]',
-                        pricingRole === r.id
-                          ? 'bg-[#194121] border-[#194121] text-white shadow-md'
-                          : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
-                      ].join(' ')}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
+          {/* Row 1: Free + Pro (individual users) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+            {/* Free */}
+            <div className="rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
+              <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lang === 'el' ? 'Δωρεάν' : 'Free'}</p>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
+                <span className="text-sm text-[#606659]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+              </div>
+              <p className="text-xs text-[#606659] mb-5">{lang === 'el' ? 'Χωρίς πιστωτική κάρτα' : 'No credit card required'}</p>
+              <ul className="space-y-2.5 mb-6">
+                {(lang === 'el'
+                  ? ['20 ερωτήσεις / μήνα', 'Διάγνωση ασθενειών από φωτογραφία', 'Πλάνο θεραπείας με δόσεις', 'Ιστορικό συνομιλιών']
+                  : ['20 questions / month', 'Crop disease diagnosis from photo', 'Treatment plan with dosages', 'Conversation history']
+                ).map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
+                    <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />{item}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/auth" className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
+                {lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Get started free'}
+              </Link>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {/* Free tier */}
-                  <div className="rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
-                    <div className="mb-5">
-                      <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lang === 'el' ? 'Δωρεάν' : 'Free'}</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
-                        <span className="text-sm text-[#606659]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
-                      </div>
-                      <p className="text-xs text-[#606659] mt-1">{lang === 'el' ? 'Χωρίς πιστωτική κάρτα' : 'No credit card required'}</p>
-                    </div>
-                    <ul className="space-y-2.5 mb-6">
-                      {activePricingRole.free.map((item, i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
-                          <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    <Link
-                      to="/auth"
-                      className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
-                      {lang === 'el' ? 'Ξεκίνα δωρεάν' : 'Get started free'}
-                    </Link>
-                  </div>
+            {/* Pro */}
+            <div className="rounded-2xl p-6 relative overflow-hidden text-white"
+              style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4,99</span>
+                <span className="text-sm text-white/70">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+              </div>
+              <p className="text-xs text-white/50 mb-5">{lang === 'el' ? 'ή €49 / χρόνο — εξοικονομείς 18%' : 'or €49 / year — save 18%'}</p>
+              <ul className="space-y-2.5 mb-6">
+                {(lang === 'el'
+                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια + μνήμη καλλιεργειών', 'Ο Oli κάνει follow-up στις θεραπείες', 'Υπολογισμοί άρδευσης και φύτευσης', 'Αρχείο παρεμβάσεων ανά χωράφι', 'Μηνιαίες αναφορές χωραφιών']
+                  : ['Unlimited questions', 'Unlimited fields + crop memory', 'Oli follows up on every treatment', 'Irrigation & planting calculations', 'Field intervention log', 'Monthly field reports']
+                ).map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-white/90">
+                    <Check className="w-4 h-4 text-white/70 flex-shrink-0" />{item}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/auth" className="block w-full text-center py-3 rounded-full text-sm font-semibold bg-white text-[#194121] hover:bg-[#c0eec0] transition-all">
+                {lang === 'el' ? 'Δοκίμασε Pro' : 'Try Pro'}
+              </Link>
+            </div>
+          </div>
 
-                  {/* Pro tier — or contact card for business */}
-                  {activePricingRole.pro ? (
-                    <div className="rounded-2xl p-6 relative overflow-hidden text-white"
-                      style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
-                      <div className="mb-5">
-                        <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>
-                            {activePricingRole.proPrice?.[lang === 'el' ? 'el' : 'en']}
-                          </span>
-                          <span className="text-sm text-white/70">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
-                        </div>
-                        <p className="text-xs text-white/50 mt-1">{activePricingRole.proAnnual?.[lang === 'el' ? 'el' : 'en']}</p>
-                      </div>
-                      <ul className="space-y-2.5 mb-6">
-                        {activePricingRole.pro.map((item, i) => (
-                          <li key={i} className="flex items-center gap-2 text-sm text-white/90">
-                            <Check className="w-4 h-4 text-white/70 flex-shrink-0" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                      <Link
-                        to="/auth"
-                        className="block w-full text-center py-3 rounded-full text-sm font-semibold bg-white text-[#194121] hover:bg-[#c0eec0] transition-all">
-                        {activePricingRole.proCta?.[lang === 'el' ? 'el' : 'en']}
-                      </Link>
-                    </div>
-                  ) : (
-                    /* Business contact card */
-                    <div className="rounded-2xl border-2 border-dashed border-[#c8d4ca] bg-[#f4f8f4] p-6 flex flex-col items-center justify-center text-center">
-                      <p className="text-2xl mb-3">🤝</p>
-                      <p className="font-semibold text-[#1b1c19] mb-1">
-                        {lang === 'el' ? 'Τιμή για οργανισμούς' : 'Cooperative pricing'}
-                      </p>
-                      <p className="text-sm text-[#606659] mb-5 leading-relaxed">
-                        {lang === 'el'
-                          ? 'Για συλλόγους και εταιρείες με πολλούς χρήστες, μιλήστε μαζί μας για ειδική τιμολόγηση.'
-                          : 'For associations and companies managing many users, talk to us for a tailored arrangement.'}
-                      </p>
-                      <a
-                        href="mailto:hello@askoli.ai?subject=Oli%20cooperative%20pricing"
-                        className="inline-block px-5 py-2.5 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
-                        {lang === 'el' ? 'Επικοινωνήστε μαζί μας' : 'Get in touch'}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </>
-            );
-          })()}
+          {/* Row 2: Agronomist + Enterprise */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Agronomist */}
+            <div className="rounded-2xl border border-[#b8cfc0] bg-[#f4f8f4] p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
+              <div className="flex items-start justify-between mb-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#4a6b50]">{lang === 'el' ? 'Γεωπόνος' : 'Agronomist'}</p>
+                <span className="text-[10px] font-semibold bg-[#194121] text-white px-2 py-0.5 rounded-full">
+                  {lang === 'el' ? 'Για επαγγελματίες' : 'For professionals'}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€49</span>
+                <span className="text-sm text-[#606659]">{lang === 'el' ? '/ μήνα' : '/ month'}</span>
+              </div>
+              <p className="text-xs text-[#606659] mb-1">{lang === 'el' ? 'ή €490 / χρόνο — εξοικονομείς 17%' : 'or €490 / year — save 17%'}</p>
+              <p className="text-xs text-[#4a6b50] font-medium mb-5 italic">
+                {lang === 'el' ? 'Λιγότερο από μία επίσκεψη γεωπόνου τον μήνα.' : 'Less than one agronomist visit per month.'}
+              </p>
+              <ul className="space-y-2.5 mb-6">
+                {(lang === 'el'
+                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια πελατών', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Επώνυμες PDF αναφορές ανά χωράφι']
+                  : ['Unlimited questions', 'Unlimited client fields', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Branded PDF reports per field']
+                ).map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
+                    <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />{item}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/auth" className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
+                {lang === 'el' ? 'Ξεκίνα Agronomist' : 'Start with Agronomist'}
+              </Link>
+            </div>
+
+            {/* Enterprise */}
+            <div className="rounded-2xl border-2 border-dashed border-[#c8d4ca] bg-white p-6 flex flex-col">
+              <div className="flex items-start justify-between mb-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#606659]">Enterprise</p>
+                <span className="text-[10px] font-semibold bg-slate-700 text-white px-2 py-0.5 rounded-full">
+                  {lang === 'el' ? 'Προσαρμοσμένο' : 'Custom'}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
+                {lang === 'el' ? 'Κατόπιν επικοινωνίας' : 'Contact us'}
+              </p>
+              <p className="text-xs text-[#606659] mb-5">
+                {lang === 'el' ? 'Για συλλόγους, συνεταιρισμούς & εταιρείες εισροών' : 'For cooperatives, associations & agri companies'}
+              </p>
+              <ul className="space-y-2.5 mb-6 flex-1">
+                {(lang === 'el'
+                  ? ['Όλα του Agronomist', 'Πολλαπλές θέσεις / ομαδικοί λογαριασμοί', 'White-label ή co-branded αναφορές', 'Προτεραιότητα υποστήριξης', 'Προσαρμοσμένες ενσωματώσεις κατόπιν αιτήματος']
+                  : ['Everything in Agronomist', 'Multiple seats / team accounts', 'White-label or co-branded reports', 'Priority support', 'Custom integrations on request']
+                ).map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
+                    <Check className="w-4 h-4 text-slate-500 flex-shrink-0" />{item}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="mailto:hello@askoli.ai?subject=Oli%20Enterprise%20pricing"
+                className="block w-full text-center py-3 rounded-full text-sm font-semibold text-slate-700 border-2 border-slate-300 hover:border-slate-500 hover:bg-slate-50 transition-all">
+                {lang === 'el' ? 'Επικοινωνήστε μαζί μας' : 'Get in touch'}
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { X, Check, Sprout, Crown, Briefcase } from 'lucide-react';
+import { X, Check, Sprout, Crown, Briefcase, Building2 } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -40,9 +40,9 @@ const TIERS = (lang: string, currentTier?: string | null) => {
         ],
       },
       cta: null, // no action for free
+      contactOnly: false,
       isCurrent: isCurrent('free'),
-      accent: '#194121',
-      variant: 'outline' as const,
+      forRoles: ['farmer', 'hobbyist', 'cooperative', 'enterprise', 'agronomist', ''],
     },
     {
       key: 'pro',
@@ -70,9 +70,9 @@ const TIERS = (lang: string, currentTier?: string | null) => {
         ],
       },
       cta: { en: 'Upgrade to Pro', el: 'Αναβάθμιση σε Pro' },
+      contactOnly: false,
       isCurrent: isCurrent('pro'),
-      accent: '#194121',
-      variant: 'filled' as const,
+      forRoles: ['farmer', 'hobbyist', ''],
     },
     {
       key: 'agronomist',
@@ -88,7 +88,6 @@ const TIERS = (lang: string, currentTier?: string | null) => {
           'Intervention history per client',
           'Scientific calculations (ETc, NPK)',
           'Branded PDF reports per field',
-          'API access',
         ],
         el: [
           'Απεριόριστες ερωτήσεις',
@@ -96,13 +95,40 @@ const TIERS = (lang: string, currentTier?: string | null) => {
           'Ιστορικό παρεμβάσεων ανά πελάτη',
           'Επιστημονικοί υπολογισμοί (ETc, NPK)',
           'Επώνυμες PDF αναφορές ανά χωράφι',
-          'Πρόσβαση API',
         ],
       },
       cta: { en: 'Upgrade to Agronomist', el: 'Αναβάθμιση σε Γεωπόνο' },
+      contactOnly: false,
       isCurrent: isCurrent('agronomist'),
-      accent: '#92400e',
-      variant: 'amber' as const,
+      forRoles: ['agronomist', ''],
+    },
+    {
+      key: 'enterprise',
+      icon: Building2,
+      iconColor: 'text-slate-600',
+      name: { en: 'Enterprise', el: 'Enterprise' },
+      price: { en: 'Custom pricing', el: 'Προσαρμοσμένη τιμή' },
+      note: { en: 'For cooperatives, associations, agri companies', el: 'Για συλλόγους, συνεταιρισμούς, εταιρείες' },
+      features: {
+        en: [
+          'Everything in Agronomist',
+          'Multiple seats / team accounts',
+          'White-label or co-branded reports',
+          'Priority support',
+          'Custom integrations on request',
+        ],
+        el: [
+          'Όλα του Γεωπόνου',
+          'Πολλαπλοί χρήστες / ομάδα',
+          'White-label ή co-branded αναφορές',
+          'Προτεραιότητα υποστήριξης',
+          'Προσαρμοσμένες ενσωματώσεις κατόπιν αιτήματος',
+        ],
+      },
+      cta: { en: 'Contact us', el: 'Επικοινωνήστε μαζί μας' },
+      contactOnly: true,
+      isCurrent: isCurrent('enterprise'),
+      forRoles: ['cooperative', 'enterprise', ''],
     },
   ];
 };
@@ -119,8 +145,10 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
 
   const l = lang === 'el' ? 'el' : 'en';
   const currentTier = typeof profile?.tier === 'string' ? profile.tier : 'free';
+  const userRole = typeof profile?.role === 'string' ? profile.role : '';
   const tiers = TIERS(lang, currentTier);
-  const selectedTier = tiers.find(t => t.key === selected);
+  const displayedTiers = tiers.filter(t => t.forRoles.includes(userRole));
+  const selectedTier = displayedTiers.find(t => t.key === selected);
 
   const openEmailFallback = (tierKey: string) => {
     const body = [
@@ -203,7 +231,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
         </div>
 
         <div className="px-5 py-4 space-y-3">
-          {tiers.map((tier) => {
+          {displayedTiers.map((tier) => {
             const Icon = tier.icon;
             const isSelected = selected === tier.key;
             const wasSent = sent === tier.key;
@@ -261,7 +289,14 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
                   {/* CTA — shown when selected */}
                   {isSelected && tier.cta && (
                     <div className="mt-4 animate-fade-in">
-                      {wasSent ? (
+                      {tier.contactOnly ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEmailFallback(tier.key); }}
+                          className="w-full py-2.5 rounded-full text-sm font-semibold bg-slate-700 text-white hover:opacity-90 transition-opacity"
+                        >
+                          {tier.cta[l]}
+                        </button>
+                      ) : wasSent ? (
                         <p className="text-center text-sm font-medium text-primary py-2">
                           {l === 'el' ? '✓ Το αίτημά σου στάλθηκε. Θα επικοινωνήσουμε σύντομα.' : '✓ Request sent. We\'ll be in touch shortly.'}
                         </p>
