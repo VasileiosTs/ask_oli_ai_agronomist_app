@@ -82,7 +82,7 @@ export default function Auth() {
         style={{ boxShadow: '0 8px 40px rgba(25,65,33,0.08)', border: '1px solid rgba(194, 201, 187, 0.2)' }}>
 
         {/* Back to home */}
-        <Link to="/" className="mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
+        <Link to="/" className="mb-4 inline-flex items-center gap-1.5 text-sm transition-colors min-h-[44px]"
           style={{ color: '#606659' }}
           onMouseEnter={e => (e.currentTarget.style.color = '#194121')}
           onMouseLeave={e => (e.currentTarget.style.color = '#606659')}>
@@ -222,13 +222,13 @@ export default function Auth() {
 
         {/* Footer links */}
         <div className="mt-8 flex justify-center gap-4 text-xs" style={{ color: '#606659' }}>
-          <Link to="/legal/terms" className="transition-colors hover:underline" style={{ color: '#606659' }}
+          <Link to="/legal/terms" className="transition-colors hover:underline py-3 inline-flex items-center min-h-[44px]" style={{ color: '#606659' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#194121')}
             onMouseLeave={e => (e.currentTarget.style.color = '#606659')}>
             {t.termsOfService}
           </Link>
-          <span>·</span>
-          <Link to="/legal/privacy" className="transition-colors hover:underline" style={{ color: '#606659' }}
+          <span className="flex items-center">·</span>
+          <Link to="/legal/privacy" className="transition-colors hover:underline py-3 inline-flex items-center min-h-[44px]" style={{ color: '#606659' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#194121')}
             onMouseLeave={e => (e.currentTarget.style.color = '#606659')}>
             {t.privacyPolicy}

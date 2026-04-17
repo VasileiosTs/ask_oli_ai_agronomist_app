@@ -214,8 +214,8 @@ const PRICING_ROLES = (lang: string) => [
       ? ['20 ερωτήσεις / μήνα', 'Εργαλείο επαλήθευσης διαγνώσεων', 'Αναφορά σκευασμάτων & δόσεων', 'Δοκιμή με έως 3 χωράφια πελατών']
       : ['20 questions / month', 'Diagnosis verification tool', 'Product & dosage reference', 'Trial with up to 3 client fields'],
     pro: lang === 'el'
-      ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια πελατών', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Επώνυμες PDF αναφορές ανά χωράφι', 'Πρόσβαση API']
-      : ['Unlimited questions', 'Unlimited client fields', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Branded PDF reports per field', 'API access'],
+      ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια πελατών', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Επώνυμες PDF αναφορές ανά χωράφι']
+      : ['Unlimited questions', 'Unlimited client fields', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Branded PDF reports per field'],
     proPrice: { en: '€49', el: '€49' },
     proAnnual: { en: 'or €490 / year — save 17%', el: 'ή €490 / χρόνο — εξοικονομείς 17%' },
     proCta: { en: 'Start with Agronomist', el: 'Ξεκίνα Agronomist' },
@@ -589,7 +589,7 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
             key={r.id}
             onClick={() => setActiveId(r.id)}
             className={[
-              'flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all',
+              'flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all min-h-[44px]',
               activeId === r.id
                 ? 'bg-[#194121] border-[#194121] text-white shadow-md'
                 : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
@@ -820,7 +820,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2">
             <div className="relative group">
-              <button className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-1.5 rounded-full bg-[#f0efea] flex items-center gap-1">
+              <button className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-3 rounded-full bg-[#f0efea] flex items-center gap-1 min-h-[44px]">
                 <span>{LANG_OPTIONS.find(o => o.code === lang)?.flag ?? '🌐'}</span>
                 <span className="uppercase">{lang}</span>
               </button>
@@ -829,7 +829,7 @@ export default function Landing() {
                   <button
                     key={code}
                     onClick={() => setLang(code)}
-                    className={`flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
+                    className={`flex items-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
                     <span>{flag}</span>
                     <span>{label}</span>
                   </button>
@@ -1003,12 +1003,12 @@ export default function Landing() {
               <div className="ml-auto flex items-center gap-1 bg-[#f0efea] rounded-full p-0.5">
                 <button
                   onClick={() => setDemoTab('disease')}
-                  className={`text-xs font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all ${demoTab === 'disease' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
+                  className={`text-xs font-semibold px-2.5 sm:px-3 py-2.5 min-h-[44px] rounded-full transition-all flex items-center ${demoTab === 'disease' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
                   {lang === 'el' ? '🔬 Διάγνωση' : '🔬 Diagnosis'}
                 </button>
                 <button
                   onClick={() => setDemoTab('planning')}
-                  className={`text-xs font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all ${demoTab === 'planning' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
+                  className={`text-xs font-semibold px-2.5 sm:px-3 py-2.5 min-h-[44px] rounded-full transition-all flex items-center ${demoTab === 'planning' ? 'bg-white text-[#194121] shadow-sm' : 'text-[#606659] hover:text-[#194121]'}`}>
                   {lang === 'el' ? '📐 Σχεδιασμός' : '📐 Planning'}
                 </button>
               </div>
@@ -1186,7 +1186,7 @@ export default function Landing() {
                       {step.step}
                     </span>
                   </div>
-                  <h3 className="font-bold text-[#1b1c19] mb-2 text-sm" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
+                  <h3 className="font-bold text-[#1b1c19] mb-2 text-[17px]" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
                   <p className="text-sm text-[#5a6053] leading-relaxed">{step.body}</p>
                 </div>
               );
@@ -1240,7 +1240,7 @@ export default function Landing() {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.accent ? 'bg-white/15' : 'bg-[#c0eec0]/30'}`}>
                   <f.icon className={f.accent ? 'text-white' : 'text-[#194121]'} style={{ width: 22, height: 22 }} />
                 </div>
-                <h3 className={`font-bold mb-1.5 ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
+                <h3 className={`font-bold mb-1.5 text-[17px] ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
                 <p className={`text-sm leading-relaxed ${f.accent ? 'text-white/80' : 'text-[#5a6053]'}`}>{f.body}</p>
               </div>
             ))}
@@ -1275,7 +1275,7 @@ export default function Landing() {
                       key={r.id}
                       onClick={() => setPricingRole(r.id)}
                       className={[
-                        'rounded-full border px-4 py-2 text-sm font-medium transition-all',
+                        'rounded-full border px-4 py-2 text-sm font-medium transition-all min-h-[44px]',
                         pricingRole === r.id
                           ? 'bg-[#194121] border-[#194121] text-white shadow-md'
                           : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
@@ -1404,10 +1404,10 @@ export default function Landing() {
             <span className="text-xs text-[#606659]">&copy; 2026</span>
           </div>
           <div className="flex gap-5 text-sm text-[#606659]">
-            <Link to="/legal/privacy" className="hover:text-[#194121] transition-colors">
+            <Link to="/legal/privacy" className="hover:text-[#194121] transition-colors py-3 inline-flex items-center min-h-[44px]">
               {lang === 'el' ? 'Απόρρητο' : 'Privacy'}
             </Link>
-            <Link to="/legal/terms" className="hover:text-[#194121] transition-colors">
+            <Link to="/legal/terms" className="hover:text-[#194121] transition-colors py-3 inline-flex items-center min-h-[44px]">
               {lang === 'el' ? 'Όροι' : 'Terms'}
             </Link>
           </div>
