@@ -643,7 +643,6 @@ export default function Landing() {
   const recognitionRef = useRef<any>(null);
 
   const rotatingQuestions = useMemo(() => ROTATING_QUESTIONS(lang, imperial), [lang, imperial]);
-  const exampleQuestions  = useMemo(() => EXAMPLE_QUESTIONS(lang, imperial), [lang, imperial]);
   const demoDisease       = DEMO_DISEASE(lang);
   const demoPlanning      = DEMO_PLANNING(lang, imperial);
 
@@ -938,6 +937,22 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── STATS BAR ── */}
+      <section className="py-8 bg-white border-y border-[#f0efea]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            {STATS(lang).map((s, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <div className="text-2xl sm:text-3xl font-bold text-[#194121] mb-0.5" style={{ fontFamily: "'Noto Serif', serif" }}>
+                  {s.n}
+                </div>
+                <p className="text-xs text-[#606659] leading-snug max-w-[120px]">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── DEMO WIDGET ── */}
       <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
@@ -1052,74 +1067,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── THINGS FARMERS ASK ── */}
-      <section className="py-16 bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
-              {lang === 'el' ? 'Τι ρωτούν οι αγρότες' : 'Things farmers ask Oli'}
-            </p>
-            <h2 className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
-              {lang === 'el' ? 'Αν το ξέρει ένας γεωπόνος, το ξέρει ο Oli' : 'If an agronomist knows it, so does Oli'}
-            </h2>
-            <p className="text-sm text-[#606659]">
-              {lang === 'el' ? 'Κάνε κλικ σε οποιαδήποτε ερώτηση για να τη δοκιμάσεις' : 'Click any question to try it now'}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {exampleQuestions.map((group, gi) => (
-              <div key={gi}>
-                <p className="text-xs font-bold text-[#606659] mb-3">{group.category}</p>
-                <div className="flex flex-col gap-2">
-                  {group.questions.map((q, qi) => (
-                    <button
-                      key={qi}
-                      onClick={() => sendQuestion(q)}
-                      className="text-left text-sm text-[#3a4035] bg-[#fafaf8] border border-[#e8e8e3] rounded-xl px-4 py-3 hover:border-[#194121]/40 hover:bg-[#f5f9f5] hover:text-[#194121] transition-all leading-snug active:scale-[0.98]">
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── ROLE SHOWCASE ── */}
-      <section className="py-16 bg-[#faf9f4] border-t border-[#f0efea]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
-              {lang === 'el' ? 'Για κάθε ρόλο στη γεωργία' : 'For every role in agriculture'}
-            </p>
-            <h2 className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
-              {lang === 'el' ? 'Ο Oli απαντάει διαφορετικά σε κάθε χρήστη' : 'Oli tailors every answer to who is asking'}
-            </h2>
-            <p className="text-sm text-[#606659]">
-              {lang === 'el' ? 'Κάνε κλικ σε ρόλο για να δεις πραγματικές ερωτήσεις και απαντήσεις' : 'Select a role to see real questions and answers'}
-            </p>
-          </div>
-          <RoleShowcase lang={lang} onAsk={sendQuestion} />
-        </div>
-      </section>
-
-      {/* ── STATS BAR ── */}
-      <section className="py-8 bg-[#faf9f4] border-y border-[#f0efea]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {STATS(lang).map((s, i) => (
-              <div key={i} className="flex flex-col items-center">
-                <div className="text-2xl sm:text-3xl font-bold text-[#194121] mb-0.5" style={{ fontFamily: "'Noto Serif', serif" }}>
-                  {s.n}
-                </div>
-                <p className="text-xs text-[#606659] leading-snug max-w-[120px]">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── HOW IT WORKS ── */}
       <section className="py-16 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -1154,6 +1101,45 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── ROLE SHOWCASE ── */}
+      <section className="py-16 bg-[#faf9f4]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
+              {lang === 'el' ? 'Για κάθε ρόλο στη γεωργία' : 'For every role in agriculture'}
+            </p>
+            <h2 className="text-2xl font-bold text-[#1b1c19] mb-1" style={{ fontFamily: "'Noto Serif', serif" }}>
+              {lang === 'el' ? 'Ο Oli απαντάει διαφορετικά σε κάθε χρήστη' : 'Oli tailors every answer to who is asking'}
+            </h2>
+            <p className="text-sm text-[#606659]">
+              {lang === 'el' ? 'Κάνε κλικ σε ρόλο για να δεις πραγματικές ερωτήσεις και απαντήσεις' : 'Select a role to see real questions and answers'}
+            </p>
+          </div>
+          <RoleShowcase lang={lang} onAsk={sendQuestion} />
+        </div>
+      </section>
+
+      {/* ── FEATURES ── */}
+      <section className="py-16 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <h2 className="sr-only">{lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {FEATURES(lang).map((f, i) => (
+              <div
+                key={i}
+                className={`rounded-2xl p-6 ${f.accent ? 'bg-[#194121] text-white' : 'bg-[#faf9f4]'}`}
+                style={{ boxShadow: f.accent ? '0 8px 32px rgba(25,65,33,0.2)' : '0 2px 12px rgba(27,28,25,0.04)' }}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.accent ? 'bg-white/15' : 'bg-[#c0eec0]/30'}`}>
+                  <f.icon className={f.accent ? 'text-white' : 'text-[#194121]'} style={{ width: 22, height: 22 }} />
+                </div>
+                <h3 className={`font-bold mb-1.5 text-[17px] ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
+                <p className={`text-sm leading-relaxed ${f.accent ? 'text-white/80' : 'text-[#5a6053]'}`}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── TESTIMONIALS ── */}
       <section className="py-16 bg-[#faf9f4]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -1180,27 +1166,6 @@ export default function Landing() {
                     <p className="text-xs text-[#606659]">{t.crop}</p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section className="py-16 bg-[#faf9f4]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <h2 className="sr-only">{lang === 'el' ? 'Χαρακτηριστικά' : 'Features'}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {FEATURES(lang).map((f, i) => (
-              <div
-                key={i}
-                className={`rounded-2xl p-6 ${f.accent ? 'bg-[#194121] text-white' : 'bg-white'}`}
-                style={{ boxShadow: f.accent ? '0 8px 32px rgba(25,65,33,0.2)' : '0 2px 12px rgba(27,28,25,0.04)' }}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.accent ? 'bg-white/15' : 'bg-[#c0eec0]/30'}`}>
-                  <f.icon className={f.accent ? 'text-white' : 'text-[#194121]'} style={{ width: 22, height: 22 }} />
-                </div>
-                <h3 className={`font-bold mb-1.5 text-[17px] ${f.accent ? 'text-white' : 'text-[#1b1c19]'}`} style={{ fontFamily: "'Noto Serif', serif" }}>{f.title}</h3>
-                <p className={`text-sm leading-relaxed ${f.accent ? 'text-white/80' : 'text-[#5a6053]'}`}>{f.body}</p>
               </div>
             ))}
           </div>
