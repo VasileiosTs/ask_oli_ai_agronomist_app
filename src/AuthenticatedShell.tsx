@@ -69,6 +69,7 @@ const Privacy = () => {
         <h2 className={h2}>4. {t.privacyThirdTitle}</h2>
         <p><strong className="text-foreground">Google Gemini:</strong> {t.privacyGemini}</p>
         <p><strong className="text-foreground">Sentry:</strong> {t.privacySentry}</p>
+        <p><strong className="text-foreground">PostHog:</strong> {t.privacyPostHog}</p>
         <p><strong className="text-foreground">Vercel:</strong> {t.privacyVercel}</p>
         <h2 className={h2}>5. {t.privacyGdprTitle}</h2>
         <p>{t.privacyGdprAccess}</p><p>{t.privacyGdprDelete}</p><p>{t.privacyGdprCorrect}</p><p>{t.privacyGdprPortability}</p>

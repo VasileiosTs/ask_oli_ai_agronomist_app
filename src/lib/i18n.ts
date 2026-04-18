@@ -108,7 +108,7 @@ export interface T {
   privacyDataTitle: string; privacyDataAccount: string; privacyDataUsage: string; privacyDataTech: string;
   privacyHowTitle: string; privacyHowBody: string;
   privacyStorageTitle: string; privacyStorageBody: string; privacyStorageRls: string;
-  privacyThirdTitle: string; privacyGemini: string; privacySentry: string; privacyVercel: string;
+  privacyThirdTitle: string; privacyGemini: string; privacySentry: string; privacyVercel: string; privacyPostHog: string;
   privacyGdprTitle: string; privacyGdprAccess: string; privacyGdprDelete: string; privacyGdprCorrect: string; privacyGdprPortability: string;
   privacyCookies: string; privacyAge: string; privacyContact: string;
   termsNature: string; termsNatureBody: string;
