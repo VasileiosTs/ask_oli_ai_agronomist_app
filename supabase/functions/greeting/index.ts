@@ -48,6 +48,31 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors });
     }
 
+    // Rate-limit: one Gemini call per user per 10 minutes (stored in DB)
+    // This prevents authenticated users from burning Gemini quota by spamming.
+    const GREETING_COOLDOWN_MS = 10 * 60 * 1000; // 10 min
+    const { data: existingGreeting } = await supabaseAdmin
+      .from('greeting_cache')
+      .select('generated_at')
+      .eq('auth_id', user.id)
+      .maybeSingle();
+    if (existingGreeting?.generated_at) {
+      const age = Date.now() - new Date(existingGreeting.generated_at).getTime();
+      if (age < GREETING_COOLDOWN_MS) {
+        // Return cached greeting if it exists within cooldown
+        const { data: cached } = await supabaseAdmin
+          .from('greeting_cache')
+          .select('greeting')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+        if (cached?.greeting) {
+          return new Response(JSON.stringify({ greeting: cached.greeting }), {
+            headers: { ...cors, 'Content-Type': 'application/json', 'X-Greeting-Source': 'cache' },
+          });
+        }
+      }
+    }
+
     // Fetch user profile
     const { data: profile } = await supabaseAdmin
       .from('users')
@@ -89,6 +114,14 @@ Deno.serve(async (req) => {
 
     const data = await response.json();
     const greeting = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+
+    // Persist to cache so repeat calls within the cooldown window skip Gemini
+    if (greeting) {
+      await supabaseAdmin.from('greeting_cache').upsert(
+        { auth_id: user.id, greeting, generated_at: new Date().toISOString() },
+        { onConflict: 'auth_id' },
+      );
+    }
 
     return new Response(
       JSON.stringify({ greeting }),

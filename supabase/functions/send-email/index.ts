@@ -424,35 +424,50 @@ serve(async (req) => {
     const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron", "vio_reminder"];
     if (serviceOnlyModes.includes(body.mode)) {
       const authHeader = req.headers.get("authorization") || "";
-      const validSecret = SUPABASE_SERVICE_ROLE_KEY && authHeader.includes(SUPABASE_SERVICE_ROLE_KEY);
-      const validCronKey = CRON_SECRET && authHeader.includes(CRON_SECRET);
+      const validSecret = SUPABASE_SERVICE_ROLE_KEY && authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
+      const validCronKey = CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`;
       if (!validSecret && !validCronKey) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
       }
     }
 
-    // Welcome mode requires authenticated user (prevents unauthenticated spam)
-    if (body.mode === "welcome") {
+    // Helper: verify Bearer token and return the authenticated user
+    const verifyBearerUser = async () => {
       const authHeader = req.headers.get("authorization") || "";
-      if (!authHeader.startsWith("Bearer ")) {
+      if (!authHeader.startsWith("Bearer ")) return null;
+      const token = authHeader.slice(7);
+      const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data: { user }, error } = await adminClient.auth.getUser(token);
+      if (error || !user) return null;
+      return user;
+    };
+
+    // Mode: welcome — requires authenticated user; email must match their auth record
+    if (body.mode === "welcome") {
+      const authedUser = await verifyBearerUser();
+      if (!authedUser) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
       }
-    }
-
-    // Mode: welcome
-    if (body.mode === "welcome") {
-      const { email, name, lang } = body;
-      if (!email) return new Response(JSON.stringify({ error: "email required" }), { status: 400, headers });
-      if (!isValidEmail(email)) return new Response(JSON.stringify({ error: "invalid email format" }), { status: 400, headers });
+      const email = authedUser.email ?? "";
+      if (!email || !isValidEmail(email)) {
+        return new Response(JSON.stringify({ error: "no verified email on account" }), { status: 400, headers });
+      }
+      const { name, lang } = body;
       const tpl = welcomeEmail(name || "Farmer", lang || "en");
       const ok = await sendEmail(email, tpl.subject, tpl.html);
       return new Response(JSON.stringify({ sent: ok }), { headers });
     }
 
     if (body.mode === "upgrade_interest") {
-      const email = typeof body.email === "string" ? body.email.trim() : "";
-      if (!email) return new Response(JSON.stringify({ error: "email required" }), { status: 400, headers });
-      if (!isValidEmail(email)) return new Response(JSON.stringify({ error: "invalid email format" }), { status: 400, headers });
+      // Require auth: use the verified user's email to prevent support inbox spam
+      const authedUser = await verifyBearerUser();
+      if (!authedUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+      }
+      const email = authedUser.email ?? "";
+      if (!email || !isValidEmail(email)) {
+        return new Response(JSON.stringify({ error: "no verified email on account" }), { status: 400, headers });
+      }
 
       const tpl = upgradeInterestEmail(
         {

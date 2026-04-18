@@ -1642,27 +1642,36 @@ async function applyExtractedFieldContext(
   };
 }
 
-// ── Guest mode rate limiting (in-memory, per-isolate) ──
-const _guestRateMap = new Map<string, { count: number; resetAt: number }>();
-const GUEST_RATE_LIMIT = 1;
-const GUEST_RATE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours per IP
-const GUEST_MAX_IPS = 10_000;
+// ── Guest mode rate limiting (DB-backed — survives isolate restarts) ──
+const GUEST_RATE_LIMIT = 1;  // max requests per window
+const GUEST_RATE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24-hour window
 
-function checkGuestRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = _guestRateMap.get(ip);
-  if (entry && now < entry.resetAt) {
-    if (entry.count >= GUEST_RATE_LIMIT) return false;
-    entry.count++;
+async function checkGuestRateLimit(ip: string, serviceRoleKey: string, supabaseUrl: string): Promise<boolean> {
+  if (ip === 'unknown') return true; // can't rate-limit unknown IPs
+  try {
+    const db = createClient(supabaseUrl, serviceRoleKey);
+    const now = new Date();
+    const { data: rl } = await db
+      .from('guest_rate_limits')
+      .select('count, reset_at')
+      .eq('ip', ip)
+      .maybeSingle();
+
+    if (rl && new Date(rl.reset_at) > now) {
+      if (rl.count >= GUEST_RATE_LIMIT) return false;
+      await db.from('guest_rate_limits').update({ count: rl.count + 1 }).eq('ip', ip);
+    } else {
+      // New window: upsert a fresh counter
+      await db.from('guest_rate_limits').upsert(
+        { ip, count: 1, reset_at: new Date(now.getTime() + GUEST_RATE_WINDOW_MS).toISOString() },
+        { onConflict: 'ip' },
+      );
+    }
+    return true;
+  } catch {
+    // If DB is unreachable, fail open (don't block legitimate users)
     return true;
   }
-  // Evict oldest if at capacity
-  if (_guestRateMap.size >= GUEST_MAX_IPS) {
-    const firstKey = _guestRateMap.keys().next().value;
-    if (firstKey) _guestRateMap.delete(firstKey);
-  }
-  _guestRateMap.set(ip, { count: 1, resetAt: now + GUEST_RATE_WINDOW_MS });
-  return true;
 }
 
 async function handleGuestChat(
@@ -1738,7 +1747,8 @@ Deno.serve(async (req) => {
       const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
         || req.headers.get('cf-connecting-ip')
         || 'unknown';
-      if (!checkGuestRateLimit(clientIp)) {
+      const allowed = await checkGuestRateLimit(clientIp, supabaseServiceRoleKey, supabaseUrl);
+      if (!allowed) {
         return jsonResponse({ error: 'Guest rate limit exceeded. Sign up for free to continue.' }, 429);
       }
       return await handleGuestChat(geminiApiKey, body);

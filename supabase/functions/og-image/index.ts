@@ -29,8 +29,41 @@ function wrap(text: string, max: number): string[] {
   return lines.slice(0, 3); // hard cap at 3 lines to prevent overflow
 }
 
+const OG_RATE_LIMIT = 60;   // requests per window per IP
+const OG_WINDOW_HOURS = 1;   // window size in hours
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+
+  // Per-IP rate limiting (prevents cheap DoS on this unauthenticated endpoint)
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (clientIp !== 'unknown') {
+    const sbAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+    const now = new Date();
+    const { data: rl } = await sbAdmin
+      .from('og_image_rate_limits')
+      .select('count, reset_at')
+      .eq('ip', clientIp)
+      .maybeSingle();
+
+    if (rl && new Date(rl.reset_at) > now && rl.count >= OG_RATE_LIMIT) {
+      return new Response('Too Many Requests', { status: 429, headers: cors });
+    }
+
+    if (!rl || new Date(rl.reset_at) <= now) {
+      await sbAdmin.from('og_image_rate_limits').upsert(
+        { ip: clientIp, count: 1, reset_at: new Date(now.getTime() + OG_WINDOW_HOURS * 3600_000).toISOString() },
+        { onConflict: 'ip' },
+      );
+    } else {
+      await sbAdmin.from('og_image_rate_limits')
+        .update({ count: rl.count + 1 })
+        .eq('ip', clientIp);
+    }
+  }
 
   const url = new URL(req.url);
   const shareId = url.searchParams.get('id');

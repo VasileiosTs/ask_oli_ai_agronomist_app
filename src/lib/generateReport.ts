@@ -1,5 +1,16 @@
 import { supabase } from './supabase';
 
+/** Escape user-controlled strings before inserting into HTML context. */
+function h(s: string | null | undefined): string {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface ReportField {
   id: string;
   name: string;
@@ -61,17 +72,17 @@ export async function downloadFieldReport(
   const today = new Date().toLocaleDateString(el ? 'el-GR' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const label = (k: string, v: string | number | null) =>
-    v ? `<span class="meta"><b>${k}:</b> ${v}</span>` : '';
+    v ? `<span class="meta"><b>${h(String(k))}:</b> ${h(String(v))}</span>` : '';
 
   const fieldSections = fields.map(f => {
     const ints = (byField[f.id] ?? []).slice(0, 15);
     const rows = ints.map(i => `
       <tr>
-        <td>${fmt(i.applied_at, el)}</td>
-        <td>${i.problem ?? '—'}</td>
-        <td>${i.product_applied ?? '—'}</td>
-        <td>${i.dosage ?? '—'}</td>
-        <td>${outcomeLabel(i.outcome, el)}</td>
+        <td>${h(fmt(i.applied_at, el))}</td>
+        <td>${h(i.problem) || '—'}</td>
+        <td>${h(i.product_applied) || '—'}</td>
+        <td>${h(i.dosage) || '—'}</td>
+        <td>${h(outcomeLabel(i.outcome, el))}</td>
       </tr>`).join('');
 
     const intTable = ints.length > 0 ? `
@@ -89,7 +100,7 @@ export async function downloadFieldReport(
 
     return `
     <div class="card">
-      <h2>${f.name}</h2>
+      <h2>${h(f.name)}</h2>
       <div class="metas">
         ${label(el ? 'Καλλιέργεια' : 'Crop', f.crop_type)}
         ${label(el ? 'Τοποθεσία' : 'Location', f.location)}
@@ -149,9 +160,9 @@ export async function downloadFieldReport(
       </div>
     </div>
     <div class="hdr-r">
-      <b>${userName || ''}</b><br>
+      <b>${h(userName)}</b><br>
       ${el ? 'Αναφορά Χωραφιών' : 'Field Report'}<br>
-      ${today}
+      ${h(today)}
     </div>
   </div>
   ${fields.length === 0

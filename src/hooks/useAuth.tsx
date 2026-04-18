@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { identifyUser, resetAnalytics, trackEvent, Events } from '../lib/analytics';
 
@@ -97,6 +98,7 @@ function persistProfile(profile: UserProfile | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -174,6 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     persistProfile(null);
+    // Clear all cached query data so a subsequent login never sees the
+    // previous user's fields, messages, or other cached responses.
+    queryClient.clear();
     await supabase.auth.signOut();
   };
 
@@ -259,7 +264,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           await fetchProfileWithTimeout(session.user.id);
           if (event === 'SIGNED_IN') {
-            identifyUser(session.user.id, { email: session.user.email });
+            // Identify by user ID only — no email (GDPR: email is PII)
+            identifyUser(session.user.id);
             trackEvent(Events.LOGIN);
           }
         } else {

@@ -224,8 +224,9 @@ export default function Onboarding() {
         return;
       }
 
-      identifyUser(user.id, { name: (name.trim() || oauthName), location: location.trim(), crops: finalCrops.join(', '), age_range: ageRange });
-      trackEvent(Events.SIGNUP, { crops: finalCrops, location: location.trim(), age_range: ageRange });
+      // Identify with coarse aggregate properties only — no name, no precise location (GDPR)
+      identifyUser(user.id, { primary_crop: finalCrops[0] ?? null, age_range: ageRange ?? null, role });
+      trackEvent(Events.SIGNUP, { crop_count: finalCrops.length, age_range: ageRange ?? null });
       if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
 
       supabase.functions.invoke('send-email', {

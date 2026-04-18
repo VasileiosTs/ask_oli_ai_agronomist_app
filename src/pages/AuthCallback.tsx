@@ -80,6 +80,9 @@ export default function AuthCallback() {
       // PKCE magic link flow: ?code= param — must exchange manually
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        // Scrub the one-time code from the URL bar and browser history so it
+        // can't leak via Referer header to subsequent third-party requests.
+        window.history.replaceState({}, '', '/auth/callback');
         if (error) {
           console.error('Auth callback error:', error.message);
           setError(error.message);

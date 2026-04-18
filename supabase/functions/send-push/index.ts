@@ -184,7 +184,7 @@ serve(async (req) => {
     // Mode 1: Send to specific user — requires service role key (internal use only)
     if (body.user_id && body.title) {
       const authHeader = req.headers.get("authorization") || "";
-      if (!authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
+      if (authHeader !== `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
