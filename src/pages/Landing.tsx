@@ -59,9 +59,10 @@ const PHONE_DEMOS = (lang: string): PhoneDemo[] => [
 // ── Static data ───────────────────────────────────────────────────────────────
 
 const STATS = (lang: string) => [
-  { n: '450+', label: lang === 'el' ? 'Αναγνωρίσιμες ασθένειες' : 'Identifiable diseases' },
-  { n: '€0',   label: lang === 'el' ? 'Για να ξεκινήσεις, χωρίς κάρτα' : 'To start, no card needed' },
+  { n: '450+', label: lang === 'el' ? 'Ασθένειες & παθογόνα' : 'Diseases & pathogens' },
+  { n: '6',    label: lang === 'el' ? 'Γλώσσες' : 'Languages' },
   { n: '24/7', label: lang === 'el' ? 'Γεωπόνος στην τσέπη σου' : 'Agronomist in your pocket' },
+  { n: '€0',   label: lang === 'el' ? 'Για να ξεκινήσεις' : 'To get started' },
 ];
 
 const HOW_IT_WORKS = (lang: string) => [
@@ -422,9 +423,9 @@ function PhoneMockup({ lang }: { lang: string }) {
 
   return (
     // aria-hidden: this is a decorative animated mockup — not real UI content
-    <div aria-hidden="true" className="relative mx-auto w-[220px] sm:w-[240px]" style={{ filter: 'drop-shadow(0 32px 64px rgba(25,65,33,0.22))' }}>
-      {/* Phone frame */}
-      <div className="relative rounded-[36px] bg-[#111] p-[3px]" style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset' }}>
+    <div aria-hidden="true" className="relative mx-auto w-[220px] sm:w-[240px]">
+      {/* Phone frame — box-shadow avoids filter repaint on animation */}
+      <div className="relative rounded-[36px] bg-[#111] p-[3px]" style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset, 0 32px 64px rgba(25,65,33,0.22)' }}>
         {/* Screen */}
         <div className="relative rounded-[34px] overflow-hidden bg-[#faf9f4]" style={{ height: '460px' }}>
           {/* Status bar */}
@@ -940,7 +941,7 @@ export default function Landing() {
       {/* ── STATS BAR ── */}
       <section className="py-8 bg-white border-y border-[#f0efea]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             {STATS(lang).map((s, i) => (
               <div key={i} className="flex flex-col items-center">
                 <div className="text-2xl sm:text-3xl font-bold text-[#194121] mb-0.5" style={{ fontFamily: "'Noto Serif', serif" }}>
@@ -1273,8 +1274,8 @@ export default function Landing() {
               </p>
               <ul className="space-y-2.5 mb-6">
                 {(lang === 'el'
-                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια πελατών', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Επώνυμες PDF αναφορές ανά χωράφι']
-                  : ['Unlimited questions', 'Unlimited client fields', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Branded PDF reports per field']
+                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια & παραγωγοί', 'Πρόσβαση από κάθε συσκευή', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Απεριόριστες επώνυμες PDF αναφορές']
+                  : ['Unlimited questions', 'Unlimited fields & growers', 'Multi-device access', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Unlimited branded PDF reports']
                 ).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
                     <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />{item}
@@ -1298,12 +1299,12 @@ export default function Landing() {
                 {lang === 'el' ? 'Κατόπιν επικοινωνίας' : 'Contact us'}
               </p>
               <p className="text-xs text-[#606659] mb-5">
-                {lang === 'el' ? 'Για συλλόγους, συνεταιρισμούς & εταιρείες εισροών' : 'For cooperatives, associations & agri companies'}
+                {lang === 'el' ? 'Για συλλόγους, συνεταιρισμούς & εταιρείες αγροεφοδίων' : 'For cooperatives, associations & agri-input companies'}
               </p>
               <ul className="space-y-2.5 mb-6 flex-1">
                 {(lang === 'el'
-                  ? ['Όλα του Agronomist', 'Πολλαπλές θέσεις / ομαδικοί λογαριασμοί', 'White-label ή co-branded αναφορές', 'Προτεραιότητα υποστήριξης', 'Προσαρμοσμένες ενσωματώσεις κατόπιν αιτήματος']
-                  : ['Everything in Agronomist', 'Multiple seats / team accounts', 'White-label or co-branded reports', 'Priority support', 'Custom integrations on request']
+                  ? ['Απεριόριστα χωράφια & παραγωγοί', 'Απεριόριστες αναφορές & αναλύσεις', 'Πολλαπλοί χρήστες, multi-device', 'White-label ή co-branded αναφορές', 'Προτεραιότητα υποστήριξης', 'Προσαρμοσμένες ενσωματώσεις κατόπιν αιτήματος']
+                  : ['Unlimited fields & growers', 'Unlimited reports & analytics', 'Multiple users, multi-device', 'White-label or co-branded reports', 'Priority support', 'Custom integrations on request']
                 ).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
                     <Check className="w-4 h-4 text-slate-500 flex-shrink-0" />{item}
