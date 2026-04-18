@@ -1,4 +1,4 @@
-export const SUPPORT_EMAIL = 'hello@askoli.ai';
+export const SUPPORT_EMAIL = 'hello@ask-oli.com';
 
 export const FREE_MESSAGE_LIMIT = 20;
 export const FREE_MESSAGE_LIMIT_PERIOD = 'month' as const;

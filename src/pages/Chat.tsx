@@ -1892,6 +1892,22 @@ export default function Chat() {
                   />
                 )}
                 <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
+                {/* Guest conversion nudge — appears after first AI reply */}
+                {isGuestMode && messages.length >= 2 && !isTyping && (
+                  <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/8 px-4 py-3 animate-fade-in">
+                    <p className="text-xs text-foreground/80 leading-snug">
+                      {lang === 'el'
+                        ? '🌿 Συνέχισε δωρεάν — 20 ερωτήσεις τον μήνα'
+                        : '🌿 Continue free — 20 questions/month'}
+                    </p>
+                    <a
+                      href="/auth"
+                      className="flex-shrink-0 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
+                    >
+                      {lang === 'el' ? 'Εγγραφή' : 'Sign up'}
+                    </a>
+                  </div>
+                )}
                 {showPaywallWarning && !isGuestMode && (
                   <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-2.5">
                     <p className="text-xs text-amber-400">

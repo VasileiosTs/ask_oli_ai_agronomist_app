@@ -21,8 +21,11 @@ export default {
         input: '22px',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        // Primary brand font — cross-platform consistent (no Avenir/Segoe drift)
+        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
+      // Breakpoint strategy: 375 mobile, 640 sm, 768 md/tablet, 1024 lg/desktop, 1280 xl/wide
+      // All responsive classes should use these standard Tailwind breakpoints only.
       keyframes: {
         fadeIn: {
           '0%': { opacity: '0' },

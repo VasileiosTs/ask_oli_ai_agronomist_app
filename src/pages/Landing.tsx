@@ -865,7 +865,7 @@ export default function Landing() {
                     type="button"
                     onClick={() => heroFileInputRef.current?.click()}
                     aria-label={lang === 'el' ? 'Ανέβασε φωτογραφία' : 'Upload photo'}
-                    className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8 transition-colors">
+                    className="flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-xl text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8 transition-colors">
                     <Camera className="h-5 w-5" />
                   </button>
 
@@ -875,7 +875,7 @@ export default function Landing() {
                       type="button"
                       onClick={toggleListening}
                       aria-label={isListening ? (lang === 'el' ? 'Σταμάτα εγγραφή' : 'Stop recording') : (lang === 'el' ? 'Ομιλία' : 'Speak')}
-                      className={`flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8'}`}>
+                      className={`flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${isListening ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8'}`}>
                       <Mic className="h-5 w-5" />
                     </button>
                   )}
@@ -887,7 +887,7 @@ export default function Landing() {
                     onChange={e => !isListening && setChatInput(e.target.value)}
                     aria-label={lang === 'el' ? 'Ρώτα τον Oli' : 'Ask Oli anything'}
                     placeholder={lang === 'el' ? 'Ρώτα ή ανέβασε φωτογραφία...' : 'Ask or upload a photo...'}
-                    className="flex-1 min-w-0 bg-transparent text-[15px] text-[#1b1c19] placeholder:text-[#9a9b93] focus:outline-none py-1.5"
+                    className="flex-1 min-w-0 bg-transparent text-[15px] text-[#1b1c19] placeholder:text-[#9a9b93] focus:outline-none focus-visible:ring-0 py-1.5"
                     readOnly={isListening}
                   />
 
@@ -896,7 +896,7 @@ export default function Landing() {
                     type="submit"
                     disabled={!chatInput.trim() && !heroPhoto}
                     aria-label={lang === 'el' ? 'Αποστολή' : 'Send'}
-                    className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-xl text-white transition-all disabled:opacity-30"
+                    className="flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-xl text-white transition-all disabled:opacity-30"
                     style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
                     <Send className="h-4 w-4" />
                   </button>
@@ -1069,7 +1069,7 @@ export default function Landing() {
 
       {/* ── HOW IT WORKS ── */}
       <section className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lang === 'el' ? 'Πώς λειτουργεί' : 'How it works'}
@@ -1078,22 +1078,38 @@ export default function Landing() {
               {lang === 'el' ? 'Τρία απλά βήματα' : 'Three simple steps'}
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 relative">
-            {/* Connector line — desktop only */}
-            <div className="hidden sm:block absolute top-8 left-[calc(16.67%+16px)] right-[calc(16.67%+16px)] h-px bg-[#e8e8e3]" />
+          {/* Staggered alternating layout — avoids the symmetric 3-column grid */}
+          <div className="flex flex-col gap-0">
             {HOW_IT_WORKS(lang).map((step, i) => {
               const Icon = step.icon;
+              const isRight = i % 2 === 1; // steps 2 flips to right-icon
               return (
-                <div key={i} className="flex flex-col items-center text-center relative">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 relative z-10 bg-white border-2 border-[#e8e8e3]"
-                    style={{ boxShadow: '0 4px 16px rgba(25,65,33,0.08)' }}>
-                    <Icon className="w-6 h-6 text-[#194121]" />
-                    <span aria-hidden="true" className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#194121] text-white text-[10px] font-bold flex items-center justify-center">
-                      {step.step}
-                    </span>
+                <div key={i} className="relative">
+                  {/* Vertical connector line between steps */}
+                  {i < HOW_IT_WORKS(lang).length - 1 && (
+                    <div className="absolute left-1/2 -translate-x-1/2 top-[72px] bottom-0 w-px bg-[#e8e8e3] pointer-events-none sm:hidden" />
+                  )}
+                  <div className={`flex items-start gap-6 sm:gap-10 py-8 ${isRight ? 'sm:flex-row-reverse' : 'sm:flex-row'} flex-row`}>
+                    {/* Icon block */}
+                    <div className="flex-shrink-0 flex flex-col items-center">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center bg-white border-2 border-[#e8e8e3] relative"
+                        style={{ boxShadow: '0 4px 16px rgba(25,65,33,0.08)' }}>
+                        <Icon className="w-6 h-6 text-[#194121]" />
+                        <span aria-hidden="true" className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#194121] text-white text-[10px] font-bold flex items-center justify-center">
+                          {step.step}
+                        </span>
+                      </div>
+                      {/* Mobile vertical connector */}
+                      {i < HOW_IT_WORKS(lang).length - 1 && (
+                        <div className="sm:hidden w-px flex-1 min-h-[2rem] bg-[#e8e8e3] mt-3" />
+                      )}
+                    </div>
+                    {/* Text block */}
+                    <div className={`flex-1 pt-2 sm:pt-3 ${isRight ? 'sm:text-right' : ''}`}>
+                      <h3 className="font-bold text-[#1b1c19] mb-2 text-[17px]" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
+                      <p className="text-sm text-[#5a6053] leading-relaxed">{step.body}</p>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-[#1b1c19] mb-2 text-[17px]" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
-                  <p className="text-sm text-[#5a6053] leading-relaxed">{step.body}</p>
                 </div>
               );
             })}
@@ -1140,15 +1156,15 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
-      <section className="py-16 bg-[#faf9f4]">
+      {/* ── TESTIMONIALS — dark section to break uniform rhythm ── */}
+      <section className="py-16 bg-[#0f2418]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-10">
+          <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#6dbf7e] mb-10">
             {lang === 'el' ? 'Τι λένε οι αγρότες' : 'What farmers say'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {TESTIMONIALS(lang).map((t, i) => (
-              <div key={i} className="rounded-2xl border border-[#e8e8e3] p-6 bg-white">
+              <div key={i} className="rounded-2xl border border-white/10 p-6 bg-white/5">
                 <div className="flex gap-1 mb-4">
                   {[...Array(5)].map((_, j) => (
                     <svg key={j} className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
@@ -1156,14 +1172,14 @@ export default function Landing() {
                     </svg>
                   ))}
                 </div>
-                <p className="text-sm text-[#3a4035] leading-relaxed mb-5 italic">&ldquo;{t.quote}&rdquo;</p>
+                <p className="text-sm text-white/80 leading-relaxed mb-5 italic">&ldquo;{t.quote}&rdquo;</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#194121]/10 flex items-center justify-center text-xs font-bold text-[#194121]">
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white/70">
                     {t.initial}
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1b1c19]">{t.name}</p>
-                    <p className="text-xs text-[#606659]">{t.crop}</p>
+                    <p className="text-xs font-semibold text-white/90">{t.name}</p>
+                    <p className="text-xs text-white/50">{t.crop}</p>
                   </div>
                 </div>
               </div>
@@ -1295,7 +1311,7 @@ export default function Landing() {
                 ))}
               </ul>
               <a
-                href="mailto:hello@askoli.ai?subject=Oli%20Enterprise%20pricing"
+                href="mailto:hello@ask-oli.com?subject=Oli%20Enterprise%20pricing"
                 className="block w-full text-center py-3 rounded-full text-sm font-semibold text-slate-700 border-2 border-slate-300 hover:border-slate-500 hover:bg-slate-50 transition-all">
                 {lang === 'el' ? 'Επικοινωνήστε μαζί μας' : 'Get in touch'}
               </a>

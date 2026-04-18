@@ -11,9 +11,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // CRON_SECRET allows pg_cron to call cron modes without service role key in git history.
 // Set CRON_SECRET in Supabase Edge Function secrets (same value used in migration).
 const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Oli <noreply@askoli.ai>";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Oli <noreply@ask-oli.com>";
 const APP_URL = Deno.env.get("APP_URL") || "https://codex-ask-oli-app.vercel.app";
-const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@askoli.ai";
+const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@ask-oli.com";
 
 // ── CORS ──
 const ALLOWED_ORIGIN =

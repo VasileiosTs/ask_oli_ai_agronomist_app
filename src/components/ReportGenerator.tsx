@@ -79,7 +79,7 @@ ${timeline.length > 0 ? `
 <table><thead><tr><th>Date</th><th>Activity</th><th>Outcome</th></tr></thead><tbody>${timelineRows}</tbody></table>
 ` : ''}
 
-<div class="footer">${labels.generated[l]} · askoli.ai · ${date}</div>
+<div class="footer">${labels.generated[l]} · ask-oli.com · ${date}</div>
 </body></html>`;
 }
 
