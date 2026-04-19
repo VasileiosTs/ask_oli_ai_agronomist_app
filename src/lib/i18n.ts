@@ -23,6 +23,7 @@ export interface T {
   welcomeTitle: string; welcomeSubtitle: string; welcomeStart: string;
   // Chat - input
   inputPlaceholder: string; listening: string;
+  aiDisclaimer: string;
   // Chat - field selector
   allFields: string;
   // Chat - limit
