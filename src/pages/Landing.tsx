@@ -69,6 +69,7 @@ const HOW_IT_WORKS = (lang: string) => [
   {
     step: '1',
     icon: MessageCircle,
+    preview: 'ask' as const,
     title: lang === 'el' ? 'Ρώτα ή φωτογράφισε' : 'Ask or snap a photo',
     body: lang === 'el'
       ? 'Γράψε την ερώτησή σου ή ανέβασε φωτογραφία από το χωράφι. Δεν χρειάζεται να ξέρεις τη σωστή ορολογία.'
@@ -77,6 +78,7 @@ const HOW_IT_WORKS = (lang: string) => [
   {
     step: '2',
     icon: Zap,
+    preview: 'answer' as const,
     title: lang === 'el' ? 'Πάρε απάντηση σε δευτερόλεπτα' : 'Get your answer in seconds',
     body: lang === 'el'
       ? 'Διάγνωση, πλάνο θεραπείας, συμβουλές σποράς, υπολογισμός φύτευσης. Συγκεκριμένη απάντηση, όχι γενικές πληροφορίες.'
@@ -85,12 +87,128 @@ const HOW_IT_WORKS = (lang: string) => [
   {
     step: '3',
     icon: RefreshCw,
+    preview: 'followup' as const,
     title: lang === 'el' ? 'Ο Oli παρακολουθεί και μαθαίνει' : 'Oli follows up and learns',
     body: lang === 'el'
       ? 'Θυμάται κάθε καλλιέργεια και παρέμβαση. Παρακολουθεί σαν αληθινός γεωπόνος αν η θεραπεία πέτυχε.'
       : 'It remembers every crop and treatment. Follows up like a real agronomist to confirm the treatment worked.',
   },
 ];
+
+// ── Step preview micro-UIs ────────────────────────────────────────────────────
+
+function StepPreviewAsk({ lang }: { lang: string }) {
+  return (
+    <div className="mt-4 rounded-xl border border-[#e8e8e3] bg-white overflow-hidden"
+      style={{ boxShadow: '0 2px 12px rgba(25,65,33,0.07)' }}>
+      {/* Chat header */}
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#f0efea] bg-[#fafaf8]">
+        <div className="w-4 h-4 rounded-full bg-[#194121]/10 flex items-center justify-center">
+          <span style={{ fontSize: '8px' }}>🌿</span>
+        </div>
+        <span className="text-[10px] font-semibold text-[#194121]">Oli</span>
+        <span className="ml-auto flex items-center gap-0.5 text-[9px] text-emerald-600 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+          Online
+        </span>
+      </div>
+      <div className="p-3 space-y-2">
+        {/* User message + photo thumbnail */}
+        <div className="flex justify-end">
+          <div className="flex items-end gap-1.5 max-w-[90%]">
+            <div className="w-9 h-9 rounded-lg bg-[#e8f4ea] flex items-center justify-center flex-shrink-0 border border-[#d4e8d4] text-xl leading-none">
+              🍅
+            </div>
+            <div className="rounded-xl rounded-tr-sm bg-[#194121] text-white text-[10px] px-3 py-2 leading-snug">
+              {lang === 'el' ? 'Τα φύλλα έχουν καστανούς κύκλους...' : 'Leaves have brown rings...'}
+            </div>
+          </div>
+        </div>
+        {/* Input bar */}
+        <div className="flex items-center gap-1.5 rounded-xl border border-[#deded8] bg-[#f5f4ef] px-2.5 py-2">
+          <Camera className="h-3 w-3 text-[#606659] flex-shrink-0" />
+          <span className="flex-1 text-[10px] text-[#9a9b93] truncate">
+            {lang === 'el' ? 'Ρώτα ή ανέβασε φωτογραφία...' : 'Ask or upload a photo...'}
+          </span>
+          <div className="h-5 w-5 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
+            <Send className="h-2.5 w-2.5 text-white" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepPreviewAnswer({ lang }: { lang: string }) {
+  return (
+    <div className="mt-4 rounded-xl border border-[#e8e8e3] bg-white p-3"
+      style={{ boxShadow: '0 2px 12px rgba(25,65,33,0.07)' }}>
+      {/* Oli avatar row */}
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <div className="w-5 h-5 rounded-full bg-[#194121]/10 flex items-center justify-center flex-shrink-0">
+          <span style={{ fontSize: '10px' }}>🌿</span>
+        </div>
+        <span className="text-[10px] font-semibold text-[#194121]">Oli</span>
+      </div>
+      {/* Diagnosis card */}
+      <div className="rounded-lg border border-[#e8e8e3] bg-[#fafaf8] px-2.5 py-2 mb-1.5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold text-[#1b1c19]">
+            {lang === 'el' ? 'Εναλτερίωση Ντομάτας' : 'Early Blight'}
+          </span>
+          <span className="text-[9px] font-semibold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full">92%</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          <div className="bg-emerald-50 rounded-md p-1.5">
+            <p className="text-[8px] font-bold text-emerald-700 mb-0.5">🌿 {lang === 'el' ? 'Βιολογικό' : 'Organic'}</p>
+            <p className="text-[8px] text-[#3a4035] leading-tight">Bordeaux 200g/100L</p>
+          </div>
+          <div className="bg-blue-50 rounded-md p-1.5">
+            <p className="text-[8px] font-bold text-blue-700 mb-0.5">🧪 {lang === 'el' ? 'Χημικό' : 'Chemical'}</p>
+            <p className="text-[8px] text-[#3a4035] leading-tight">Mancozeb 80% WP</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepPreviewFollowup({ lang }: { lang: string }) {
+  return (
+    <div className="mt-4 rounded-xl border border-[#e8e8e3] bg-white p-3"
+      style={{ boxShadow: '0 2px 12px rgba(25,65,33,0.07)' }}>
+      {/* Oli follow-up message */}
+      <div className="flex gap-2 items-start mb-3">
+        <div className="w-5 h-5 rounded-full bg-[#194121]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <span style={{ fontSize: '10px' }}>🌿</span>
+        </div>
+        <div className="flex-1 text-[11px] text-[#1b1c19] leading-snug bg-[#f5f4ef] rounded-xl rounded-tl-sm px-3 py-2">
+          {lang === 'el'
+            ? 'Εφάρμοσες θεραπεία; Βλέπεις βελτίωση στις ντομάτες;'
+            : 'Did you apply the treatment? Any improvement in the tomatoes?'}
+        </div>
+      </div>
+      {/* Response buttons */}
+      <div className="flex gap-1.5 justify-end">
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="rounded-full bg-[#194121] text-white text-[10px] px-3 py-1 font-semibold pointer-events-none">
+          {lang === 'el' ? '✓ Ναι' : '✓ Yes'}
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="rounded-full border border-[#e8e8e3] text-[#606659] text-[10px] px-3 py-1 pointer-events-none">
+          {lang === 'el' ? 'Όχι ακόμα' : 'Not yet'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const FEATURES = (lang: string): { icon: LucideIcon; title: string; body: string; accent: boolean }[] => [
   {
@@ -637,6 +755,7 @@ export default function Landing() {
   // Photo attachment for hero guest chat
   const [heroPhoto, setHeroPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const heroFormRef = useRef<HTMLFormElement>(null);
 
   // Voice (speech-to-text) for hero guest chat
   const [isListening, setIsListening] = useState(false);
@@ -839,7 +958,7 @@ export default function Landing() {
               </p>
 
               {/* Chat input */}
-              <form onSubmit={handleChatSubmit} className="max-w-xl mx-auto lg:mx-0 mb-3">
+              <form ref={heroFormRef} onSubmit={handleChatSubmit} className="max-w-xl mx-auto lg:mx-0 mb-3">
                 {/* Photo preview */}
                 {heroPhoto && (
                   <div className="flex items-center gap-2 mb-2 px-1">
@@ -858,7 +977,7 @@ export default function Landing() {
                 )}
 
                 <div
-                  className="flex items-center gap-1 rounded-2xl bg-white border border-[#deded8] focus-within:border-[#194121] focus-within:ring-2 focus-within:ring-[#194121]/15 transition-all px-3 py-2"
+                  className="flex items-start gap-1 rounded-2xl bg-white border border-[#deded8] focus-within:border-[#194121] focus-within:ring-2 focus-within:ring-[#194121]/15 transition-all px-3 py-2"
                   style={{ boxShadow: '0 4px 24px rgba(25,65,33,0.09)' }}>
 
                   {/* Photo button */}
@@ -866,7 +985,7 @@ export default function Landing() {
                     type="button"
                     onClick={() => heroFileInputRef.current?.click()}
                     aria-label={lang === 'el' ? 'Ανέβασε φωτογραφία' : 'Upload photo'}
-                    className="flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-xl text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8 transition-colors">
+                    className="flex-shrink-0 self-start flex h-11 w-11 items-center justify-center rounded-xl text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8 transition-colors">
                     <Camera className="h-5 w-5" />
                   </button>
 
@@ -876,19 +995,25 @@ export default function Landing() {
                       type="button"
                       onClick={toggleListening}
                       aria-label={isListening ? (lang === 'el' ? 'Σταμάτα εγγραφή' : 'Stop recording') : (lang === 'el' ? 'Ομιλία' : 'Speak')}
-                      className={`flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${isListening ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8'}`}>
+                      className={`flex-shrink-0 self-start flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${isListening ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#606659] hover:text-[#194121] hover:bg-[#194121]/8'}`}>
                       <Mic className="h-5 w-5" />
                     </button>
                   )}
 
-                  {/* Text input */}
-                  <input
-                    type="text"
+                  {/* Text area */}
+                  <textarea
+                    rows={2}
                     value={isListening ? (lang === 'el' ? 'Ακούω...' : 'Listening...') : chatInput}
                     onChange={e => !isListening && setChatInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (chatInput.trim() || heroPhoto) heroFormRef.current?.requestSubmit();
+                      }
+                    }}
                     aria-label={lang === 'el' ? 'Ρώτα τον Oli' : 'Ask Oli anything'}
-                    placeholder={lang === 'el' ? 'Ρώτα ή ανέβασε φωτογραφία...' : 'Ask or upload a photo...'}
-                    className="flex-1 min-w-0 bg-transparent text-[15px] text-[#1b1c19] placeholder:text-[#9a9b93] focus:outline-none focus-visible:ring-0 py-1.5"
+                    placeholder={lang === 'el' ? 'Ρώτα ή ανέβασε φωτογραφία...\n(Shift+Enter για νέα γραμμή)' : 'Ask or upload a photo...\n(Shift+Enter for new line)'}
+                    className="flex-1 min-w-0 bg-transparent text-[15px] text-[#1b1c19] placeholder:text-[#9a9b93] focus:outline-none focus-visible:ring-0 py-2.5 resize-none leading-snug"
                     readOnly={isListening}
                   />
 
@@ -897,7 +1022,7 @@ export default function Landing() {
                     type="submit"
                     disabled={!chatInput.trim() && !heroPhoto}
                     aria-label={lang === 'el' ? 'Αποστολή' : 'Send'}
-                    className="flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-xl text-white transition-all disabled:opacity-30"
+                    className="flex-shrink-0 self-end flex h-11 w-11 items-center justify-center rounded-xl text-white transition-all disabled:opacity-30"
                     style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
                     <Send className="h-4 w-4" />
                   </button>
@@ -1114,6 +1239,10 @@ export default function Landing() {
                     <div className={`flex-1 pt-2 sm:pt-3 ${isRight ? 'sm:text-right' : ''}`}>
                       <h3 className="font-bold text-[#1b1c19] mb-2 text-[17px]" style={{ fontFamily: "'Noto Serif', serif" }}>{step.title}</h3>
                       <p className="text-sm text-[#5a6053] leading-relaxed">{step.body}</p>
+                      {/* Micro-preview card — shown on all screen sizes */}
+                      {step.preview === 'ask' && <StepPreviewAsk lang={lang} />}
+                      {step.preview === 'answer' && <StepPreviewAnswer lang={lang} />}
+                      {step.preview === 'followup' && <StepPreviewFollowup lang={lang} />}
                     </div>
                   </div>
                 </div>
