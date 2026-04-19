@@ -60,9 +60,9 @@ const PHONE_DEMOS = (lang: string): PhoneDemo[] => [
 
 const STATS = (lang: string) => [
   { n: '450+', label: lang === 'el' ? 'Ασθένειες & παθογόνα' : 'Diseases & pathogens' },
+  { n: '80+',  label: lang === 'el' ? 'Είδη καλλιεργειών' : 'Crop types' },
+  { n: '20+',  label: lang === 'el' ? 'Ελλείψεις θρεπτικών' : 'Nutrient deficiencies' },
   { n: '6',    label: lang === 'el' ? 'Γλώσσες' : 'Languages' },
-  { n: '24/7', label: lang === 'el' ? 'Γεωπόνος στην τσέπη σου' : 'Agronomist in your pocket' },
-  { n: '€0',   label: lang === 'el' ? 'Για να ξεκινήσεις' : 'To get started' },
 ];
 
 const HOW_IT_WORKS = (lang: string) => [
@@ -951,6 +951,11 @@ export default function Landing() {
               </div>
             ))}
           </div>
+          <p className="mt-5 text-center text-xs text-[#9a9b93]">
+            {lang === 'el'
+              ? 'Δωρεάν για να ξεκινήσεις · Χωρίς πιστωτική κάρτα · Διαθέσιμος 24/7'
+              : 'Free to start · No credit card · Available 24/7'}
+          </p>
         </div>
       </section>
 
@@ -1240,8 +1245,8 @@ export default function Landing() {
               <p className="text-xs text-white/50 mb-5">{lang === 'el' ? 'ή €49 / χρόνο — εξοικονομείς 18%' : 'or €49 / year — save 18%'}</p>
               <ul className="space-y-2.5 mb-6">
                 {(lang === 'el'
-                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια + μνήμη καλλιεργειών', 'Ο Oli κάνει follow-up στις θεραπείες', 'Υπολογισμοί άρδευσης και φύτευσης', 'Αρχείο παρεμβάσεων ανά χωράφι', 'Μηνιαίες αναφορές χωραφιών']
-                  : ['Unlimited questions', 'Unlimited fields + crop memory', 'Oli follows up on every treatment', 'Irrigation & planting calculations', 'Field intervention log', 'Monthly field reports']
+                  ? ['Απεριόριστες ερωτήσεις & χωράφια', 'Μνήμη καλλιεργειών — θυμάται κάθε παρέμβαση', 'Αναγνώριση ελλείψεων θρεπτικών στοιχείων', 'Ανάγνωση εδαφολογικών & φυλλοδιαγνωστικών αναλύσεων', 'Follow-up θεραπειών & αρχείο παρεμβάσεων', 'Υπολογισμοί άρδευσης, φύτευσης & NPK', 'Μηνιαίες αναφορές χωραφιών σε PDF']
+                  : ['Unlimited questions & fields', 'Crop memory — remembers every intervention', 'Nutrient deficiency recognition', 'Reads soil & leaf lab analysis', 'Treatment follow-up & intervention log', 'Irrigation, planting & NPK calculations', 'Monthly field reports as PDF']
                 ).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-white/90">
                     <Check className="w-4 h-4 text-white/70 flex-shrink-0" />{item}
@@ -1274,8 +1279,8 @@ export default function Landing() {
               </p>
               <ul className="space-y-2.5 mb-6">
                 {(lang === 'el'
-                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια & παραγωγοί', 'Πρόσβαση από κάθε συσκευή', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Απεριόριστες επώνυμες PDF αναφορές']
-                  : ['Unlimited questions', 'Unlimited fields & growers', 'Multi-device access', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Unlimited branded PDF reports']
+                  ? ['Απεριόριστες ερωτήσεις', 'Απεριόριστα χωράφια & παραγωγοί', 'Πρόσβαση από κάθε συσκευή', 'Ανάγνωση εδαφολογικών & φυλλοδιαγνωστικών αναλύσεων', 'Ιστορικό παρεμβάσεων ανά πελάτη', 'Επιστημονικοί υπολογισμοί (ETc, NPK)', 'Απεριόριστες επώνυμες PDF αναφορές & αξιολογήσεις']
+                  : ['Unlimited questions', 'Unlimited fields & growers', 'Multi-device access', 'Reads soil & leaf lab analysis', 'Intervention history per client', 'Scientific calculations (ETc, NPK)', 'Unlimited branded PDF reports & assessments']
                 ).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
                     <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />{item}
@@ -1303,8 +1308,8 @@ export default function Landing() {
               </p>
               <ul className="space-y-2.5 mb-6 flex-1">
                 {(lang === 'el'
-                  ? ['Απεριόριστα χωράφια & παραγωγοί', 'Απεριόριστες αναφορές & αναλύσεις', 'Πολλαπλοί χρήστες, multi-device', 'White-label ή co-branded αναφορές', 'Προτεραιότητα υποστήριξης', 'Προσαρμοσμένες ενσωματώσεις κατόπιν αιτήματος']
-                  : ['Unlimited fields & growers', 'Unlimited reports & analytics', 'Multiple users, multi-device', 'White-label or co-branded reports', 'Priority support', 'Custom integrations on request']
+                  ? ['Απεριόριστα χωράφια & παραγωγοί', 'Απεριόριστες αναφορές & αναλύσεις', 'Εξαγωγή δεδομένων CSV / Excel', 'Πολλαπλοί χρήστες, multi-device', 'White-label ή co-branded αναφορές', 'API πρόσβαση κατόπιν αιτήματος', 'Προτεραιότητα υποστήριξης & προσαρμοσμένες ενσωματώσεις']
+                  : ['Unlimited fields & growers', 'Unlimited reports & analytics', 'Data export CSV / Excel', 'Multiple users, multi-device', 'White-label or co-branded reports', 'API access on request', 'Priority support & custom integrations']
                 ).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
                     <Check className="w-4 h-4 text-slate-500 flex-shrink-0" />{item}

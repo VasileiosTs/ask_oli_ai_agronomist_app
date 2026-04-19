@@ -296,7 +296,7 @@ export default function Onboarding() {
                   { id: 'farmer',       el: 'Αγρότης / Παραγωγός',              en: 'Farmer / Grower',                  hint_el: 'Προσωπικές καλλιέργειες και χωράφια',             hint_en: 'Personal crops and fields' },
                   { id: 'agronomist',   el: 'Γεωπόνος',                         en: 'Agronomist',                       hint_el: 'Διαχείριση χωραφιών πελατών',                    hint_en: 'Managing client farms' },
                   { id: 'cooperative',  el: 'Αγροτικός Σύλλογος / Συνεταιρισμός', en: 'Cooperative / Association',      hint_el: 'Υποστήριξη μελών',                               hint_en: 'Supporting members' },
-                  { id: 'enterprise',   el: 'Εταιρεία εισροών / Επιχείρηση',    en: 'Agri company / Business',          hint_el: 'Εμπορική ή επιχειρηματική χρήση',                hint_en: 'Commercial or business use' },
+                  { id: 'enterprise',   el: 'Εταιρεία αγροεφοδίων / Επιχείρηση', en: 'Agri company / Business',          hint_el: 'Εμπορική ή επιχειρηματική χρήση',                hint_en: 'Commercial or business use' },
                   { id: 'hobbyist',     el: 'Κηπουρός / Οικιακός κήπος',        en: 'Home gardener',                    hint_el: 'Κήπος, μπαλκόνι, αυτάρκεια',                    hint_en: 'Garden, balcony, self-sufficiency' },
                 ] as const).map(opt => (
                   <button
