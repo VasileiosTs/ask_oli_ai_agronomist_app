@@ -1241,14 +1241,14 @@ export default function Landing() {
           {/* Row 1: Free + Pro (individual users) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
             {/* Free */}
-            <div className="rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
+            <div className="flex flex-col rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
               <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lt.freeName}</p>
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
                 <span className="text-sm text-[#606659]">{lt.perMonth}</span>
               </div>
               <p className="text-xs text-[#606659] mb-5">{lt.noCreditCard}</p>
-              <ul className="space-y-2.5 mb-6">
+              <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.freeFeatures.map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
                     <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />{item}
@@ -1261,7 +1261,7 @@ export default function Landing() {
             </div>
 
             {/* Pro */}
-            <div className="rounded-2xl p-6 relative overflow-hidden text-white"
+            <div className="flex flex-col rounded-2xl p-6 relative overflow-hidden text-white"
               style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
               <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
               <div className="flex items-baseline gap-1 mb-1">
@@ -1269,7 +1269,7 @@ export default function Landing() {
                 <span className="text-sm text-white/70">{lt.perMonth}</span>
               </div>
               <p className="text-xs text-white/50 mb-5">{lt.proYearlyNote}</p>
-              <ul className="space-y-2.5 mb-6">
+              <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.proFeatures.map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-white/90">
                     <Check className="w-4 h-4 text-white/70 flex-shrink-0" />{item}
@@ -1285,7 +1285,7 @@ export default function Landing() {
           {/* Row 2: Agronomist + Enterprise */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Agronomist */}
-            <div className="rounded-2xl border border-[#b8cfc0] bg-[#f4f8f4] p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
+            <div className="flex flex-col rounded-2xl border border-[#b8cfc0] bg-[#f4f8f4] p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
               <div className="flex items-start justify-between mb-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-[#4a6b50]">{lt.agronomistName}</p>
                 <span className="text-[10px] font-semibold bg-[#194121] text-white px-2 py-0.5 rounded-full">
@@ -1300,7 +1300,7 @@ export default function Landing() {
               <p className="text-xs text-[#4a6b50] font-medium mb-5 italic">
                 {lt.agronomistTagline}
               </p>
-              <ul className="space-y-2.5 mb-6">
+              <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.agronomistFeatures.map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
                     <Check className="w-4 h-4 text-[#194121] flex-shrink-0" />{item}
