@@ -87,8 +87,8 @@ export default function MessageList({
       {isTyping && (
         <div className="flex w-full justify-start animate-fade-in">
           {/* Animated Oli logo */}
-          <div className="flex-shrink-0 mt-1 mr-2.5" style={{ animation: 'oliThink 2s ease-in-out infinite', transformOrigin: 'center' }}>
-            <OliLogo size={26} bg="#161C23" />
+          <div className="flex-shrink-0 mt-1 mr-2.5">
+            <OliLogo size={26} bg="#161C23" animate="cascade" />
           </div>
           {/* Thinking bubble */}
           <div className="flex max-w-[78%] flex-col gap-1">

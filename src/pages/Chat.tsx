@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useReducer } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
+import OliLogo from '../components/OliLogo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
@@ -1828,7 +1829,7 @@ export default function Chat() {
               <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl' : 'max-w-2xl'}`}>
                 {sidebarLoading ? (
                   <div className="flex h-full items-center justify-center py-20">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+                    <OliLogo size={32} bg="#161C23" animate="cascade" />
                   </div>
                 ) : <MessageList {...messageListProps} />}
               </div>

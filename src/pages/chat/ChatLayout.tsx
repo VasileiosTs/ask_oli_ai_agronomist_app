@@ -1,5 +1,6 @@
 import { Leaf, Menu, Send, SquarePen } from 'lucide-react';
 import clsx from 'clsx';
+import OliLogo from '../../components/OliLogo';
 import type { ReactNode } from 'react';
 import ConversationSidebar from '../../components/ConversationSidebar';
 import ChatInputBar, { type ChatInputBarProps } from '../../components/ChatInputBar';
@@ -184,7 +185,7 @@ export default function ChatLayout({
               <div className="mx-auto max-w-2xl">
                 {sidebarLoading ? (
                   <div className="flex h-full items-center justify-center py-20">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+                    <OliLogo size={32} bg="#161C23" animate="cascade" />
                   </div>
                 ) : (
                   <MessageList {...messageListProps} />
