@@ -791,9 +791,7 @@ export default function Landing() {
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-[#e8e8e3]">
         <div className="flex justify-between items-center max-w-5xl mx-auto px-4 sm:px-6 h-14">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#194121] flex items-center justify-center flex-shrink-0">
-              <OliLogo size={20} bg="#194121" />
-            </div>
+            <OliLogo size={32} bg="#ffffff" />
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>Oli</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1376,9 +1374,7 @@ export default function Landing() {
       <footer className="bg-white border-t border-[#e8e8e3] py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[#194121] flex items-center justify-center flex-shrink-0">
-              <OliLogo size={14} bg="#194121" />
-            </div>
+            <OliLogo size={20} bg="#ffffff" />
             <span className="text-sm font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>Oli</span>
             <span className="text-xs text-[#606659]">&copy; 2026</span>
           </div>
