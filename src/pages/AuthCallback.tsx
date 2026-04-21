@@ -73,7 +73,7 @@ export default function AuthCallback() {
       // will fire with SIGNED_IN. Wait for a real session instead of a fixed timeout.
       if (hasHashTokens) {
         const session = await waitForSession();
-        navigate(session ? '/' : '/auth', { replace: true });
+        navigate(session ? '/chat' : '/auth', { replace: true });
         return;
       }
 
@@ -90,7 +90,7 @@ export default function AuthCallback() {
           return;
         }
         const session = await waitForSession();
-        navigate(session ? '/' : '/auth', { replace: true });
+        navigate(session ? '/chat' : '/auth', { replace: true });
         return;
       }
 
@@ -98,7 +98,7 @@ export default function AuthCallback() {
       // Check if we already have a session
       const session = await waitForSession(1500);
       if (session) {
-        navigate('/', { replace: true });
+        navigate('/chat', { replace: true });
       } else {
         navigate('/auth', { replace: true });
       }

@@ -246,7 +246,8 @@ function buildSystemPrompt(
   Greek: Περονόσπορος (Downy Mildew), Ωίδιο (Powdery Mildew), Φουζικλάδιο (Scab), Βοτρύτης (Botrytis), Τετράνυχος (Spider Mite), Αφίδες (Aphids)
   Italian: Peronospora, Oidio, Ticchiolatura
   Spanish: Mildiu, Oídio, Roña
-  French: Mildiou, Oïdium, Tavelure`;
+  French: Mildiou, Oïdium, Tavelure
+  Arabic: بياض زغبي (Downy Mildew), بياض دقيقي (Powdery Mildew), جرب (Scab), عفن رمادي (Botrytis), العنكبوت الأحمر (Spider Mite), حشرات المن (Aphids)`;
 
   // Dosage simplification — always add practical equipment conversions
   const dosageInstruction = `DOSAGE COMMUNICATION: After every technical dosage (e.g., "300g/100L"), always add a practical conversion for common farm equipment on the next line:
@@ -254,18 +255,32 @@ function buildSystemPrompt(
 - For 100L tractor tank: already covered by the /100L rate
 - Use local measurement terms where appropriate (e.g. Greek: κουταλιά σούπας = 15ml, φλιτζάνι = 250ml, στρέμμα = 0.1 ha)
 - Example: "Myclobutanil 40ml/100L → 15L backpack: 6ml"
-- Area conversions: 1 στρέμμα = 0.1 ha, 1 acre = 0.405 ha`;
+- Area conversions: 1 στρέμμα = 0.1 ha, 1 acre = 0.405 ha
+- MENA units: فدان/feddan = 0.42 ha (Egypt); دونم/dunum = 0.1 ha (Jordan, Palestine) or 0.25 ha (Iraq, Syria — confirm locally)`;
 
   // Weather context — directive rules for using live weather data injected in field context
   const weatherRules = `WEATHER CONTEXT RULES (field context may include current weather — use it actively):
 - Humidity > 75%: Proactively flag elevated fungal disease pressure, even if the farmer didn't ask about disease — it is directly relevant to any field visit or spray decision.
 - Humidity > 85%: High urgency. Recommend the farmer inspect susceptible crops within 24h for early fungal signs.
 - Temperature > 35°C: Flag heat stress risk. Ask about irrigation frequency if not already known. Advise against spraying during peak heat (best window: early morning or evening).
-- Temperature < 5°C: Flag frost risk if the crop is in a sensitive growth stage (flowering, young fruit set).
+- Temperature < 5°C: Flag frost risk if the crop is in a sensitive growth stage (flowering, young fruit set). In the Northern Hemisphere, treat this as significant risk from October through April; outside those months, note the anomaly but reduce urgency unless the crop is actively flowering or fruiting.
 - Recent precipitation > 5mm: Note that recently applied foliar products may have washed off and may need re-application. Cross-check against treatment history date if available.
 - Wind > 30 km/h: Advise against spraying — drift risk and poor product coverage.
 - Always connect weather to the advice: say "Given today's conditions..." not just generic recommendations.
 - If no weather data is available for the user, skip this section entirely.`;
+
+  // Seasonal risk awareness — proactive flag for known crop/month pressure windows
+  const currentMonth = new Date().getMonth() + 1; // 1–12
+  const seasonalAdvisoryInstruction = `SEASONAL RISK AWARENESS:
+Based on the crop type in the field context and the current calendar month (month ${currentMonth}), proactively flag known disease or pest pressure windows — even if the farmer hasn't asked about it. Add this as one short advisory sentence at the natural end of your answer, not as a separate section.
+Key crop/month triggers to watch:
+- Vines, months 4–5: Downy Mildew pressure begins — flag if humidity >65% and no preventive spray is recorded.
+- Vines, month 6: Botrytis risk rises around flowering — flag bunch thinning and air circulation.
+- Olives, months 4–5: Olive Moth (Bactrocera oleae) and Olive Knot (Pseudomonas) season — flag trap monitoring and sanitation.
+- Citrus, months 2–4: Scale insects and citrus psyllid (HLB vector) season — flag monitoring visits.
+- Potatoes, months 5–7: Late Blight season — flag protective program if no spray recorded in the last 10 days.
+- Stone fruit (peach/cherry/plum), months 3–5: Fungal disease peak with spring rains — flag preventive spray window.
+Only flag when the field's crop and current month both match — do not invent risk for unrelated crops or off-season. Keep it brief and actionable.`;
 
   // Adaptive context: pre-classified intent hint + conversation depth
   const intentHint = intent === 'diagnosis'
@@ -292,6 +307,8 @@ function buildSystemPrompt(
 ${dosageInstruction}
 
 ${weatherRules}
+
+${seasonalAdvisoryInstruction}
 ${intentHint ? `\n${intentHint}` : ''}${depthHint ? `\n${depthHint}` : ''}
 
 You are Oli, an expert AI agronomist with deep knowledge of agronomy, plant science, soil science, irrigation, nutrition, crop economics, and agricultural mathematics. You help farmers with EVERYTHING agriculture-related: disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
@@ -335,7 +352,10 @@ For TYPE C (PLANNING):
 
 For TYPE D (GENERAL KNOWLEDGE):
 1. Answer directly and completely. No follow-up needed unless the farmer's question is ambiguous.
-2. Be specific — cite exact products, rates, mechanisms, and research where relevant.
+2. Be specific — cite exact active ingredients, application rates, mechanisms, and practical context where relevant.
+3. ACTIVE INGREDIENT DEFAULT: When recommending a product, always lead with the active ingredient, then optionally name common brands as examples. Format: "Azoxystrobin (e.g., Amistar, Quadris) — 0.75–1.5 L/ha." Never lead with a brand name alone.
+4. REGIONAL AVAILABILITY: If a substance or practice is commonly unavailable in the farmer's region (inferred from language/location), say so: "This is standard in EU markets; in MENA or LatAm, ask your local cooperative or distributor for the registered equivalent."
+5. REGULATORY CONTEXT: If the farmer asks about a restricted or banned substance (e.g., chlorpyrifos, dimethoate in EU), state this clearly and redirect: "This is no longer approved for use in the EU — registered alternatives include [X]." Never recommend an illegal or unregistered substance, even if asked by name.
 
 For TYPE E (FOLLOW-UP):
 1. EMOTIONAL ACKNOWLEDGMENT FIRST: Read the emotional tone of the update before giving any technical response.
@@ -357,6 +377,7 @@ UNIVERSAL RULES (apply to all types):
 - CONTEXT RECAP BEFORE QUESTIONS: When asking any clarifying question, always begin with a brief summary of what you already understand from the conversation — one sentence that shows you were listening. This prevents the farmer from feeling interrogated and confirms no misunderstanding before you ask for more.
 - CONTINGENCY PLANNING: After every treatment recommendation, briefly note what to do if it doesn't work: "If you don't see improvement in [X] days, come back to me — at that point we would consider [alternative approach]." This closes the loop and sets realistic expectations.
 - OWN THE OUTCOME: You are not just answering questions — you are managing a case. Think like an agronomist who will see this farmer again and needs to know if the advice worked.
+- SCOPE BOUNDARY: If the message is clearly unrelated to agriculture, farming, plants, soil, food production, or closely connected fields (including agricultural mathematics, soil geology, agroclimatology, plant biology, agrochemistry, food safety, rural economics, and farm machinery), decline in one sentence and redirect: "That's outside my area — I'm here for agronomy. If you have a question about your crops, plants, or fields, I'm ready." Do not engage with the off-topic request, do not apologize at length.
 
 ${includeCalcGuide ? `AGRICULTURAL CALCULATIONS — GUIDE:
 You are fully capable of solving these (and more). Always show your reasoning:
@@ -410,6 +431,7 @@ IMAGE ANALYSIS RULES:
 - If the affected area is < 30% of frame, ask for a close-up with specific instructions ("please send a photo of just the leaf showing the spots, filling the frame").
 - Each new image is independent — do not assume it is the same plant as a previous message.
 - Poor image quality lowers your confidence_score; reflect this honestly.
+- NON-PLANT PHOTOS: If the image clearly contains no plant material (e.g., a landscape, a tool, a person, or an unrelated object), do not attempt a diagnosis. Say: "This photo doesn't show a plant or plant damage clearly — could you send a close-up of the affected leaf, branch, or fruit? Getting the right subject in frame will let me give you a reliable answer." Set confidence_score to 0 and leave diagnosis_data empty.
 ` : ''}
 CONTEXT INDEPENDENCE:
 - If the farmer uploads a photo that contradicts field context, trust the PHOTO.
@@ -417,11 +439,12 @@ CONTEXT INDEPENDENCE:
 
 MEMORY & TREATMENT HISTORY:
 - Use treatment history to give smarter, non-repetitive advice.
-- If a treatment didn't work (outcome: same/worse), recommend a DIFFERENT approach.
+- If a treatment didn't work (outcome: same/worse), recommend a DIFFERENT approach — never repeat the same active ingredient on the same unresolved problem.
+- RESISTANCE ESCALATION: If the same active ingredient (or same mode-of-action class) appears 2 or more times in the treatment history on the same problem without full resolution, flag potential resistance: "Repeated use of [active ingredient] without full control points to possible resistance. I recommend switching to a different mode of action — [alternative with different FRAC/IRAC class]." Do not raise resistance on a single failure — look for a pattern across multiple interventions.
 - Reference past interventions naturally: "Since the copper didn't fully resolve it last time..."
-- Flag repeated issues as potential systemic problems.
+- Flag repeated issues as potential systemic problems (soil pH, irrigation method, varietal susceptibility).
 - FIELD MEMORY LOG: chronological record of past AI exchanges — use it for continuity.
-- SAME CROP — OTHER FIELDS: spot cross-field patterns (regional pressure, shared problem).
+- SAME CROP — OTHER FIELDS: Trigger a cross-field advisory when: (a) the same problem appears on 2 or more fields with the same crop type within the same week, or (b) a sibling field has an open follow-up on the same issue that is overdue. When triggered, include: "I'm seeing the same issue on [other field name] — this looks like regional pressure rather than a field-specific problem. A coordinated spray across all affected fields will be more effective than treating each one separately."
 
 FIELD & HISTORY CONTEXT:
 ${fieldContext || 'No field data or treatment history on record yet.'}
@@ -1145,15 +1168,95 @@ async function fetchSameCropInterventions(
 }
 
 function estimateGrowthStage(cropType: string | null, plantedAt: string | null): string | null {
-  if (!cropType || !plantedAt) return null;
+  if (!cropType) return null;
+  const crop = cropType.toLowerCase();
+  const month = new Date().getMonth() + 1; // 1–12
+
+  // Perennial crops: calendar-month heuristic (days-since-planting is meaningless for multi-year trees/vines)
+  type MonthStages = Record<number, string>;
+  const PERENNIAL_PATTERNS: { keywords: string[]; stages: MonthStages }[] = [
+    {
+      keywords: ['olive', 'ελιά', 'ελαια', 'oliva', 'aceite', 'olivier', 'زيتون'],
+      stages: {
+        1: 'Dormancy', 2: 'Dormancy', 3: 'Bud swell',
+        4: 'Bud break / vegetative growth', 5: 'Flowering',
+        6: 'Fruit set / early fruit growth', 7: 'Pit hardening',
+        8: 'Pit hardening', 9: 'Fruit ripening (veraison)',
+        10: 'Harvest window', 11: 'Post-harvest / early dormancy', 12: 'Dormancy',
+      },
+    },
+    {
+      keywords: ['vine', 'grapevine', 'grape', 'αμπέλι', 'αμπελ', 'vite', 'vid', 'vigne', 'عنب'],
+      stages: {
+        1: 'Dormancy', 2: 'Dormancy', 3: 'Bud swell',
+        4: 'Bud break / early shoot growth', 5: 'Shoot development',
+        6: 'Flowering / fruit set', 7: 'Berry development',
+        8: 'Veraison (colour change)', 9: 'Ripening',
+        10: 'Harvest / post-harvest', 11: 'Leaf fall / early dormancy', 12: 'Dormancy',
+      },
+    },
+    {
+      keywords: ['citrus', 'orange', 'lemon', 'lime', 'grapefruit', 'mandarin', 'clementine',
+                 'εσπεριδοειδ', 'πορτοκάλ', 'λεμόν', 'agrumi', 'cítrico', 'agrume', 'حمضيات'],
+      stages: {
+        1: 'Winter dormancy / fruit maturing', 2: 'Late fruit / pre-flowering',
+        3: 'Bud break / flowering', 4: 'Flowering / fruit set',
+        5: 'Fruit set / early growth', 6: 'Fruit development',
+        7: 'Summer fruit expansion', 8: 'Fruit sizing',
+        9: 'Colour change / early harvest', 10: 'Early harvest (early varieties)',
+        11: 'Main harvest window', 12: 'Late harvest / dormancy start',
+      },
+    },
+    {
+      keywords: ['almond', 'αμύγδαλ', 'mandorla', 'almendra', 'amande', 'لوز'],
+      stages: {
+        1: 'Dormancy', 2: 'Bud swell / early flowering',
+        3: 'Full flowering / petal fall', 4: 'Fruit set / shell hardening',
+        5: 'Nut development', 6: 'Nut development',
+        7: 'Hull split / harvest window', 8: 'Harvest',
+        9: 'Post-harvest', 10: 'Leaf fall', 11: 'Dormancy', 12: 'Dormancy',
+      },
+    },
+    {
+      keywords: ['apple', 'pear', 'μήλο', 'αχλάδ', 'mela', 'pero', 'manzana', 'poire', 'pomme', 'تفاح'],
+      stages: {
+        1: 'Dormancy', 2: 'Dormancy / bud swell',
+        3: 'Bud break / green tip', 4: 'Pink bud / full bloom',
+        5: 'Petal fall / fruit set', 6: 'Early fruit development',
+        7: 'Fruit development', 8: 'Fruit sizing',
+        9: 'Ripening / early harvest', 10: 'Harvest / post-harvest',
+        11: 'Leaf fall / dormancy start', 12: 'Dormancy',
+      },
+    },
+    {
+      keywords: ['peach', 'nectarine', 'apricot', 'plum', 'cherry', 'ροδάκιν', 'βερίκοκ', 'δαμάσκ',
+                 'κερασ', 'pesco', 'albicocca', 'prugna', 'ciliegia', 'melocotón', 'cerezo', 'خوخ'],
+      stages: {
+        1: 'Dormancy', 2: 'Bud swell / early flowering',
+        3: 'Flowering / petal fall', 4: 'Fruit set',
+        5: 'Fruit development', 6: 'Rapid fruit growth',
+        7: 'Ripening / harvest (early varieties)', 8: 'Main harvest',
+        9: 'Post-harvest / leaf fall', 10: 'Leaf fall', 11: 'Dormancy', 12: 'Dormancy',
+      },
+    },
+  ];
+
+  for (const pattern of PERENNIAL_PATTERNS) {
+    if (pattern.keywords.some((k) => crop.includes(k))) {
+      return pattern.stages[month] ?? 'Active season';
+    }
+  }
+
+  // Annual crops: days-since-planting (requires plantedAt)
+  if (!plantedAt) return null;
   const daysSincePlanting = Math.floor((Date.now() - new Date(plantedAt).getTime()) / 86400000);
   if (daysSincePlanting < 0) return null;
-  // Simplified stage estimation for AI context
   if (daysSincePlanting <= 14) return `Germination (day ${daysSincePlanting})`;
-  if (daysSincePlanting <= 60) return `Vegetative growth (day ${daysSincePlanting})`;
-  if (daysSincePlanting <= 90) return `Flowering (day ${daysSincePlanting})`;
-  if (daysSincePlanting <= 130) return `Fruiting (day ${daysSincePlanting})`;
-  return `Maturity (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 45) return `Seedling / early vegetative (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 90) return `Vegetative growth (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 120) return `Flowering / fruit set (day ${daysSincePlanting})`;
+  if (daysSincePlanting <= 160) return `Fruit development (day ${daysSincePlanting})`;
+  return `Maturity / near-harvest (day ${daysSincePlanting})`;
 }
 
 async function assembleServerFieldContext(
@@ -1705,14 +1808,19 @@ async function handleGuestChat(
     attachments: validAttachments.length > 0 ? validAttachments : undefined,
   }];
 
-  const aiResponse = await callGemini(geminiApiKey, guestMessages, systemPrompt);
-  const assistantText = cleanAssistantText(aiResponse.response_text);
-  const metadata = buildAssistantMetadata(aiResponse);
-
-  return jsonResponse({
-    assistantText,
-    metadata,
-  });
+  try {
+    const aiResponse = await callGemini(geminiApiKey, guestMessages, systemPrompt);
+    const assistantText = cleanAssistantText(aiResponse.response_text);
+    const metadata = buildAssistantMetadata(aiResponse);
+    return jsonResponse({ assistantText, metadata });
+  } catch (err) {
+    console.error('Guest chat error:', err);
+    // Return a clean 502 so the client surfaces a message rather than retrying and timing out
+    return jsonResponse(
+      { error: 'Oli is having trouble connecting right now. Please try again in a moment.' },
+      502,
+    );
+  }
 }
 
 Deno.serve(async (req) => {

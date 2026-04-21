@@ -813,13 +813,15 @@ export default function Chat() {
       localStorage.setItem('oli_guest_used', '1');
 
       trackEvent(Events.MESSAGE_SENT, { guest: true });
-    } catch {
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : null;
+      const fallback = lang === 'el'
+        ? 'Κάτι πήγε στραβά. Δοκίμασε ξανά σε λίγο.'
+        : 'Something went wrong. Please try again in a moment.';
       dispatch({ type: 'append', message: {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: lang === 'el'
-          ? 'Κάτι πήγε στραβά. Δοκίμασε ξανά.'
-          : 'Something went wrong. Please try again.',
+        content: (errMsg && errMsg.length < 200) ? errMsg : fallback,
         created_at: new Date().toISOString(),
       }});
     } finally {
