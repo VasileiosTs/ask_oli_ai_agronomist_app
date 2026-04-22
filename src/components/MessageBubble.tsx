@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle, RotateCcw, Check, Loader2 } from 'lucide-react';
+import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle, RotateCcw, Check, Loader2, Copy } from 'lucide-react';
 import clsx from 'clsx';
 import { useState } from 'react';
 import type { T } from '../lib/i18n';
@@ -324,6 +324,17 @@ export default function MessageBubble({
 }: Props) {
   const isUser = msg.role === 'user';
   const dd = msg.metadata?.diagnosis_data;
+  const [copiedMessage, setCopiedMessage] = useState(false);
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(msg.content);
+      setCopiedMessage(true);
+      setTimeout(() => setCopiedMessage(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy message', error);
+    }
+  };
 
   return (
     <div className={clsx('group flex w-full animate-fade-in', isUser ? 'justify-end' : 'justify-start')}>
@@ -543,6 +554,15 @@ export default function MessageBubble({
               >
                 <Star className={clsx('h-3.5 w-3.5', msg.starred && 'fill-current')} />
                 {t.savedMessage}
+              </button>
+              <button
+                onClick={handleCopyMessage}
+                className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground"
+              >
+                {copiedMessage ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedMessage
+                  ? (lang === 'el' ? 'Αντιγράφηκε' : 'Copied')
+                  : (lang === 'el' ? 'Αντιγραφή' : 'Copy')}
               </button>
               <button
                 onClick={() => onLogIntervention(msg)}

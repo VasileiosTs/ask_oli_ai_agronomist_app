@@ -703,13 +703,13 @@ serve(async (req) => {
 
       const { data: day3Users } = await supabase
         .from("users")
-        .select("id, name, auth_id, lang")
+        .select("id, name, auth_id, language")
         .gte("created_at", day3Start)
         .lte("created_at", day3End);
 
       const { data: day7Users } = await supabase
         .from("users")
-        .select("id, name, auth_id, lang")
+        .select("id, name, auth_id, language")
         .gte("created_at", day7Start)
         .lte("created_at", day7End);
 
@@ -728,7 +728,7 @@ serve(async (req) => {
       for (const u of allUsers) {
         const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
-        const tpl = onboardingDripEmail(u.name || "Farmer", u.day, u.lang || "en");
+        const tpl = onboardingDripEmail(u.name || "Farmer", u.day, u.language || "en");
         const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
         if (ok) sent++;
       }
@@ -745,7 +745,7 @@ serve(async (req) => {
       // Users whose last message is between 14-21 days ago (send once)
       const { data: users } = await supabase
         .from("users")
-        .select("id, name, auth_id, lang");
+        .select("id, name, auth_id, language");
 
       if (!users || users.length === 0) {
         return new Response(JSON.stringify({ sent: 0 }), { headers });
@@ -773,7 +773,7 @@ serve(async (req) => {
         // Only send if last activity is 14-21 days ago
         if (lastActive > fourteenDaysAgo || lastActive < twentyOneDaysAgo) continue;
 
-        const tpl = reEngagementEmail(u.name || "Farmer", u.lang || "en");
+        const tpl = reEngagementEmail(u.name || "Farmer", u.language || "en");
         const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
         if (ok) sent++;
       }

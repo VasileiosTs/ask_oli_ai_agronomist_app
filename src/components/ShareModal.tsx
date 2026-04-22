@@ -1,4 +1,4 @@
-import { X, Copy, Share2, Check, MessageCircle } from 'lucide-react';
+import { X, Copy, Share2, Check, MessageCircle, Send, Mail, Facebook, Twitter } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -6,42 +6,49 @@ interface Props {
   onClose: () => void;
   url: string;
   title?: string;
+  text?: string;
   lang: string;
 }
 
-export default function ShareModal({ isOpen, onClose, url, title, lang }: Props) {
-  const [copied, setCopied] = useState(false);
+export default function ShareModal({ isOpen, onClose, url, title, text, lang }: Props) {
+  const [copiedTarget, setCopiedTarget] = useState<'link' | 'text' | null>(null);
   if (!isOpen) return null;
 
   const l = lang === 'el' ? 'el' : 'en';
   const labels = {
     share: { en: 'Share', el: 'Κοινοποίηση' },
     copyLink: { en: 'Copy link', el: 'Αντιγραφή συνδέσμου' },
+    copyText: { en: 'Copy answer', el: 'Αντιγραφή απάντησης' },
     copied: { en: 'Copied!', el: 'Αντιγράφηκε!' },
     scanQR: { en: 'Scan QR code', el: 'Σαρώστε τον κωδικό QR' },
     nativeShare: { en: 'Share via...', el: 'Κοινοποίηση μέσω...' },
     whatsapp: { en: 'Share on WhatsApp', el: 'Κοινοποίηση στο WhatsApp' },
+    telegram: { en: 'Share on Telegram', el: 'Κοινοποίηση στο Telegram' },
+    facebook: { en: 'Share on Facebook', el: 'Κοινοποίηση στο Facebook' },
+    x: { en: 'Share on X', el: 'Κοινοποίηση στο X' },
+    email: { en: 'Share by email', el: 'Κοινοποίηση με email' },
   };
 
-  const handleWhatsApp = () => {
-    const text = (title ? `${title}\n` : '') + url;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+  const shareText = [title, text, url].filter(Boolean).join('\n\n');
+
+  const openShareLink = (shareUrl: string) => {
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
   };
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
 
-  const handleCopy = async () => {
+  const handleCopy = async (value: string, target: 'link' | 'text') => {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopiedTarget(target);
+      setTimeout(() => setCopiedTarget(null), 2000);
     } catch { /* fallback */ }
   };
 
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: title || 'Oli Report', url });
+        await navigator.share({ title: title || 'Oli Report', text, url });
       } catch { /* user cancelled */ }
     }
   };
@@ -68,21 +75,64 @@ export default function ShareModal({ isOpen, onClose, url, title, lang }: Props)
         <div className="space-y-2">
           {/* Copy link */}
           <button
-            onClick={handleCopy}
+            onClick={() => handleCopy(url, 'link')}
             className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground hover:bg-surface transition-colors"
           >
-            {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4 text-muted" />}
-            {copied ? labels.copied[l] : labels.copyLink[l]}
+            {copiedTarget === 'link' ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4 text-muted" />}
+            {copiedTarget === 'link' ? labels.copied[l] : labels.copyLink[l]}
           </button>
 
-          {/* WhatsApp — primary share for farming communities */}
+          {text && (
+            <button
+              onClick={() => handleCopy(text, 'text')}
+              className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground hover:bg-surface transition-colors"
+            >
+              {copiedTarget === 'text' ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4 text-muted" />}
+              {copiedTarget === 'text' ? labels.copied[l] : labels.copyText[l]}
+            </button>
+          )}
+
           <button
-            onClick={handleWhatsApp}
+            onClick={() => openShareLink(`https://wa.me/?text=${encodeURIComponent(shareText)}`)}
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors"
             style={{ background: '#25D366' }}
           >
             <MessageCircle className="h-4 w-4" />
             {labels.whatsapp[l]}
+          </button>
+
+          <button
+            onClick={() => openShareLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent([title, text].filter(Boolean).join('\n\n'))}`)}
+            className="flex w-full items-center gap-3 rounded-xl bg-[#229ED9] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+          >
+            <Send className="h-4 w-4" />
+            {labels.telegram[l]}
+          </button>
+
+          <button
+            onClick={() => openShareLink(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`)}
+            className="flex w-full items-center gap-3 rounded-xl bg-[#1877F2] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+          >
+            <Facebook className="h-4 w-4" />
+            {labels.facebook[l]}
+          </button>
+
+          <button
+            onClick={() => openShareLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent([title, text].filter(Boolean).join('\n\n'))}&url=${encodeURIComponent(url)}`)}
+            className="flex w-full items-center gap-3 rounded-xl bg-black px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+          >
+            <Twitter className="h-4 w-4" />
+            {labels.x[l]}
+          </button>
+
+          <button
+            onClick={() => {
+              window.location.href = `mailto:?subject=${encodeURIComponent(title || 'Oli Report')}&body=${encodeURIComponent(shareText)}`;
+            }}
+            className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground hover:bg-surface transition-colors"
+          >
+            <Mail className="h-4 w-4 text-muted" />
+            {labels.email[l]}
           </button>
 
           {/* Native share (mobile) */}

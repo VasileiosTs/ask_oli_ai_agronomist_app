@@ -240,6 +240,8 @@ const FEATURES = (lang: string): { icon: LucideIcon; title: string; body: string
   ];
 };
 
+const GUEST_CHAT_ENTRY_KEY = 'oli_guest_chat_entry';
+
 // ── Role-based showcase ──────────────────────────────────────────────────────
 const ROLES = (lang: string) => {
   type RoleT = { farmer: string; farmerHL: string; farmerQ: string; farmerA: string; farmerTag: string; agro: string; agroHL: string; agroQ: string; agroA: string; agroTag: string; assoc: string; assocHL: string; assocQ: string; assocA: string; assocTag: string; garden: string; gardenHL: string; gardenQ: string; gardenA: string; gardenTag: string; input: string; inputHL: string; inputQ: string; inputA: string; inputTag: string };
@@ -786,6 +788,13 @@ export default function Landing() {
     const text = chatInput.trim();
     if (!text && !heroPhoto) return;
 
+    const openChatWithQuestion = (question: string) => {
+      if (!isLoggedIn) {
+        sessionStorage.setItem(GUEST_CHAT_ENTRY_KEY, '1');
+      }
+      navigate(`/chat?q=${encodeURIComponent(question)}`);
+    };
+
     // If photo is attached, encode it and navigate to chat with the text
     // The image will be stored in sessionStorage for Chat.tsx to pick up
     if (heroPhoto) {
@@ -800,18 +809,21 @@ export default function Landing() {
           }));
           removeHeroPhoto();
           const q = text || lt.analyzePhoto;
-          navigate(isLoggedIn ? `/chat?q=${encodeURIComponent(q)}` : `/chat?q=${encodeURIComponent(q)}`);
+          openChatWithQuestion(q);
         };
         reader.readAsDataURL(heroPhoto.file);
       } catch {
-        navigate(`/chat?q=${encodeURIComponent(text)}`);
+        openChatWithQuestion(text);
       }
     } else {
-      navigate(isLoggedIn ? '/chat' : `/chat?q=${encodeURIComponent(text)}`);
+      openChatWithQuestion(text);
     }
   };
 
   const sendQuestion = (q: string) => {
+    if (!isLoggedIn) {
+      sessionStorage.setItem(GUEST_CHAT_ENTRY_KEY, '1');
+    }
     navigate(`/chat?q=${encodeURIComponent(q)}`);
   };
 
