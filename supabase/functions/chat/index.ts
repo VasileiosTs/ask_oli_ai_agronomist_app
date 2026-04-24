@@ -217,7 +217,7 @@ function classifyIntent(message: string, hasImages: boolean): QueryIntent {
   // Follow-up: reporting back on a past treatment or asking about progress
   if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε)\b/.test(m)) return 'followup';
   // Diagnosis: symptoms, visual problems, disease/pest mentions
-  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ)\b/.test(m)) return 'diagnosis';
+  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη)\b/.test(m)) return 'diagnosis';
   // Planning: what/when to do, schedules, programs
   if (/\b(when should|what should i|plan|schedule|program|calendar|next step|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο)\b/.test(m)) return 'planning';
   return 'general';
@@ -313,6 +313,8 @@ ${intentHint ? `\n${intentHint}` : ''}${depthHint ? `\n${depthHint}` : ''}
 
 You are Oli, an expert AI agronomist with deep knowledge of agronomy, plant science, soil science, irrigation, nutrition, crop economics, and agricultural mathematics. You help farmers with EVERYTHING agriculture-related: disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
 
+SCOPE BOUNDARY: If the message is clearly unrelated to agriculture, farming, plants, soil, food production, or closely connected fields (including agricultural mathematics, soil geology, agroclimatology, plant biology, agrochemistry, food safety, rural economics, and farm machinery), decline in one sentence and redirect: "That's outside my area — I'm here for agronomy. If you have a question about your crops, plants, or fields, I'm ready." Do not engage with the off-topic request, do not apologize at length. Check this FIRST before classifying the question type.
+
 QUESTION TYPE DETECTION — read the farmer's message and classify it:
 A) DIAGNOSIS query — farmer describes symptoms, disease, pest, or sends a photo
 B) CALCULATION query — farmer asks for a number: water needs, fertilizer dose, spray volume, area, yield, economics
@@ -330,7 +332,7 @@ For TYPE A (DIAGNOSIS):
    - confidence_score 40–65: Name disease(s) as "possible" or "suspected" only. Give 2–3 candidates. Ask ONE question to break the tie. ALWAYS give one concrete safe interim action the farmer can take immediately while you gather more information — never leave the farmer with nothing to do. Safe interim actions: remove severely affected leaves/fruit to slow spread, stop overhead irrigation, improve air circulation, avoid entering the field in wet conditions.
    - confidence_score 65–85: Give your primary diagnosis with appropriate uncertainty language ("this looks like…"). Ask ONE follow-up question if it would change the treatment. Provide treatment options.
    - confidence_score > 85: Full confident diagnosis + complete treatment plan + prevention.
-4. QUARANTINE DISEASES RULE: NEVER name HLB (citrus greening), Xylella fastidiosa, Fire Blight, Plum Pox Virus, or other regulated quarantine organisms unless confidence_score > 85. These are notifiable diseases — a false alarm causes panic, inspections, and permanent trust loss. If you suspect them below 85%, say "some symptoms are consistent with serious disease — please contact your local plant protection service for official testing."
+4. QUARANTINE DISEASES RULE: NEVER name HLB (citrus greening), Xylella fastidiosa, Fire Blight, Plum Pox Virus, ToBRFV (Tomato Brown Rugose Fruit Virus), Fusarium Wilt TR4 (Tropical Race 4), Potato Wart Disease (Synchytrium endobioticum), or other regulated quarantine organisms unless confidence_score > 85. These are notifiable diseases — a false alarm causes panic, inspections, and permanent trust loss. If you suspect them below 85%, say "some symptoms are consistent with serious disease — please contact your local plant protection service for official testing."
 5. QUESTION ANATOMY RULE: When you need to ask one clarifying question, structure it in three parts:
    (a) First, briefly state what you already understand from the farmer's description in 1 sentence — this confirms you heard them correctly and avoids repeating yourself later.
    (b) Explain in one short clause WHY this specific piece of information will change your diagnosis or recommendation.
@@ -377,7 +379,6 @@ UNIVERSAL RULES (apply to all types):
 - CONTEXT RECAP BEFORE QUESTIONS: When asking any clarifying question, always begin with a brief summary of what you already understand from the conversation — one sentence that shows you were listening. This prevents the farmer from feeling interrogated and confirms no misunderstanding before you ask for more.
 - CONTINGENCY PLANNING: After every treatment recommendation, briefly note what to do if it doesn't work: "If you don't see improvement in [X] days, come back to me — at that point we would consider [alternative approach]." This closes the loop and sets realistic expectations.
 - OWN THE OUTCOME: You are not just answering questions — you are managing a case. Think like an agronomist who will see this farmer again and needs to know if the advice worked.
-- SCOPE BOUNDARY: If the message is clearly unrelated to agriculture, farming, plants, soil, food production, or closely connected fields (including agricultural mathematics, soil geology, agroclimatology, plant biology, agrochemistry, food safety, rural economics, and farm machinery), decline in one sentence and redirect: "That's outside my area — I'm here for agronomy. If you have a question about your crops, plants, or fields, I'm ready." Do not engage with the off-topic request, do not apologize at length.
 
 ${includeCalcGuide ? `AGRICULTURAL CALCULATIONS — GUIDE:
 You are fully capable of solving these (and more). Always show your reasoning:
@@ -517,6 +518,37 @@ function sanitizeUserInput(text: string): string {
  * but we also strip any leaked disease names from the structured response
  * as a second line of defence.
  */
+const VALID_PILLARS = new Set([
+  'THE VICTIM',
+  'THE SYMPTOMS',
+  'THE TIMELINE',
+  'THE ENVIRONMENT',
+  'THE EVIDENCE',
+]);
+
+// S2: Strip any missing_pillars values the AI hallucinated outside the allowed set.
+// The UI maps these exact strings to labels — anything else silently breaks the UI.
+function sanitizeMissingPillars(response: AiResponseJson): AiResponseJson {
+  const dd = response.diagnosis_data;
+  if (!dd?.missing_pillars || !Array.isArray(dd.missing_pillars)) return response;
+
+  const sanitized = dd.missing_pillars.filter((p) => VALID_PILLARS.has(p));
+  if (sanitized.length === dd.missing_pillars.length) return response;
+
+  console.warn(
+    'sanitizeMissingPillars: stripped invalid values:',
+    dd.missing_pillars.filter((p) => !VALID_PILLARS.has(p)),
+  );
+
+  return {
+    ...response,
+    diagnosis_data: {
+      ...dd,
+      missing_pillars: sanitized.length > 0 ? sanitized : null,
+    },
+  };
+}
+
 function enforceConfidenceThreshold(response: AiResponseJson): AiResponseJson {
   const dd = response.diagnosis_data;
   if (!dd) return response;
@@ -580,6 +612,19 @@ function validateResponse(json: AiResponseJson, hasActiveField: boolean): { vali
 
   if (!json.response_text || json.response_text.trim() === '') {
     errors.push('response_text is empty.');
+  }
+
+  // V2: Validate missing_pillars — only the five exact strings are valid.
+  // Invalid values break the UI label mapping silently.
+  const dd = json.diagnosis_data;
+  if (dd?.missing_pillars && Array.isArray(dd.missing_pillars)) {
+    const invalid = dd.missing_pillars.filter((p) => !VALID_PILLARS.has(p));
+    if (invalid.length > 0) {
+      errors.push(
+        `missing_pillars contains invalid values: [${invalid.join(', ')}]. ` +
+        'Must use ONLY: "THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE".',
+      );
+    }
   }
 
   return {
@@ -718,9 +763,9 @@ async function callGemini(
   geminiApiKey: string,
   messages: ChatMessageInput[],
   systemPrompt: string,
-  extraInstruction?: string,
+  temperature = 0.4,
 ): Promise<AiResponseJson> {
-  const contents = messages.map((message, index) => {
+  const contents = messages.map((message) => {
     const parts: Array<{ text?: string; inlineData?: InlineAttachment }> = [{ text: message.content }];
 
     if (Array.isArray(message.attachments)) {
@@ -732,10 +777,6 @@ async function callGemini(
           },
         });
       }
-    }
-
-    if (extraInstruction && index === messages.length - 1 && parts[0]?.text) {
-      parts[0].text = `${parts[0].text}\n\n[SYSTEM REPAIR INSTRUCTION: ${extraInstruction}]`;
     }
 
     return {
@@ -752,10 +793,11 @@ async function callGemini(
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: buildResponseSchema(),
-      temperature: 0.4,
+      temperature,
     },
   };
 
+  // T1: 20s hard timeout — prevents 25s+ hangs when Gemini is slow or unresponsive
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
     {
@@ -765,6 +807,7 @@ async function callGemini(
         'x-goog-api-key': geminiApiKey,
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20_000),
     },
   );
 
@@ -784,6 +827,7 @@ async function callGemini(
             'x-goog-api-key': geminiApiKey,
           },
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(20_000),
         },
       );
       if (!fallbackResponse.ok) {
@@ -832,6 +876,7 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     },
   };
 
+  // T1: 20s hard timeout — extraction is lightweight; if it hangs this long something is wrong
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
     {
@@ -841,6 +886,7 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
         'x-goog-api-key': geminiApiKey,
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20_000),
     },
   );
 
@@ -860,6 +906,7 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
             'x-goog-api-key': geminiApiKey,
           },
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(20_000),
         },
       );
       if (!fallbackResponse.ok) {
@@ -878,6 +925,19 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
   return parseGeminiPayload<ExtractionResult>(data);
 }
 
+// P3: Temperature varies by intent — diagnosis needs precision, general can be warmer
+function intentTemperature(intent: QueryIntent): number {
+  switch (intent) {
+    case 'diagnosis': return 0.2;
+    case 'calculation': return 0.1;
+    case 'followup': return 0.3;
+    case 'planning': return 0.35;
+    default: return 0.4;
+  }
+}
+
+const BANNED_OPENER_RE = /^\s*(great question|certainly|of course|sure|absolutely|happy to help)[!,.\-:\s]/i;
+
 async function generateValidatedResponse(
   geminiApiKey: string,
   messages: ChatMessageInput[],
@@ -889,16 +949,38 @@ async function generateValidatedResponse(
   conversationDepth = 0,
 ): Promise<AiResponseJson> {
   const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth);
-  let json = await callGemini(geminiApiKey, messages, systemPrompt);
+  const temperature = intentTemperature(intent);
+  let json = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
+
+  // P4: Server-side banned opener detection — override the AI's self-reported flag.
+  // The AI occasionally lies about this; we verify directly from response_text.
+  if (BANNED_OPENER_RE.test(json.response_text)) {
+    json = { ...json, has_banned_opener: true };
+  }
+
   const validation = validateResponse(json, hasActiveField);
 
   if (!validation.valid) {
-    const repairInstruction = `Your previous response failed validation with these errors: ${validation.errors.join(' ')}. Please correct them and return a valid JSON.`;
-    json = await callGemini(geminiApiKey, messages, systemPrompt, repairInstruction);
+    console.warn('Response validation failed, retrying with repair prompt:', validation.errors);
+    // P2: Inject repair instruction into systemPrompt (not user content — proper separation)
+    const repairSystemPrompt =
+      systemPrompt +
+      `\n\n⚠️ REPAIR REQUIRED — your previous response failed these validation checks:\n` +
+      validation.errors.map((e) => `- ${e}`).join('\n') +
+      `\nFix ALL of the above issues in your new response. Do not repeat the same mistakes.`;
+    json = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
+
+    // Re-check banned opener after repair
+    if (BANNED_OPENER_RE.test(json.response_text)) {
+      json = { ...json, has_banned_opener: true };
+    }
   }
 
   // S1: Enforce confidence threshold — strip specific disease data below 40%
-  const safeJson = enforceConfidenceThreshold(json);
+  const thresholdJson = enforceConfidenceThreshold(json);
+
+  // S2: Strip any hallucinated missing_pillars values — UI breaks silently on unknown strings
+  const safeJson = sanitizeMissingPillars(thresholdJson);
 
   return {
     ...safeJson,
