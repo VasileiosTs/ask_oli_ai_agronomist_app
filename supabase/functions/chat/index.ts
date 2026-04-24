@@ -800,15 +800,6 @@ async function callGemini(
       responseSchema: buildResponseSchema(),
       temperature,
     },
-    // Bound thinking budget for Gemini 2.5 models.
-    // "auto" (default) lets the model think indefinitely, which causes:
-    // (a) slow responses — farmers want fast answers
-    // (b) over-reasoning — the model hedges and asks questions instead of answering
-    // 1024 tokens is enough for an agronomic question; diagnosis gets more depth
-    // via lower temperature (0.2) rather than more thinking tokens.
-    thinkingConfig: {
-      thinkingBudget: 1024,
-    },
   };
 
   // T1: 20s hard timeout — prevents 25s+ hangs when Gemini is slow or unresponsive
