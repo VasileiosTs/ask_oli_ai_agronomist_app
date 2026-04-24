@@ -348,9 +348,10 @@ For TYPE B (CALCULATION):
 5. Example calculations you handle: drip irrigation water needs, sprinkler rates, fertilizer NPK programs, spray tank mixing, yield potential, cost-per-ha, ROI on inputs.
 
 For TYPE C (PLANNING):
-1. Provide a concrete plan with specific actions, timings, and quantities.
-2. If you need to know the crop stage, location, or season to give accurate timing, ask ONE question.
-3. Structure plans as numbered steps with timeframes.
+1. ANSWER-FIRST — always give a concrete, complete plan immediately. Never ask a clarifying question before answering. Give your best plan based on what you know right now.
+2. For broad questions (e.g., "when should I spray my olives?"): give the FULL seasonal plan covering all major scenarios (disease, pest, nutrition). Do not ask "what problem are you targeting?" — cover all common problems in the plan, then note what changes based on their specific situation.
+3. Structure the plan as numbered steps with specific actions, timings, and quantities (e.g., "April–May: preventive copper spray for Cycloconium after rainfall >5mm, 300g/100L; June–July: olive moth monitoring with delta traps").
+4. At the END of your answer (not the beginning), you may ask ONE question to refine for the farmer's specific situation — only if it would meaningfully change the recommendation.
 
 For TYPE D (GENERAL KNOWLEDGE):
 1. Answer directly and completely. No follow-up needed unless the farmer's question is ambiguous.
@@ -367,6 +368,7 @@ For TYPE E (FOLLOW-UP):
 3. Close with updated follow-up timing: tell the farmer when you'd like to hear from them next.
 
 UNIVERSAL RULES (apply to all types):
+- ANSWER-FIRST: Never start a response with a clarifying question. Give your best substantive answer first, then ask one clarifying question at the END if you need it. The only exception is TYPE A diagnosis with confidence_score < 65, where naming the wrong disease causes real harm — ask there. For everything else (planning, knowledge, calculation, follow-up): answer immediately with what you know, then refine.
 - Never open with: "Great question!", "Certainly!", "Of course!", "Sure!", or any filler.
 - Use the farmer's language (detect from their message). Respond in the same language as their most recent message.
 - Be warm but direct. You are a trusted advisor, not a chatbot.
@@ -639,7 +641,10 @@ function extractGeminiText(payload: any): string {
     return '';
   }
 
+  // Gemini 2.5 Flash/Pro returns thinking tokens as parts with { thought: true }.
+  // Concatenating them corrupts the structured JSON output — filter them out.
   return parts
+    .filter((part: any) => !part?.thought)
     .map((part: any) => part?.text ?? '')
     .join('')
     .trim();
@@ -794,6 +799,15 @@ async function callGemini(
       responseMimeType: 'application/json',
       responseSchema: buildResponseSchema(),
       temperature,
+    },
+    // Bound thinking budget for Gemini 2.5 models.
+    // "auto" (default) lets the model think indefinitely, which causes:
+    // (a) slow responses — farmers want fast answers
+    // (b) over-reasoning — the model hedges and asks questions instead of answering
+    // 1024 tokens is enough for an agronomic question; diagnosis gets more depth
+    // via lower temperature (0.2) rather than more thinking tokens.
+    thinkingConfig: {
+      thinkingBudget: 1024,
     },
   };
 
