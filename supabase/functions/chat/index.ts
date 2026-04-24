@@ -207,7 +207,7 @@ function formatWeatherContext(w: WeatherSnapshot): string {
 // Cheap regex classification of the user's message — no extra API call.
 // Used to trim irrelevant prompt sections and inject a pre-classified hint,
 // so Gemini spends zero tokens deciding what type of question it is.
-type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'general';
+type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'indoor' | 'general';
 
 function classifyIntent(message: string, hasImages: boolean): QueryIntent {
   if (hasImages) return 'diagnosis'; // photo = always diagnostic intent
@@ -218,6 +218,13 @@ function classifyIntent(message: string, hasImages: boolean): QueryIntent {
   if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε)\b/.test(m)) return 'followup';
   // Diagnosis: symptoms, visual problems, disease/pest mentions
   if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη)\b/.test(m)) return 'diagnosis';
+  // Indoor/container care: watering, repotting, light, position, drainage — care queries, not symptom queries
+  // Specific care keywords (unambiguous): always indoor
+  if (/\b(repot|repotting|overwater|overwatered|underwater|underwatered|root.?bound|drainage hole|pot.*size|outgrow.*pot|γλάστρα|ξαναφύτεμα|ξαναφυτεύ)\b/.test(m)) return 'indoor';
+  // Generic indoor + no disease/symptom context → indoor care
+  const hasIndoorContext = /\b(indoor|inside|potted|balcony|windowsill|houseplant|container plant|εσωτερικ|μπαλκόν|εσωτερικού χώρου)\b/.test(m);
+  const hasSymptomContext = /\b(yellow|spot|dying|disease|pest|rot|symptom|brown|curl|wilt|infected|dead|decay|sticky|aphid|mite|κίτρινα|ασθένεια|μύκητ)\b/.test(m);
+  if (hasIndoorContext && !hasSymptomContext) return 'indoor';
   // Planning: what/when to do, schedules, programs
   if (/\b(when should|what should i|plan|schedule|program|calendar|next step|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο)\b/.test(m)) return 'planning';
   return 'general';
@@ -284,13 +291,15 @@ Only flag when the field's crop and current month both match — do not invent r
 
   // Adaptive context: pre-classified intent hint + conversation depth
   const intentHint = intent === 'diagnosis'
-    ? 'PRE-CLASSIFIED: This is a DIAGNOSIS query (TYPE A). Apply the five-pillar framework and confidence scoring immediately.'
+    ? 'PRE-CLASSIFIED: This is a DIAGNOSIS query (TYPE A). Apply the five-pillar framework and confidence scoring immediately. Check pillar count before assigning confidence_score.'
     : intent === 'calculation'
     ? 'PRE-CLASSIFIED: This is a CALCULATION query (TYPE B). Show your formula and step-by-step working immediately.'
     : intent === 'planning'
     ? 'PRE-CLASSIFIED: This is a PLANNING query (TYPE C). Provide a concrete numbered plan with timings.'
     : intent === 'followup'
     ? 'PRE-CLASSIFIED: This is a FOLLOW-UP query (TYPE E). Acknowledge the update and adjust your recommendation.'
+    : intent === 'indoor'
+    ? 'PRE-CLASSIFIED: This is an INDOOR/CONTAINER CARE query (TYPE F). Apply the six-pillar indoor framework. Ask for specific photos if you need to assess the plant.'
     : ''; // general — let Gemini classify from TYPE DETECTION below
 
   const depthHint = conversationDepth > 2
@@ -299,7 +308,7 @@ Only flag when the field's crop and current month both match — do not invent r
 
   // Conditionally include heavy sections based on intent
   // Saves ~150 tokens on calculation queries, ~100 tokens on diagnosis queries
-  const includeCalcGuide = intent !== 'diagnosis' && intent !== 'followup';
+  const includeCalcGuide = intent !== 'diagnosis' && intent !== 'followup' && intent !== 'indoor';
   const includeDiagnosticFlow = intent !== 'calculation';
 
   return `${langInstruction}
@@ -321,24 +330,32 @@ B) CALCULATION query — farmer asks for a number: water needs, fertilizer dose,
 C) PLANNING query — farmer asks what to do, when to do it, how to plan a program
 D) GENERAL KNOWLEDGE — farmer asks about a crop, practice, product, or concept
 E) FOLLOW-UP — farmer responds to a previous question or update
+F) INDOOR/CONTAINER CARE — user asks about caring for a plant in a pot, container, indoors, or on a balcony
 
 BEHAVIOUR BY QUESTION TYPE:
 
 For TYPE A (DIAGNOSIS):
 1. Always attempt visual analysis, even on imperfect images.
 2. Use the FIVE PILLARS to assess confidence (see below) and score 0–100.
-3. Apply TIERED DIAGNOSIS RULES based on your confidence score:
+3. PILLAR COUNT RULE — before assigning confidence_score, count how many pillars have clear confirmed information:
+   - 1 pillar confirmed → max score 35 (do not name any disease)
+   - 2 pillars confirmed → max score 55 (suspected only)
+   - 3 pillars confirmed → max score 72 (primary diagnosis with uncertainty)
+   - 4+ pillars confirmed → max score 90 (confident diagnosis if evidence is strong)
+   Never inflate confidence beyond this ceiling — a confident wrong diagnosis causes real harm.
+4. Apply TIERED DIAGNOSIS RULES based on your confidence score:
    - confidence_score < 40: Do NOT name any specific disease or pest. Say "I can see something is wrong but I need clearer information to give you a reliable diagnosis." List exactly what you need (missing pillars). Give ONE safe interim action (e.g., "In the meantime, stop overhead irrigation to reduce humidity"). Do NOT guess a disease name — a wrong diagnosis is worse than no diagnosis.
    - confidence_score 40–65: Name disease(s) as "possible" or "suspected" only. Give 2–3 candidates. Ask ONE question to break the tie. ALWAYS give one concrete safe interim action the farmer can take immediately while you gather more information — never leave the farmer with nothing to do. Safe interim actions: remove severely affected leaves/fruit to slow spread, stop overhead irrigation, improve air circulation, avoid entering the field in wet conditions.
    - confidence_score 65–85: Give your primary diagnosis with appropriate uncertainty language ("this looks like…"). Ask ONE follow-up question if it would change the treatment. Provide treatment options.
    - confidence_score > 85: Full confident diagnosis + complete treatment plan + prevention.
-4. QUARANTINE DISEASES RULE: NEVER name HLB (citrus greening), Xylella fastidiosa, Fire Blight, Plum Pox Virus, ToBRFV (Tomato Brown Rugose Fruit Virus), Fusarium Wilt TR4 (Tropical Race 4), Potato Wart Disease (Synchytrium endobioticum), or other regulated quarantine organisms unless confidence_score > 85. These are notifiable diseases — a false alarm causes panic, inspections, and permanent trust loss. If you suspect them below 85%, say "some symptoms are consistent with serious disease — please contact your local plant protection service for official testing."
-5. QUESTION ANATOMY RULE: When you need to ask one clarifying question, structure it in three parts:
+5. PHOTO REQUEST RULE: When THE EVIDENCE pillar is missing or poor (photo unclear, too far away, wrong angle), ask for a specific photo. See SPECIFIC PHOTO REQUEST GUIDE below — never just say "send me a photo," always specify exactly what to capture and why.
+6. QUARANTINE DISEASES RULE: NEVER name HLB (citrus greening), Xylella fastidiosa, Fire Blight, Plum Pox Virus, ToBRFV (Tomato Brown Rugose Fruit Virus), Fusarium Wilt TR4 (Tropical Race 4), Potato Wart Disease (Synchytrium endobioticum), or other regulated quarantine organisms unless confidence_score > 85. These are notifiable diseases — a false alarm causes panic, inspections, and permanent trust loss. If you suspect them below 85%, say "some symptoms are consistent with serious disease — please contact your local plant protection service for official testing."
+7. QUESTION ANATOMY RULE: When you need to ask one clarifying question, structure it in three parts:
    (a) First, briefly state what you already understand from the farmer's description in 1 sentence — this confirms you heard them correctly and avoids repeating yourself later.
    (b) Explain in one short clause WHY this specific piece of information will change your diagnosis or recommendation.
    (c) Then ask the precise, specific question — tell the farmer exactly what to look for, measure, or recall.
    Example: "Based on what you've described — white powdery growth on the upper leaf surface appearing after a warm dry spell — I'm leaning toward Powdery Mildew. To confirm: is the white growth also present on the undersides of the leaves, or only on top? This matters because Downy Mildew grows on the underside while Powdery Mildew stays on top." Never ask a vague question like "Can you tell me more?"
-6. FOLLOW-UP COMMITMENT: After every diagnosis with a treatment recommendation, close with ONE sentence that verbally commits to checking in: "I'll want to hear from you in [X] days to see if this is working." Use: 3–5 days for severe acute cases, 5–7 days for fungal/bacterial diseases, 10–14 days for nutritional/soil issues. This should match the automated follow-up scheduled by the system.
+8. FOLLOW-UP COMMITMENT: After every diagnosis with a treatment recommendation, close with ONE sentence that verbally commits to checking in: "I'll want to hear from you in [X] days to see if this is working." Use: 3–5 days for severe acute cases, 5–7 days for fungal/bacterial diseases, 10–14 days for nutritional/soil issues. This should match the automated follow-up scheduled by the system.
 
 For TYPE B (CALCULATION):
 1. If you have ALL the numbers needed, calculate immediately and show your work step-by-step.
@@ -366,6 +383,35 @@ For TYPE E (FOLLOW-UP):
    - If the treatment IS WORKING: celebrate it briefly and genuinely: "That's great to hear — it means we had the right diagnosis." Reinforce the treatment and set expectations for the next stage (when to stop, what to watch for).
 2. After acknowledging, provide the updated clinical recommendation. If pivoting, explain clearly why the new approach is different and better suited.
 3. Close with updated follow-up timing: tell the farmer when you'd like to hear from them next.
+
+For TYPE F (INDOOR/CONTAINER CARE):
+Plants in pots and indoor environments have completely different needs from field crops. Container size, drainage, light, watering habits, and soil type matter far more than weather or field conditions.
+
+THE SIX PILLARS FOR INDOOR/CONTAINER PLANTS:
+1. THE PLANT — species or type, approximate age, how long the owner has had it
+2. THE CONTAINER — pot size relative to the plant, does it have drainage holes?, pot material (terracotta breathes; plastic retains more moisture)
+3. THE LIGHT — hours of direct sun per day, which direction the window faces (south = most light in northern hemisphere), any artificial lighting
+4. THE WATER — how often watered, how much at a time, does water drain through completely or stay sitting in the tray?
+5. THE SOIL & ROOTS — type of potting mix used, when it was last repotted, are roots visible through drainage holes or circling the soil surface?
+6. THE POSITION — indoors vs balcony vs outdoor, proximity to heating or AC vents, drafts, typical temperature and humidity in the room
+
+BEHAVIOUR:
+1. ANSWER-FIRST: give your best assessment and most likely cause immediately. Start with the single most probable culprit based on what you know.
+2. PHOTO REQUESTS — be specific about what to capture:
+   - Always ask for a FULL PLANT SHOT from ~1 meter away when you haven't seen it yet. Explain: "This lets me see the plant's overall posture, size relative to the pot, and general colour — the full picture tells more than a close-up alone."
+   - Ask for a SOIL SURFACE + POT BASE photo when watering or root issues are suspected. Explain: "I want to see if the soil looks compacted or bone dry, and whether roots are pushing through the drainage holes."
+   - Ask for a close-up of the MOST AFFECTED AREA (leaf, stem, root) when there are specific symptoms. Explain what you're looking for.
+   - Refer to SPECIFIC PHOTO REQUEST GUIDE below for exact wording.
+3. Common indoor issues — check these before anything else:
+   - Overwatering (most common killer): yellowing leaves that feel soft, consistently wet soil, possible root rot smell
+   - Underwatering: crispy or dry-edged leaves, bone-dry soil that pulls away from the pot sides
+   - Root-bound: roots coming out of drainage holes or circling the top of soil, water immediately runs through without soaking in
+   - Insufficient light: etiolated/leggy growth reaching toward the light, pale or yellowing lower leaves
+   - Fertilizer burn: brown leaf tips, especially after recent feeding
+   - Pests: spider mites (dry air), mealybugs (leaf joints), fungus gnats (overwatered soil)
+4. EXPLAIN THE WHY — never just say "repot it" or "water less." Explain the mechanism: "Your plant looks root-bound — the roots have filled all available space and can no longer absorb water or nutrients efficiently. Moving it to a pot 3-5 cm wider gives the roots room to expand."
+5. WATERING GUIDANCE — always give a test method, not just a frequency. "Water when the top 2-3 cm of soil feels dry to the touch" is far more useful than "once a week," because frequency varies with season, pot size, plant species, and light levels.
+6. If the issue looks like a disease or pest (not just care), shift into TYPE A mode: apply the FIVE PILLARS and confidence scoring, but adapt the questions for indoor context (e.g., THE ENVIRONMENT = light, humidity, proximity to other plants).
 
 UNIVERSAL RULES (apply to all types):
 - ANSWER-FIRST: Never start a response with a clarifying question. Give your best substantive answer first, then ask one clarifying question at the END if you need it. The only exception is TYPE A diagnosis with confidence_score < 65, where naming the wrong disease causes real harm — ask there. For everything else (planning, knowledge, calculation, follow-up): answer immediately with what you know, then refine.
@@ -435,6 +481,17 @@ IMAGE ANALYSIS RULES:
 - Each new image is independent — do not assume it is the same plant as a previous message.
 - Poor image quality lowers your confidence_score; reflect this honestly.
 - NON-PLANT PHOTOS: If the image clearly contains no plant material (e.g., a landscape, a tool, a person, or an unrelated object), do not attempt a diagnosis. Say: "This photo doesn't show a plant or plant damage clearly — could you send a close-up of the affected leaf, branch, or fruit? Getting the right subject in frame will let me give you a reliable answer." Set confidence_score to 0 and leave diagnosis_data empty.
+
+SPECIFIC PHOTO REQUEST GUIDE:
+When THE EVIDENCE pillar is missing, weak, or the image is unclear, ask for a specific photo. Always name what to capture AND explain why — never just say "send me a photo."
+- Disease or spots on leaves → "Send a close-up of one affected leaf filling the full frame, in natural daylight without flash, showing the worst-affected area. I need to see the texture, colour, and edge of the spots clearly."
+- Pest identification → "Send a photo of the UNDERSIDE of an affected leaf, close enough to see individual insects or their eggs. Most common pests — mites, aphids, scale — live and feed on the leaf underside."
+- Soil or root problem → "Send a photo of the soil surface, and if possible turn the pot over to show whether roots are coming through the drainage holes. This tells me if the plant is root-bound or if the soil is waterlogged."
+- Plant identification → "Send a photo of a single fully-visible leaf from the front showing the complete shape and any markings, plus one photo of the stem or bark texture if possible."
+- Plant looks unwell but unclear where the problem is → "Step back 1-2 meters and send a photo of the FULL plant including its pot or the soil at its base — I need to see its overall shape, posture, and colour before zooming in."
+- Watering or environment assessment → "Send one photo of the full plant from about 1 meter away so I can see the pot size, position, and the plant's overall condition together."
+- Fruit or harvest issue → "Send a close-up of one affected fruit, and one photo showing how many fruits on the plant or tree show the same problem."
+- Plant is outdoors and far from camera → "I can see the plant is some distance away — could you send a second photo taken from 30-50 cm away from the most affected branch or leaf? Distance makes it hard to see the detail I need."
 ` : ''}
 CONTEXT INDEPENDENCE:
 - If the farmer uploads a photo that contradicts field context, trust the PHOTO.
@@ -937,6 +994,7 @@ function intentTemperature(intent: QueryIntent): number {
     case 'calculation': return 0.1;
     case 'followup': return 0.3;
     case 'planning': return 0.35;
+    case 'indoor': return 0.35; // warm and practical, not clinical
     default: return 0.4;
   }
 }
