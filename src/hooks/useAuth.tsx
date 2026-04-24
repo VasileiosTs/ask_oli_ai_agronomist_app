@@ -248,7 +248,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-              await fetchProfileWithTimeout(session.user.id);
+              // preserveExisting: keep cached profile visible while DB fetch is in-flight
+              // so authenticated state never briefly flips false on load
+              await fetchProfileWithTimeout(session.user.id, { preserveExisting: true });
             }
             if (!cancelled) setLoading(false);
           }
@@ -262,7 +264,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfileWithTimeout(session.user.id);
+          // For TOKEN_REFRESHED and all non-SIGNED_OUT events: preserve the existing profile
+          // while the DB fetch is in-flight so authenticated never briefly flips false,
+          // which would cause ChatRouteGuard to navigate the user away from /chat.
+          // The profile gets updated in-place when fetchProfile resolves successfully.
+          // Only SIGNED_IN clears stale profile (previous user's data already wiped on SIGNED_OUT).
+          await fetchProfileWithTimeout(session.user.id, { preserveExisting: true });
           if (event === 'SIGNED_IN') {
             // Identify by user ID only — no email (GDPR: email is PII)
             identifyUser(session.user.id);
