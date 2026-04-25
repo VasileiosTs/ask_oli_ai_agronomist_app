@@ -184,7 +184,7 @@ function TrialExpiryBanner() {
 
   const isEl = lang === 'el';
   const tier = typeof profile?.tier === 'string' ? profile.tier : 'pro';
-  const tierLabel = tier === 'agronomist' ? 'Master' : 'Grower';
+  const tierLabel = tier === 'agronomist' ? 'Master' : 'Pro';
   const isFinal = daysLeft <= 2;
   const daysStr = daysLeft === 1
     ? (isEl ? '1 μέρα' : '1 day')

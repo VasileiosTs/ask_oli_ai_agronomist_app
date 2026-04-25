@@ -1295,7 +1295,7 @@ export default function Landing() {
             {/* Grower */}
             <div className="flex flex-col rounded-2xl p-6 relative overflow-hidden text-white"
               style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
-              <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Grower</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
               {billingPeriod === 'monthly' ? (
                 <>
                   <div className="flex items-baseline gap-1 mb-1">

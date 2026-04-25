@@ -29,7 +29,7 @@ export function isKnownTier(tier?: string | null): tier is AppTier {
 export function formatTierLabel(tier?: string | null): string {
   switch (tier) {
     case 'pro':
-      return 'GROWER';
+      return 'PRO';
     case 'agronomist':
       return 'MASTER';
     case 'expert':

@@ -48,7 +48,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       key: 'pro',
       icon: Crown,
       iconColor: 'text-[#194121]',
-      name: { en: 'Grower', el: 'Grower' },
+      name: { en: 'Pro', el: 'Pro' },
       price: { en: '€49 / year', el: '€49 / χρόνο' },
       note: { en: '€4.99 / month', el: '€4,99 / μήνα' },
       features: {
@@ -69,7 +69,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
           'Μηνιαίες αναφορές χωραφιών',
         ],
       },
-      cta: { en: 'Upgrade to Grower', el: 'Αναβάθμιση σε Grower' },
+      cta: { en: 'Upgrade to Pro', el: 'Αναβάθμιση σε Pro' },
       contactOnly: false,
       isCurrent: isCurrent('pro'),
       forRoles: ['farmer', 'hobbyist', ''],
