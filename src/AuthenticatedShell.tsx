@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { useAuth } from './hooks/useAuth';
+import { usePushSubscription } from './hooks/usePushSubscription';
 import { useLanguage } from './lib/LanguageContext';
 import AppLayout from './components/AppLayout';
 import BottomNav from './components/BottomNav';
@@ -242,8 +243,16 @@ function TrialExpiryBanner() {
 }
 
 function AppRoutes() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, appUserId } = useAuth();
   const { lang } = useLanguage();
+  const push = usePushSubscription(appUserId ?? null);
+
+  // Auto-request push permission once the user is authenticated and hasn't been asked yet
+  useEffect(() => {
+    if (!user || !push.isSupported || push.isSubscribed || push.permission !== 'default') return;
+    const t = setTimeout(() => { void push.subscribe(); }, 3000);
+    return () => clearTimeout(t);
+  }, [user, push.isSupported, push.isSubscribed, push.permission]);
 
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';

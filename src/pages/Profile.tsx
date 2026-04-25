@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3 } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, ChevronLeft, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3 } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -256,8 +256,18 @@ export default function Profile() {
 
   return (
     <main className="h-[100dvh] overflow-y-auto bg-background">
+      {/* Back button */}
+      <div className="px-4 pt-4 pb-0">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {lang === 'el' ? 'Πίσω' : 'Back'}
+        </button>
+      </div>
       {/* Header */}
-      <div className="px-4 pt-12 pb-4">
+      <div className="px-4 pt-4 pb-4">
         <div className="flex items-center gap-4">
           <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-full bg-primary/20 overflow-hidden">
             {avatarUrl
