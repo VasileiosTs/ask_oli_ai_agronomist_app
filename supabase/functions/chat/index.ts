@@ -821,12 +821,19 @@ function splitIntoChunks(text: string, targetSize = 64): string[] {
   if (current) chunks.push(current);
   return chunks;
 }
+interface GeminiCallResult {
+  json: AiResponseJson;
+  promptTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 async function callGemini(
   geminiApiKey: string,
   messages: ChatMessageInput[],
   systemPrompt: string,
   temperature = 0.4,
-): Promise<AiResponseJson> {
+): Promise<GeminiCallResult> {
   const contents = messages.map((message) => {
     const parts: Array<{ text?: string; inlineData?: InlineAttachment }> = [{ text: message.content }];
 
@@ -899,9 +906,12 @@ async function callGemini(
       }
       const fallbackData = await fallbackResponse.json();
       const fallbackParsed = parseGeminiPayload<AiResponseJson>(fallbackData);
+      const fu = fallbackData?.usageMetadata ?? {};
       return {
-        ...fallbackParsed,
-        response_text: cleanAssistantText(fallbackParsed.response_text),
+        json: { ...fallbackParsed, response_text: cleanAssistantText(fallbackParsed.response_text) },
+        promptTokens: fu.promptTokenCount ?? 0,
+        outputTokens: fu.candidatesTokenCount ?? 0,
+        totalTokens: fu.totalTokenCount ?? 0,
       };
     }
 
@@ -910,10 +920,12 @@ async function callGemini(
 
   const data = await response.json();
   const parsed = parseGeminiPayload<AiResponseJson>(data);
-
+  const u = data?.usageMetadata ?? {};
   return {
-    ...parsed,
-    response_text: cleanAssistantText(parsed.response_text),
+    json: { ...parsed, response_text: cleanAssistantText(parsed.response_text) },
+    promptTokens: u.promptTokenCount ?? 0,
+    outputTokens: u.candidatesTokenCount ?? 0,
+    totalTokens: u.totalTokenCount ?? 0,
   };
 }
 
@@ -1001,6 +1013,13 @@ function intentTemperature(intent: QueryIntent): number {
 
 const BANNED_OPENER_RE = /^\s*(great question|certainly|of course|sure|absolutely|happy to help)[!,.\-:\s]/i;
 
+interface ValidatedResponseResult {
+  json: AiResponseJson;
+  promptTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 async function generateValidatedResponse(
   geminiApiKey: string,
   messages: ChatMessageInput[],
@@ -1010,10 +1029,14 @@ async function generateValidatedResponse(
   lang = 'en',
   intent: QueryIntent = 'general',
   conversationDepth = 0,
-): Promise<AiResponseJson> {
+): Promise<ValidatedResponseResult> {
   const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth);
   const temperature = intentTemperature(intent);
-  let json = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
+  const initial = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
+  let json = initial.json;
+  let promptTokens = initial.promptTokens;
+  let outputTokens = initial.outputTokens;
+  let totalTokens = initial.totalTokens;
 
   // P4: Server-side banned opener detection — override the AI's self-reported flag.
   // The AI occasionally lies about this; we verify directly from response_text.
@@ -1031,7 +1054,12 @@ async function generateValidatedResponse(
       `\n\n⚠️ REPAIR REQUIRED — your previous response failed these validation checks:\n` +
       validation.errors.map((e) => `- ${e}`).join('\n') +
       `\nFix ALL of the above issues in your new response. Do not repeat the same mistakes.`;
-    json = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
+    const repair = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
+    json = repair.json;
+    // Accumulate tokens across both calls so the usage log reflects total spend
+    promptTokens += repair.promptTokens;
+    outputTokens += repair.outputTokens;
+    totalTokens += repair.totalTokens;
 
     // Re-check banned opener after repair
     if (BANNED_OPENER_RE.test(json.response_text)) {
@@ -1046,8 +1074,10 @@ async function generateValidatedResponse(
   const safeJson = sanitizeMissingPillars(thresholdJson);
 
   return {
-    ...safeJson,
-    response_text: cleanAssistantText(safeJson.response_text),
+    json: { ...safeJson, response_text: cleanAssistantText(safeJson.response_text) },
+    promptTokens,
+    outputTokens,
+    totalTokens,
   };
 }
 
@@ -1072,6 +1102,44 @@ function buildAssistantMetadata(aiResponse: AiResponseJson): Record<string, unkn
   }
 
   return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+/**
+ * Fire-and-forget AI cost logger.
+ * Writes one row to ai_usage_events so you can track token spend per user/conversation.
+ * Errors are swallowed — a DB write failure must never block or slow a chat response.
+ *
+ * Cost formula: Gemini 2.5 Flash blended estimate.
+ * Adjust GEMINI_COST_PER_1M_* constants if pricing changes.
+ */
+const GEMINI_COST_PER_1M_INPUT_USD = 0.075;  // $0.075 / 1M input tokens
+const GEMINI_COST_PER_1M_OUTPUT_USD = 0.30;  // $0.30  / 1M output tokens
+
+async function logAiCost(
+  supabaseAdmin: any,
+  userId: string,
+  conversationId: string | null,
+  promptTokens: number,
+  outputTokens: number,
+  totalTokens: number,
+  requestKind: string,
+): Promise<void> {
+  if (!totalTokens) return;
+  const estimatedCostUsd = parseFloat(
+    ((promptTokens / 1_000_000) * GEMINI_COST_PER_1M_INPUT_USD +
+     (outputTokens / 1_000_000) * GEMINI_COST_PER_1M_OUTPUT_USD).toFixed(6),
+  );
+  await supabaseAdmin.from('ai_usage_events').insert({
+    user_id: userId,
+    conversation_id: conversationId ?? null,
+    model: GEMINI_MODEL,
+    request_kind: requestKind,
+    prompt_tokens: promptTokens,
+    output_tokens: outputTokens,
+    total_tokens: totalTokens,
+    estimated_cost_usd: estimatedCostUsd,
+    metadata: {},
+  });
 }
 
 function formatFieldContextBlock(field: FieldContextRow): string {
@@ -1954,7 +2022,7 @@ async function handleGuestChat(
   }];
 
   try {
-    const aiResponse = await callGemini(geminiApiKey, guestMessages, systemPrompt);
+    const { json: aiResponse } = await callGemini(geminiApiKey, guestMessages, systemPrompt);
     const assistantText = cleanAssistantText(aiResponse.response_text);
     const metadata = buildAssistantMetadata(aiResponse);
     return jsonResponse({ assistantText, metadata });
@@ -2595,7 +2663,7 @@ Return ONLY the greeting text, nothing else.`;
       const queryIntent = classifyIntent(latestUserMessage.content, hasImages);
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
-      aiResponse = await generateValidatedResponse(
+      const genResult = await generateValidatedResponse(
         geminiApiKey,
         requestMessages,
         serverContext.fieldContext,
@@ -2605,8 +2673,20 @@ Return ONLY the greeting text, nothing else.`;
         queryIntent,
         convDepth,
       );
+      aiResponse = genResult.json;
       assistantText = aiResponse.response_text;
       assistantMetadata = buildAssistantMetadata(aiResponse);
+
+      // M1: Fire-and-forget AI cost log — never await, never block the response
+      logAiCost(
+        supabaseAdmin,
+        appUser.id,
+        effectiveConversationId ?? null,
+        genResult.promptTokens,
+        genResult.outputTokens,
+        genResult.totalTokens,
+        'chat',
+      ).catch((e) => console.error('[logAiCost]', e));
 
       if (!assistantText) {
         await cleanupFailedChatAttempt(
