@@ -410,6 +410,77 @@ function upgradeInterestEmail(
   };
 }
 
+function trialExpiryWarningEmail(
+  name: string,
+  tier: string,
+  daysLeft: number,
+  isFinal: boolean,
+  lang: string,
+): { subject: string; html: string } {
+  const isEl = lang === "el";
+  const tierLabel = tier === "agronomist"
+    ? (isEl ? "Γεωπόνου" : "Agronomist")
+    : "Pro";
+  const daysStr = daysLeft === 1
+    ? (isEl ? "1 μέρα" : "1 day")
+    : (isEl ? `${daysLeft} μέρες` : `${daysLeft} days`);
+
+  const subject = isFinal
+    ? (isEl ? `Oli: Η δοκιμή σου λήγει σε ${daysStr} ⏳` : `Oli: Your trial ends in ${daysStr} ⏳`)
+    : (isEl ? `Oli: ${daysStr} ακόμα στο ${tierLabel}!` : `Oli: ${daysStr} left on ${tierLabel}!`);
+
+  const heading = isFinal
+    ? (isEl ? `${name}, σχεδόν τελείωσε!` : `${name}, almost there!`)
+    : (isEl ? `${name}, η δοκιμή σου λήγει σύντομα` : `${name}, your trial is ending soon`);
+
+  const body = isFinal
+    ? (isEl
+        ? `Η δωρεάν δοκιμή σου στο ${tierLabel} λήγει σε <strong>${daysStr}</strong>. Αναβάθμισε τώρα για να κρατήσεις τα χωράφια σου, το ιστορικό σου και τις απεριόριστες ερωτήσεις.`
+        : `Your free ${tierLabel} trial ends in <strong>${daysStr}</strong>. Upgrade now to keep your fields, history, and unlimited questions.`)
+    : (isEl
+        ? `Απολαμβάνεις το ${tierLabel} δωρεάν! Η δοκιμή σου λήγει σε <strong>${daysStr}</strong>. Αναβάθμισε πριν λήξει για να συνεχίσεις χωρίς διακοπή.`
+        : `You've been enjoying ${tierLabel} for free! Your trial ends in <strong>${daysStr}</strong>. Upgrade before it expires to continue without interruption.`);
+
+  const cta = isEl ? `Αναβάθμιση σε ${tierLabel} →` : `Upgrade to ${tierLabel} →`;
+  const footer = isEl ? "Αν δεν αναβαθμίσεις, ο λογαριασμός σου μεταβαίνει στο Δωρεάν πλάνο. Τα δεδομένα σου παραμένουν."
+    : "If you don't upgrade, your account moves to the Free plan. Your data stays safe.";
+
+  return {
+    subject,
+    html: `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <tr><td style="text-align:center;padding-bottom:24px;">
+      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
+    </td></tr>
+    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
+      <div style="background:${isFinal ? '#fef3c7' : '#f0fdf4'};border:1px solid ${isFinal ? '#fde68a' : '#bbf7d0'};border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:13px;font-weight:600;color:${isFinal ? '#92400e' : '#166534'};">
+        ${isFinal ? '⏳' : '🕐'} ${isEl ? `Η δοκιμή λήγει σε ${daysStr}` : `Trial ends in ${daysStr}`}
+      </div>
+      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">${heading}</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">${body}</p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
+          <a href="${APP_URL}/profile" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">${cta}</a>
+        </td></tr>
+      </table>
+      <p style="margin:0;font-size:12px;color:#999;line-height:1.5;">${footer}</p>
+    </td></tr>
+    <tr><td style="text-align:center;padding-top:24px;">
+      <p style="font-size:12px;color:#999;">
+        ${isEl ? "Αυτό το email στάλθηκε από το Oli" : "This email was sent by Oli"}
+        · <a href="${APP_URL}/legal/privacy" style="color:#999;">Privacy</a>
+      </p>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
 // ── Main handler ──
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -421,7 +492,7 @@ serve(async (req) => {
     const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
 
     // Cron modes + vio_reminder: accept service role key OR CRON_SECRET (set in edge function secrets)
-    const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron", "vio_reminder"];
+    const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron", "vio_reminder", "expiry_warning_cron"];
     if (serviceOnlyModes.includes(body.mode)) {
       const authHeader = req.headers.get("authorization") || "";
       const validSecret = SUPABASE_SERVICE_ROLE_KEY && authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
@@ -712,8 +783,79 @@ serve(async (req) => {
       return new Response(JSON.stringify({ sent }), { headers });
     }
 
+    // Mode: expiry_warning_cron — batch send trial/promo expiry warnings
+    if (body.mode === "expiry_warning_cron") {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const day = 86400000;
+      const now = Date.now();
+
+      // First warning window: tier expires 4–6 days from now, not yet warned
+      const firstStart = new Date(now + 4 * day).toISOString();
+      const firstEnd   = new Date(now + 6 * day).toISOString();
+      // Final warning window: tier expires 1–3 days from now, not yet final-warned
+      const finalStart = new Date(now + 1 * day).toISOString();
+      const finalEnd   = new Date(now + 3 * day).toISOString();
+
+      const [{ data: firstWarn }, { data: finalWarn }] = await Promise.all([
+        supabase
+          .from("users")
+          .select("id, name, lang, auth_id, tier, tier_expires_at")
+          .in("tier_source", ["promo", "trial"])
+          .not("tier_expires_at", "is", null)
+          .gte("tier_expires_at", firstStart)
+          .lte("tier_expires_at", firstEnd)
+          .is("expiry_warned_at", null),
+        supabase
+          .from("users")
+          .select("id, name, lang, auth_id, tier, tier_expires_at")
+          .in("tier_source", ["promo", "trial"])
+          .not("tier_expires_at", "is", null)
+          .gte("tier_expires_at", finalStart)
+          .lte("tier_expires_at", finalEnd)
+          .is("expiry_final_warned_at", null),
+      ]);
+
+      const allTargets = [
+        ...((firstWarn || []).map(u => ({ ...u, isFinal: false }))),
+        ...((finalWarn || []).map(u => ({ ...u, isFinal: true }))),
+      ];
+
+      if (allTargets.length === 0) {
+        return new Response(JSON.stringify({ sent: 0, total: 0 }), { headers });
+      }
+
+      const authUsers = await listAllAuthUsers(supabase);
+      let sent = 0;
+
+      for (const u of allTargets) {
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
+        if (!authUser?.email) continue;
+
+        const expiresAt = new Date(u.tier_expires_at as string).getTime();
+        const daysLeft = Math.max(1, Math.ceil((expiresAt - now) / day));
+        const tpl = trialExpiryWarningEmail(
+          u.name || "Farmer",
+          u.tier || "pro",
+          daysLeft,
+          u.isFinal,
+          u.lang || "en",
+        );
+
+        const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
+        if (ok) {
+          sent++;
+          // Mark notification sent
+          const updateCol = u.isFinal ? { expiry_final_warned_at: new Date().toISOString() }
+                                      : { expiry_warned_at: new Date().toISOString() };
+          await supabase.from("users").update(updateCol).eq("id", u.id);
+        }
+      }
+
+      return new Response(JSON.stringify({ sent, total: allTargets.length }), { headers });
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron" }),
+      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron, expiry_warning_cron" }),
       { status: 400, headers }
     );
   } catch (e) {
