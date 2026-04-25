@@ -50,7 +50,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       iconColor: 'text-[#194121]',
       name: { en: 'Grower', el: 'Grower' },
       price: { en: '€49 / year', el: '€49 / χρόνο' },
-      note: { en: '€4.99/mo · or €79 for 2 years', el: '€4,99/μήνα · ή €79 για 2 χρόνια' },
+      note: { en: '€4.99 / month', el: '€4,99 / μήνα' },
       features: {
         en: [
           'Unlimited questions',
@@ -80,7 +80,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       iconColor: 'text-amber-600',
       name: { en: 'Master', el: 'Master' },
       price: { en: '€490 / year', el: '€490 / χρόνο' },
-      note: { en: '€49/mo · or €790 for 2 years', el: '€49/μήνα · ή €790 για 2 χρόνια' },
+      note: { en: '€49 / month', el: '€49 / μήνα' },
       features: {
         en: [
           'Unlimited questions',

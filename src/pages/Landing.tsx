@@ -1310,8 +1310,7 @@ export default function Landing() {
                     <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€49</span>
                     <span className="text-sm text-white/70">{lt.perYear}</span>
                   </div>
-                  <p className="text-xs text-white/50 mb-1">€4,08 {lt.perMonth}</p>
-                  <p className="text-xs text-white/40 mb-5">{lt.proTwoYearNote}</p>
+                  <p className="text-xs text-white/50 mb-5">€4,08 {lt.perMonth}</p>
                 </>
               )}
               <ul className="flex-1 space-y-2.5 mb-6">
@@ -1352,7 +1351,6 @@ export default function Landing() {
                     <span className="text-sm text-[#606659]">{lt.perYear}</span>
                   </div>
                   <p className="text-xs text-[#606659] mb-1">€40,83 {lt.perMonth}</p>
-                  <p className="text-xs text-[#4a6b50] mb-1">{lt.agronomistTwoYearNote}</p>
                 </>
               )}
               <p className="text-xs text-[#4a6b50] font-medium mb-5 italic">
