@@ -21,8 +21,9 @@ describe('subscription helpers', () => {
     expect(isKnownTier('expert')).toBe(true);
     expect(isKnownTier('enterprise')).toBe(true);
     expect(isKnownTier('legacy')).toBe(false);
-    expect(formatTierLabel('agronomist')).toBe('AGRONOMIST');
+    expect(formatTierLabel('agronomist')).toBe('MASTER');
+    expect(formatTierLabel('pro')).toBe('PRO');
     expect(formatTierLabel('expert')).toBe('EXPERT');
-    expect(formatTierLabel('free')).toBe('FREE');
+    expect(formatTierLabel('free')).toBe('STARTER');
   });
 });
