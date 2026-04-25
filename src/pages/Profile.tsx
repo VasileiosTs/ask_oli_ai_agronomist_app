@@ -273,7 +273,7 @@ export default function Profile() {
             <span className={clsx('mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
               hasUnlimitedMessages ? 'bg-primary/15 text-primary' : 'bg-surface text-muted border border-border/50')}>
               {hasUnlimitedMessages && <Crown className="h-3 w-3" />}
-              {hasUnlimitedMessages ? formatTierLabel(currentTier) : lang === 'el' ? 'ΔΩΡΕΑΝ' : 'FREE'}
+              {formatTierLabel(currentTier)}
             </span>
           </div>
         </div>

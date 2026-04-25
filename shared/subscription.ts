@@ -29,14 +29,14 @@ export function isKnownTier(tier?: string | null): tier is AppTier {
 export function formatTierLabel(tier?: string | null): string {
   switch (tier) {
     case 'pro':
-      return 'PRO';
+      return 'GROWER';
     case 'agronomist':
-      return 'AGRONOMIST';
+      return 'MASTER';
     case 'expert':
       return 'EXPERT';
     case 'enterprise':
       return 'ENTERPRISE';
     default:
-      return 'FREE';
+      return 'STARTER';
   }
 }

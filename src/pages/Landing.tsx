@@ -640,6 +640,7 @@ export default function Landing() {
   const [demoTab, setDemoTab]             = useState<'disease' | 'planning'>('disease');
   const [suggestionIdx, setSuggestionIdx] = useState(0);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('annual');
   const imperial = useMemo(() => detectImperial(), []);
 
   // Fix mobile overscroll background — the app is dark-themed (#0D1117) but the
@@ -1226,7 +1227,7 @@ export default function Landing() {
       {/* ── PRICING ── */}
       <section className="py-16 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#4a6b50] mb-2">
               {lt.pricingLabel}
             </p>
@@ -1238,9 +1239,40 @@ export default function Landing() {
             </p>
           </div>
 
-          {/* Row 1: Free + Pro (individual users) */}
+          {/* Billing toggle */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center gap-1 bg-[#f0f0eb] rounded-full p-1">
+              <button
+                onClick={() => setBillingPeriod('monthly')}
+                className={[
+                  'px-4 py-1.5 rounded-full text-sm font-medium transition-all',
+                  billingPeriod === 'monthly'
+                    ? 'bg-white text-[#1b1c19] shadow-sm'
+                    : 'text-[#606659] hover:text-[#1b1c19]',
+                ].join(' ')}
+              >
+                {lt.billingMonthly}
+              </button>
+              <button
+                onClick={() => setBillingPeriod('annual')}
+                className={[
+                  'px-4 py-1.5 rounded-full text-sm font-medium transition-all',
+                  billingPeriod === 'annual'
+                    ? 'bg-white text-[#1b1c19] shadow-sm'
+                    : 'text-[#606659] hover:text-[#1b1c19]',
+                ].join(' ')}
+              >
+                {lt.billingAnnual}
+                {billingPeriod !== 'annual' && (
+                  <span className="ml-1.5 text-[10px] font-semibold text-[#4a6b50] bg-[#e0f0e0] px-1.5 py-0.5 rounded-full">-18%</span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Row 1: Starter + Grower (individual users) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-            {/* Free */}
+            {/* Starter */}
             <div className="flex flex-col rounded-2xl border border-[#e8e8e3] bg-white p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
               <p className="text-xs font-bold uppercase tracking-wider text-[#606659] mb-1">{lt.freeName}</p>
               <div className="flex items-baseline gap-1 mb-1">
@@ -1260,15 +1292,28 @@ export default function Landing() {
               </Link>
             </div>
 
-            {/* Pro */}
+            {/* Grower */}
             <div className="flex flex-col rounded-2xl p-6 relative overflow-hidden text-white"
               style={{ background: 'linear-gradient(135deg, #194121 0%, #2d5535 100%)', boxShadow: '0 8px 32px rgba(25,65,33,0.25)' }}>
-              <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Pro</p>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4,99</span>
-                <span className="text-sm text-white/70">{lt.perMonth}</span>
-              </div>
-              <p className="text-xs text-white/50 mb-5">{lt.proYearlyNote}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Grower</p>
+              {billingPeriod === 'monthly' ? (
+                <>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4,99</span>
+                    <span className="text-sm text-white/70">{lt.perMonth}</span>
+                  </div>
+                  <p className="text-xs text-white/50 mb-5">{lt.proYearlyNote}</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€49</span>
+                    <span className="text-sm text-white/70">{lt.perYear}</span>
+                  </div>
+                  <p className="text-xs text-white/50 mb-1">€4,08 {lt.perMonth}</p>
+                  <p className="text-xs text-white/40 mb-5">{lt.proTwoYearNote}</p>
+                </>
+              )}
               <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.proFeatures.map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-white/90">
@@ -1282,9 +1327,9 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Row 2: Agronomist + Enterprise */}
+          {/* Row 2: Master + Enterprise */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* Agronomist */}
+            {/* Master */}
             <div className="flex flex-col rounded-2xl border border-[#b8cfc0] bg-[#f4f8f4] p-6" style={{ boxShadow: '0 2px 12px rgba(27,28,25,0.04)' }}>
               <div className="flex items-start justify-between mb-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-[#4a6b50]">{lt.agronomistName}</p>
@@ -1292,11 +1337,24 @@ export default function Landing() {
                   {lt.agronomistBadge}
                 </span>
               </div>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€49</span>
-                <span className="text-sm text-[#606659]">{lt.perMonth}</span>
-              </div>
-              <p className="text-xs text-[#606659] mb-1">{lt.agronomistYearlyNote}</p>
+              {billingPeriod === 'monthly' ? (
+                <>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€49</span>
+                    <span className="text-sm text-[#606659]">{lt.perMonth}</span>
+                  </div>
+                  <p className="text-xs text-[#606659] mb-1">{lt.agronomistYearlyNote}</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€490</span>
+                    <span className="text-sm text-[#606659]">{lt.perYear}</span>
+                  </div>
+                  <p className="text-xs text-[#606659] mb-1">€40,83 {lt.perMonth}</p>
+                  <p className="text-xs text-[#4a6b50] mb-1">{lt.agronomistTwoYearNote}</p>
+                </>
+              )}
               <p className="text-xs text-[#4a6b50] font-medium mb-5 italic">
                 {lt.agronomistTagline}
               </p>

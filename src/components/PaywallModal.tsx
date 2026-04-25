@@ -22,7 +22,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       key: 'free',
       icon: Sprout,
       iconColor: 'text-[#606659]',
-      name: { en: 'Free', el: 'Δωρεάν' },
+      name: { en: 'Starter', el: 'Starter' },
       price: { en: '€0 / month', el: '€0 / μήνα' },
       note: { en: 'No credit card', el: 'Χωρίς κάρτα' },
       features: {
@@ -48,9 +48,9 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       key: 'pro',
       icon: Crown,
       iconColor: 'text-[#194121]',
-      name: { en: 'Pro', el: 'Pro' },
-      price: { en: '€4.99 / month', el: '€4,99 / μήνα' },
-      note: { en: 'or €49 / year — 2 months free', el: 'ή €49 / χρόνο — 2 μήνες δωρεάν' },
+      name: { en: 'Grower', el: 'Grower' },
+      price: { en: '€49 / year', el: '€49 / χρόνο' },
+      note: { en: '€4.99/mo · or €79 for 2 years', el: '€4,99/μήνα · ή €79 για 2 χρόνια' },
       features: {
         en: [
           'Unlimited questions',
@@ -69,7 +69,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
           'Μηνιαίες αναφορές χωραφιών',
         ],
       },
-      cta: { en: 'Upgrade to Pro', el: 'Αναβάθμιση σε Pro' },
+      cta: { en: 'Upgrade to Grower', el: 'Αναβάθμιση σε Grower' },
       contactOnly: false,
       isCurrent: isCurrent('pro'),
       forRoles: ['farmer', 'hobbyist', ''],
@@ -78,9 +78,9 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       key: 'agronomist',
       icon: Briefcase,
       iconColor: 'text-amber-600',
-      name: { en: 'Agronomist', el: 'Γεωπόνος' },
-      price: { en: '€49 / month', el: '€49 / μήνα' },
-      note: { en: 'or €490 / year — 2 months free', el: 'ή €490 / χρόνο — 2 μήνες δωρεάν' },
+      name: { en: 'Master', el: 'Master' },
+      price: { en: '€490 / year', el: '€490 / χρόνο' },
+      note: { en: '€49/mo · or €790 for 2 years', el: '€49/μήνα · ή €790 για 2 χρόνια' },
       features: {
         en: [
           'Unlimited questions',
@@ -97,7 +97,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
           'Επώνυμες PDF αναφορές ανά χωράφι',
         ],
       },
-      cta: { en: 'Upgrade to Agronomist', el: 'Αναβάθμιση σε Γεωπόνο' },
+      cta: { en: 'Upgrade to Master', el: 'Αναβάθμιση σε Master' },
       contactOnly: false,
       isCurrent: isCurrent('agronomist'),
       forRoles: ['agronomist', ''],
@@ -111,14 +111,14 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       note: { en: 'For cooperatives, associations, agri companies', el: 'Για συλλόγους, συνεταιρισμούς, εταιρείες' },
       features: {
         en: [
-          'Everything in Agronomist',
+          'Everything in Master',
           'Multiple seats / team accounts',
           'White-label or co-branded reports',
           'Priority support',
           'Custom integrations on request',
         ],
         el: [
-          'Όλα του Γεωπόνου',
+          'Όλα του Master',
           'Πολλαπλοί χρήστες / ομάδα',
           'White-label ή co-branded αναφορές',
           'Προτεραιότητα υποστήριξης',

@@ -418,9 +418,7 @@ function trialExpiryWarningEmail(
   lang: string,
 ): { subject: string; html: string } {
   const isEl = lang === "el";
-  const tierLabel = tier === "agronomist"
-    ? (isEl ? "Γεωπόνου" : "Agronomist")
-    : "Pro";
+  const tierLabel = tier === "agronomist" ? "Master" : "Grower";
   const daysStr = daysLeft === 1
     ? (isEl ? "1 μέρα" : "1 day")
     : (isEl ? `${daysLeft} μέρες` : `${daysLeft} days`);
