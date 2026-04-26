@@ -77,9 +77,16 @@ export default function AuthCallback() {
         return;
       }
 
-      // PKCE magic link flow: ?code= param — must exchange manually
+      // PKCE magic link / OAuth code flow: ?code= param — must exchange manually
       if (code) {
+        // Capture event type before exchange (fires synchronously inside exchangeCodeForSession)
+        let capturedEvent: string | null = null;
+        const { data: { subscription: eventSub } } = supabase.auth.onAuthStateChange((event) => {
+          capturedEvent = event;
+        });
+
         const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        eventSub.unsubscribe();
         // Scrub the one-time code from the URL bar and browser history so it
         // can't leak via Referer header to subsequent third-party requests.
         window.history.replaceState({}, '', '/auth/callback');
@@ -90,7 +97,8 @@ export default function AuthCallback() {
           return;
         }
         const session = await waitForSession();
-        navigate(session ? '/chat' : '/auth', { replace: true });
+        if (!session) { navigate('/auth', { replace: true }); return; }
+        navigate(capturedEvent === 'PASSWORD_RECOVERY' ? '/auth/update-password' : '/chat', { replace: true });
         return;
       }
 

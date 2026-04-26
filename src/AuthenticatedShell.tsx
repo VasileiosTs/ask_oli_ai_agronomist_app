@@ -19,6 +19,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const History = lazy(() => import('./pages/History'));
 const Fields = lazy(() => import('./pages/Fields'));
 const SharedDiagnosis = lazy(() => import('./pages/SharedDiagnosis'));
+const UpdatePassword = lazy(() => import('./pages/UpdatePassword'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 const FieldDetail = lazy(() => import('./pages/FieldDetail'));
 const ClientDashboard = lazy(() => import('./pages/ClientDashboard'));
@@ -277,6 +278,7 @@ function AppRoutes() {
       <Routes>
         {/* Always public */}
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/update-password" element={<UpdatePassword />} />
         <Route path="/d/:shareId" element={<SharedDiagnosis />} />
         <Route path="/legal/privacy" element={<Privacy />} />
         <Route path="/legal/terms" element={<Terms />} />
