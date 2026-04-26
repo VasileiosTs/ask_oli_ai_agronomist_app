@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, ChevronDown, ChevronUp, CheckCircle2, Clock, AlertTriangle, Leaf, MessageCircle } from 'lucide-react';
+import { ClipboardList, ChevronDown, ChevronUp, CheckCircle2, Clock, AlertTriangle, Leaf, MessageCircle, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import type { T } from '../lib/i18n';
 import clsx from 'clsx';
+import PaywallModal from '../components/PaywallModal';
 
 interface Intervention {
   id: string;
@@ -71,13 +72,15 @@ export default function History() {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
   const tier = profile?.tier as string | undefined;
-  const isAdvisor = tier === 'agronomist' || tier === 'expert' || tier === 'enterprise';
+  const isAdvisor = tier === 'agronomist' || tier === 'enterprise';
+  const isFree = !tier || tier === 'free';
 
   // Advisors see their own interventions PLUS any interventions belonging to
-  // growers they own. Farmers just see their own.
+  // growers they own. Farmers just see their own. Free tier limited to last 7 days.
   const { data: interventions = [], isLoading } = useQuery({
-    queryKey: ['interventions', appUserId, isAdvisor],
+    queryKey: ['interventions', appUserId, isAdvisor, isFree],
     queryFn: async () => {
       let growerIds: string[] = [];
       if (isAdvisor && appUserId) {
@@ -91,11 +94,18 @@ export default function History() {
         orClauses.push(`grower_id.in.(${growerIds.join(',')})`);
       }
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('interventions')
         .select('*')
         .or(orClauses.join(','))
         .order('applied_at', { ascending: false });
+
+      if (isFree) {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('applied_at', sevenDaysAgo);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as Intervention[];
     },
@@ -271,9 +281,34 @@ export default function History() {
                 </div>
               );
             })}
+
+            {/* Free tier: locked history gate */}
+            {isFree && (
+              <button
+                onClick={() => setShowPaywall(true)}
+                className="w-full rounded-2xl border border-border/40 bg-surface/50 p-4 text-center opacity-80 hover:opacity-100 transition-opacity"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <Lock className="h-5 w-5 text-muted" />
+                  <p className="text-sm font-medium text-foreground">
+                    {lang === 'el' ? 'Παλαιότερο ιστορικό' : 'Older history'}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {lang === 'el'
+                      ? 'Αναβάθμισε σε Pro για να δεις ολόκληρο το ιστορικό σου.'
+                      : 'Upgrade to Pro to see your full intervention history.'}
+                  </p>
+                  <span className="mt-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
+                    {lang === 'el' ? 'Αναβάθμιση' : 'Upgrade'}
+                  </span>
+                </div>
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
     </div>
   );
 }

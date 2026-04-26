@@ -80,7 +80,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       iconColor: 'text-amber-600',
       name: { en: 'Master', el: 'Master' },
       price: { en: '€490 / year', el: '€490 / χρόνο' },
-      note: { en: '€49 / month', el: '€49 / μήνα' },
+      note: { en: 'For agronomists advising multiple clients', el: 'Για γεωπόνους που συμβουλεύουν πελάτες' },
       features: {
         en: [
           'Unlimited questions',
@@ -100,7 +100,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       cta: { en: 'Upgrade to Master', el: 'Αναβάθμιση σε Master' },
       contactOnly: false,
       isCurrent: isCurrent('agronomist'),
-      forRoles: ['agronomist', ''],
+      forRoles: ['agronomist', 'farmer', ''],
     },
     {
       key: 'enterprise',
@@ -108,7 +108,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       iconColor: 'text-slate-600',
       name: { en: 'Enterprise', el: 'Enterprise' },
       price: { en: 'Custom pricing', el: 'Προσαρμοσμένη τιμή' },
-      note: { en: 'For cooperatives, associations, agri companies', el: 'Για συλλόγους, συνεταιρισμούς, εταιρείες' },
+      note: { en: 'For cooperatives & agribusinesses managing agronomist teams', el: 'Για συνεταιρισμούς & εταιρείες που διαχειρίζονται γεωπόνους' },
       features: {
         en: [
           'Everything in Master',

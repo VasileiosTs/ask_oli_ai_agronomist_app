@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FileText, Download, Share2, Loader2 } from 'lucide-react';
 import ShareModal from './ShareModal';
+import PaywallModal from './PaywallModal';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 interface FieldData {
   id: string;
@@ -84,11 +87,31 @@ ${timeline.length > 0 ? `
 }
 
 export default function ReportGenerator({ field, timeline, growthStage, lang, autoGenerate }: Props) {
+  const { appUserId, profile } = useAuth();
   const [generating, setGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
   const l = lang === 'el' ? 'el' : 'en';
+  const isFree = !profile?.tier || profile.tier === 'free';
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (generating) return;
+
+    // Gate: free tier is limited to 1 PDF report per month
+    let currentReportCount = 0;
+    if (isFree && appUserId) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('report_count_month')
+        .eq('id', appUserId)
+        .single();
+      currentReportCount = userData?.report_count_month ?? 0;
+      if (currentReportCount >= 1) {
+        setShowPaywall(true);
+        return;
+      }
+    }
+
     setGenerating(true);
     try {
       const html = generateReportHTML(field, timeline, growthStage, lang);
@@ -102,13 +125,21 @@ export default function ReportGenerator({ field, timeline, growthStage, lang, au
           setTimeout(() => win.print(), 500);
         });
       }
+
+      // Increment monthly report counter for free tier
+      if (isFree && appUserId) {
+        await supabase
+          .from('users')
+          .update({ report_count_month: currentReportCount + 1 })
+          .eq('id', appUserId);
+      }
     } finally {
       setGenerating(false);
     }
   };
 
   useEffect(() => {
-    if (autoGenerate) handleGenerate();
+    if (autoGenerate) void handleGenerate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoGenerate]);
 
@@ -178,6 +209,8 @@ export default function ReportGenerator({ field, timeline, growthStage, lang, au
           lang={lang}
         />
       )}
+
+      <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
     </>
   );
 }

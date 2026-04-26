@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, Plus, X, Loader2, Search, AlertCircle } from 'lucide-react';
+import { Users, ChevronRight, Plus, X, Loader2, Search, AlertCircle, UserCog } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -17,6 +17,7 @@ interface Grower {
   /** Computed client-side after join */
   diagnosis_count?: number;
   last_diagnosis_at?: string | null;
+  field_count?: number;
 }
 
 export default function ClientDashboard() {
@@ -33,6 +34,7 @@ export default function ClientDashboard() {
 
   const tier = typeof profile?.tier === 'string' ? profile.tier : null;
   const hasAccess = isAdvisorTier(tier);
+  const isEnterprise = tier === 'enterprise';
 
   useEffect(() => {
     if (!appUserId || !hasAccess) return;
@@ -51,22 +53,27 @@ export default function ClientDashboard() {
 
       if (error) throw error;
 
-      // Enrich with diagnosis counts
+      // Enrich with diagnosis counts + field counts
       const enriched = await Promise.all((data ?? []).map(async (g) => {
-        const { count } = await supabase
-          .from('interventions')
-          .select('id', { count: 'exact', head: true })
-          .eq('grower_id', g.id);
+        const [{ count: diagCount }, { count: fieldCount }, { data: latest }] = await Promise.all([
+          supabase
+            .from('interventions')
+            .select('id', { count: 'exact', head: true })
+            .eq('grower_id', g.id),
+          supabase
+            .from('grower_links')
+            .select('field_id', { count: 'exact', head: true })
+            .eq('grower_id', g.id),
+          supabase
+            .from('interventions')
+            .select('created_at')
+            .eq('grower_id', g.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
-        const { data: latest } = await supabase
-          .from('interventions')
-          .select('created_at')
-          .eq('grower_id', g.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        return { ...g, diagnosis_count: count ?? 0, last_diagnosis_at: latest?.created_at ?? null };
+        return { ...g, diagnosis_count: diagCount ?? 0, field_count: fieldCount ?? 0, last_diagnosis_at: latest?.created_at ?? null };
       }));
 
       setGrowers(enriched);
@@ -92,7 +99,7 @@ export default function ClientDashboard() {
         .single();
 
       if (error) throw error;
-      setGrowers(prev => [{ ...data, diagnosis_count: 0, last_diagnosis_at: null }, ...prev]);
+      setGrowers(prev => [{ ...data, diagnosis_count: 0, field_count: 0, last_diagnosis_at: null }, ...prev]);
       setForm({ name: '', phone: '', location: '', notes: '', location_lat: null, location_lon: null });
       setAddOpen(false);
     } finally {
@@ -138,13 +145,24 @@ export default function ClientDashboard() {
               {growers.length}
             </span>
           </div>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {lang === 'el' ? 'Νέος' : 'New'}
-          </button>
+          <div className="flex items-center gap-2">
+            {isEnterprise && (
+              <button
+                onClick={() => navigate('/cooperative')}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-background transition-colors"
+              >
+                <UserCog className="h-3.5 w-3.5" />
+                {lang === 'el' ? 'Ομάδα' : 'Team'}
+              </button>
+            )}
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {lang === 'el' ? 'Νέος' : 'New'}
+            </button>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
@@ -188,8 +206,8 @@ export default function ClientDashboard() {
                   <p className="text-xs text-muted mt-0.5 truncate">
                     {g.location ? `${g.location} · ` : ''}
                     {lang === 'el'
-                      ? `${g.diagnosis_count} διαγνώσεις`
-                      : `${g.diagnosis_count} diagnoses`}
+                      ? `${g.field_count ?? 0} χωράφια · ${g.diagnosis_count} διαγνώσεις`
+                      : `${g.field_count ?? 0} fields · ${g.diagnosis_count} diagnoses`}
                   </p>
                 </div>
                 {g.last_diagnosis_at && (

@@ -11,7 +11,6 @@ export const TIER_LIMITS = {
   free:       { messagesPerMonth: FREE_MESSAGE_LIMIT, fields: 3, historyDays: 7,       reportsPerMonth: 1        },
   pro:        { messagesPerMonth: Infinity,           fields: Infinity, historyDays: Infinity, reportsPerMonth: Infinity },
   agronomist: { messagesPerMonth: Infinity,           fields: Infinity, historyDays: Infinity, reportsPerMonth: Infinity },
-  expert:     { messagesPerMonth: Infinity,           fields: Infinity, historyDays: Infinity, reportsPerMonth: Infinity },
   enterprise: { messagesPerMonth: Infinity,           fields: Infinity, historyDays: Infinity, reportsPerMonth: Infinity },
 } as const;
 
