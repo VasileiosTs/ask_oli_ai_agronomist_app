@@ -147,7 +147,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
   const currentTier = typeof profile?.tier === 'string' ? profile.tier : 'free';
   const userRole = typeof profile?.role === 'string' ? profile.role : '';
   const tiers = TIERS(lang, currentTier);
-  const displayedTiers = tiers.filter(t => t.forRoles.includes(userRole));
+  const displayedTiers = tiers;
   const selectedTier = displayedTiers.find(t => t.key === selected);
 
   const openEmailFallback = (tierKey: string) => {

@@ -259,7 +259,7 @@ export default function Profile() {
       {/* Back button */}
       <div className="px-4 pt-4 pb-0">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/chat')}
           className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -317,7 +317,7 @@ export default function Profile() {
                 style={{ width: `${msgPercent}%` }} />
             </div>
             <button onClick={() => setShowPaywall(true)} className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90">
-              {t.upgradeBtn} — {t.monthly}
+              {lang === 'el' ? 'Αναβάθμιση πλάνου' : 'Upgrade your plan'}
             </button>
           </div>
         )}
