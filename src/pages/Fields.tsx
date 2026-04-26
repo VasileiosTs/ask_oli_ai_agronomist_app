@@ -177,7 +177,9 @@ export default function Fields() {
           {advisor ? <Users className="h-5 w-5 text-primary" /> : <Sprout className="h-5 w-5 text-primary" />}
           <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
           {limits.fields !== Infinity && (
-            <span className="text-xs text-muted">{fields.length}/{limits.fields}</span>
+            <span className="text-xs text-muted" title={lang === 'el' ? `${fields.length} από ${limits.fields} αγροτεμάχια` : `${fields.length} of ${limits.fields} fields used`}>
+              {fields.length}/{limits.fields} {lang === 'el' ? 'αγρ.' : 'fields'}
+            </span>
           )}
           {fields.length > 0 && (
             <button

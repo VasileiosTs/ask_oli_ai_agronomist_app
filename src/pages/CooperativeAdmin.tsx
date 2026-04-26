@@ -189,6 +189,20 @@ export default function CooperativeAdmin() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
+        {activeTab === 'overview' && !stats && !loading && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 px-8 text-center">
+            <BarChart2 className="h-12 w-12 text-muted/20" />
+            <p className="text-sm font-medium text-foreground">
+              {lang === 'el' ? 'Δεν υπάρχουν δεδομένα ακόμα' : 'No data yet'}
+            </p>
+            <p className="text-xs text-muted leading-relaxed">
+              {lang === 'el'
+                ? 'Η επισκόπηση θα εμφανιστεί μόλις τα μέλη ξεκινήσουν να κάνουν διαγνώσεις.'
+                : 'The overview will appear once members start making diagnoses.'}
+            </p>
+          </div>
+        )}
+
         {activeTab === 'overview' && stats && (
           <div className="p-4 space-y-4">
             {/* KPI cards */}
@@ -266,11 +280,11 @@ export default function CooperativeAdmin() {
                 <div key={m.id} className="flex items-center gap-4 px-4 py-3.5">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                     <span className="text-base font-bold text-primary">
-                      {(m.user?.name ?? '?').charAt(0).toUpperCase()}
+                      {(m.user?.name ?? (lang === 'el' ? 'Α' : 'U')).charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate">{m.user?.name ?? '—'}</p>
+                    <p className="font-semibold text-foreground truncate">{m.user?.name ?? (lang === 'el' ? 'Άγνωστο μέλος' : 'Unknown member')}</p>
                     <p className="text-xs text-muted mt-0.5">
                       {m.user?.location ? `${m.user.location} · ` : ''}
                       {lang === 'el'

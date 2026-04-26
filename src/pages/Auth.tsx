@@ -316,19 +316,18 @@ export default function Auth() {
                 </button>
               </form>
 
-              {/* Magic link as third option */}
-              <div className="text-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => switchMode('magic')}
-                  className="text-xs transition-colors"
-                  style={{ color: '#909585' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#194121')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#909585')}
-                >
-                  {isEl ? 'Σύνδεση χωρίς κωδικό (magic link)' : 'Sign in without a password (magic link)'}
-                </button>
-              </div>
+              {/* Magic link — full-width button */}
+              <button
+                type="button"
+                onClick={() => switchMode('magic')}
+                className="flex w-full items-center justify-center gap-3 rounded-full px-4 py-3.5 text-sm font-medium transition-all hover:shadow-md active:scale-[0.98]"
+                style={{ background: '#fff', color: '#1b1c19', border: '1px solid #e3e3de' }}>
+                <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 8l9 6 9-6" />
+                  <rect x="2" y="6" width="20" height="14" rx="2" />
+                </svg>
+                {isEl ? 'Σύνδεση με magic link (χωρίς κωδικό)' : 'Sign in with magic link (no password)'}
+              </button>
             </>
           )}
 

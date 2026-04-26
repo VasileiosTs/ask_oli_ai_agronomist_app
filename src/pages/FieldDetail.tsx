@@ -9,6 +9,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
+import { formatArea, type AreaUnit } from '../lib/areaUnits';
 import { getGrowthStage, STAGE_LABELS, STAGE_COLORS } from '../lib/growthStages';
 import WeatherWidget from '../components/WeatherWidget';
 import ReportGenerator from '../components/ReportGenerator';
@@ -31,8 +32,9 @@ export default function FieldDetail() {
   const { fieldId } = useParams<{ fieldId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { appUserId } = useAuth();
+  const { appUserId, profile } = useAuth();
   const { t, lang } = useLanguage();
+  const areaUnit: AreaUnit = (profile?.area_unit as AreaUnit | undefined) ?? (lang === 'el' ? 'stremma' : 'ha');
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
 
   // ── Fetch field ──
@@ -218,7 +220,7 @@ export default function FieldDetail() {
             {field.size_ha && (
               <div className="flex items-center gap-2">
                 <Sun className="h-3.5 w-3.5 opacity-60" />
-                <span>{field.size_ha} ha</span>
+                <span>{formatArea(field.size_ha, areaUnit, lang)}</span>
               </div>
             )}
             {field.irrigation_type && (

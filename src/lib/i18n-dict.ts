@@ -94,7 +94,7 @@ const el: T = {
   noFieldsTitle: 'Καμία καλλιέργεια ακόμα', noFieldsBody: 'Πρόσθεσε την πρώτη σου καλλιέργεια', addField: 'Προσθήκη',
   newField: 'Νέο Χωράφι', editField: 'Επεξεργασία',
   fieldName: 'Όνομα *', fieldCrop: 'Καλλιέργεια', fieldLocation: 'Τοποθεσία',
-  fieldSize: 'Έκταση (ha)', fieldMedium: 'Μέσο Καλλιέργειας', fieldSoil: 'Τύπος Εδάφους', fieldIrrigation: 'Άρδευση',
+  fieldSize: 'Έκταση', fieldMedium: 'Μέσο Καλλιέργειας', fieldSoil: 'Τύπος Εδάφους', fieldIrrigation: 'Άρδευση',
   fieldDelete: 'Διαγραφή', fieldSave: 'Αποθήκευσε', fieldSaving: 'Αποθήκευση...',
   fieldOptionLabels: {
     soil: 'Έδαφος', hydro: 'Υδροπονία', container: 'Γλάστρα', greenhouse: 'Θερμοκήπιο',
@@ -262,7 +262,7 @@ const en: T = {
   noFieldsTitle: 'No fields yet', noFieldsBody: 'Add your first field', addField: 'Add',
   newField: 'New Field', editField: 'Edit',
   fieldName: 'Name *', fieldCrop: 'Crop', fieldLocation: 'Location',
-  fieldSize: 'Size (ha)', fieldMedium: 'Growing Medium', fieldSoil: 'Soil Type', fieldIrrigation: 'Irrigation',
+  fieldSize: 'Size', fieldMedium: 'Growing Medium', fieldSoil: 'Soil Type', fieldIrrigation: 'Irrigation',
   fieldDelete: 'Delete', fieldSave: 'Save', fieldSaving: 'Saving...',
   fieldOptionLabels: {
     soil: 'Soil', hydro: 'Hydroponic', container: 'Container', greenhouse: 'Greenhouse',
@@ -427,7 +427,7 @@ const it: T = {
   noFieldsTitle: 'Nessun campo ancora', noFieldsBody: 'Aggiungi il tuo primo campo', addField: 'Aggiungi',
   newField: 'Nuovo Campo', editField: 'Modifica',
   fieldName: 'Nome *', fieldCrop: 'Coltura', fieldLocation: 'Posizione',
-  fieldSize: 'Dimensione (ha)', fieldMedium: 'Substrato', fieldSoil: 'Tipo di suolo', fieldIrrigation: 'Irrigazione',
+  fieldSize: 'Dimensione', fieldMedium: 'Substrato', fieldSoil: 'Tipo di suolo', fieldIrrigation: 'Irrigazione',
   fieldDelete: 'Elimina', fieldSave: 'Salva', fieldSaving: 'Salvataggio...',
   fieldOptionLabels: {
     soil: 'Suolo', hydro: 'Idroponico', container: 'Vaso', greenhouse: 'Serra',
@@ -552,7 +552,7 @@ const es: T = {
   noFieldsTitle: 'Sin campos aún', noFieldsBody: 'Añade tu primer campo', addField: 'Añadir',
   newField: 'Nuevo Campo', editField: 'Editar',
   fieldName: 'Nombre *', fieldCrop: 'Cultivo', fieldLocation: 'Ubicación',
-  fieldSize: 'Tamaño (ha)', fieldMedium: 'Sustrato', fieldSoil: 'Tipo de suelo', fieldIrrigation: 'Riego',
+  fieldSize: 'Tamaño', fieldMedium: 'Sustrato', fieldSoil: 'Tipo de suelo', fieldIrrigation: 'Riego',
   fieldDelete: 'Eliminar', fieldSave: 'Guardar', fieldSaving: 'Guardando...',
   fieldOptionLabels: {
     soil: 'Suelo', hydro: 'Hidropónico', container: 'Maceta', greenhouse: 'Invernadero',
@@ -677,7 +677,7 @@ const fr: T = {
   noFieldsTitle: 'Aucun champ encore', noFieldsBody: 'Ajoutez votre premier champ', addField: 'Ajouter',
   newField: 'Nouveau Champ', editField: 'Modifier',
   fieldName: 'Nom *', fieldCrop: 'Culture', fieldLocation: 'Localisation',
-  fieldSize: 'Taille (ha)', fieldMedium: 'Substrat', fieldSoil: 'Type de sol', fieldIrrigation: 'Irrigation',
+  fieldSize: 'Taille', fieldMedium: 'Substrat', fieldSoil: 'Type de sol', fieldIrrigation: 'Irrigation',
   fieldDelete: 'Supprimer', fieldSave: 'Enregistrer', fieldSaving: 'Enregistrement...',
   fieldOptionLabels: {
     soil: 'Sol', hydro: 'Hydroponique', container: 'Pot', greenhouse: 'Serre',
@@ -802,7 +802,7 @@ const ar: T = {
   noFieldsTitle: 'لا حقول بعد', noFieldsBody: 'أضف حقلك الأول', addField: 'إضافة',
   newField: 'حقل جديد', editField: 'تعديل',
   fieldName: 'الاسم *', fieldCrop: 'المحصول', fieldLocation: 'الموقع',
-  fieldSize: 'المساحة (هكتار)', fieldMedium: 'وسط النمو', fieldSoil: 'نوع التربة', fieldIrrigation: 'الري',
+  fieldSize: 'المساحة', fieldMedium: 'وسط النمو', fieldSoil: 'نوع التربة', fieldIrrigation: 'الري',
   fieldDelete: 'حذف', fieldSave: 'حفظ', fieldSaving: 'جاري الحفظ...',
   fieldOptionLabels: {
     soil: 'تربة', hydro: 'هيدروبونيك', container: 'وعاء', greenhouse: 'بيت زجاجي',

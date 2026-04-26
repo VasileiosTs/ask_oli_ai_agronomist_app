@@ -137,7 +137,7 @@ export default function ChatLayout({
                   {inputTop}
                   <ChatInputBar {...inputBarProps} />
                 </div>
-                <p className="mt-2 text-center text-[11px] text-muted/60">{t.aiDisclaimer}</p>
+                <p className="mt-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
               </div>
             </div>
 
@@ -176,7 +176,7 @@ export default function ChatLayout({
                 </div>
               </div>
               <ChatInputBar {...inputBarProps} />
-              <p className="pb-2 text-center text-[11px] text-muted/60">{t.aiDisclaimer}</p>
+              <p className="pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
             </div>
           </>
         )}
@@ -198,7 +198,7 @@ export default function ChatLayout({
               <div className="mx-auto max-w-2xl md:px-2 md:pb-4">
                 {inputTop}
                 <ChatInputBar {...inputBarProps} />
-                <p className="mt-1.5 pb-1 text-center text-[11px] text-muted/60">{t.aiDisclaimer}</p>
+                <p className="mt-1.5 pb-1 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
               </div>
             </div>
           </div>
