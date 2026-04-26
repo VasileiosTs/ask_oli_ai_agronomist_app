@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Loader2, AlertCircle, TrendingUp, ClipboardList, UserPlus, Trash2, ArrowLeft } from 'lucide-react';
+import { Users, Loader2, AlertCircle, TrendingUp, ClipboardList, UserPlus, Trash2, ArrowLeft, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -29,6 +29,7 @@ export default function CooperativeAdmin() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
   const isEnterprise = typeof profile?.tier === 'string' && profile.tier === 'enterprise';
   const l = lang === 'el' ? 'el' : 'en';
@@ -257,17 +258,34 @@ export default function CooperativeAdmin() {
                     {new Date(m.lastActivity).toLocaleDateString(l === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short' })}
                   </span>
                 )}
-                <button
-                  onClick={() => void handleRemoveMember(m.memberId, m.userId)}
-                  disabled={removingId === m.memberId}
-                  className="flex-shrink-0 rounded-full p-1.5 text-muted hover:text-red-400 hover:bg-red-400/10 disabled:opacity-40 transition-colors"
-                  aria-label={l === 'el' ? 'Αφαίρεση μέλους' : 'Remove member'}
-                >
-                  {removingId === m.memberId
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Trash2 className="h-4 w-4" />
-                  }
-                </button>
+                {confirmRemoveId === m.memberId ? (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => { void handleRemoveMember(m.memberId, m.userId); setConfirmRemoveId(null); }}
+                      disabled={!!removingId}
+                      className="rounded-full bg-red-500/10 border border-red-500/30 px-2.5 py-1 text-[11px] font-semibold text-red-400 hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+                    >
+                      {removingId === m.memberId
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : (l === 'el' ? 'Επιβεβαίωση' : 'Confirm')}
+                    </button>
+                    <button
+                      onClick={() => setConfirmRemoveId(null)}
+                      className="rounded-full p-1 text-muted hover:bg-background transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmRemoveId(m.memberId)}
+                    disabled={!!removingId}
+                    className="flex-shrink-0 rounded-full p-1.5 text-muted hover:text-red-400 hover:bg-red-400/10 disabled:opacity-40 transition-colors"
+                    aria-label={l === 'el' ? 'Αφαίρεση μέλους' : 'Remove member'}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

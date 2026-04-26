@@ -148,6 +148,11 @@ export default function History() {
         <div className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-semibold text-foreground">{t.interventionHistory}</h1>
+          {isFree && (
+            <span className="rounded-full bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted">
+              {lang === 'el' ? 'Τελευταίες 7 ημέρες' : 'Last 7 days'}
+            </span>
+          )}
         </div>
         <p className="mt-0.5 text-xs text-muted">{t.historySubtitle}</p>
       </div>
@@ -159,12 +164,29 @@ export default function History() {
             {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-surface" />)}
           </div>
         ) : interventions.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+          <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-8">
             <ClipboardList className="h-16 w-16 text-primary/20" />
             <div>
-              <h3 className="font-semibold text-foreground">{t.noHistoryTitle}</h3>
-              <p className="mt-1 text-sm text-muted">{t.noHistoryBody}</p>
+              <h3 className="font-semibold text-foreground">
+                {isFree
+                  ? (lang === 'el' ? 'Καμία παρέμβαση τις τελευταίες 7 ημέρες' : 'No interventions in the last 7 days')
+                  : t.noHistoryTitle}
+              </h3>
+              <p className="mt-1 text-sm text-muted">
+                {isFree
+                  ? (lang === 'el' ? 'Παλαιότερες παρεμβάσεις μπορεί να υπάρχουν στο ιστορικό σου.' : 'Older interventions may exist in your history.')
+                  : t.noHistoryBody}
+              </p>
             </div>
+            {isFree && (
+              <button
+                onClick={() => setShowPaywall(true)}
+                className="mt-2 flex items-center gap-2 rounded-full border border-border/50 bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+              >
+                <Lock className="h-3.5 w-3.5 text-muted" />
+                {lang === 'el' ? 'Δες το πλήρες ιστορικό' : 'See full history'}
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-3 pb-8">
