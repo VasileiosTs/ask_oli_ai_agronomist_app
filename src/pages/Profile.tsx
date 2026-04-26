@@ -366,36 +366,57 @@ export default function Profile() {
           </div>
           {/* Push notifications — full enable/disable toggle */}
           {push.isSupported && (
-            <div className="flex items-center justify-between rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <BellRing className="h-5 w-5 text-muted" />
-                <div>
-                  <span className="text-sm text-foreground">{t.pushNotifications}</span>
-                  {push.permission === 'denied'
-                    ? <p className="text-[11px] text-red-400">{t.pushDenied}</p>
-                    : push.isSubscribed
-                      ? <p className="text-[11px] text-primary">{lang === 'el' ? 'Ενεργές — λαμβάνεις υπενθυμίσεις VIO' : 'Enabled — receiving VIO reminders'}</p>
-                      : <p className="text-[11px] text-muted">{lang === 'el' ? 'Ανενεργές' : 'Disabled'}</p>}
+            <div className="rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <BellRing className={clsx('h-5 w-5', push.permission === 'denied' ? 'text-red-400' : 'text-muted')} />
+                  <div>
+                    <span className="text-sm text-foreground">{t.pushNotifications}</span>
+                    {push.permission === 'denied'
+                      ? <p className="text-[11px] text-red-400">{lang === 'el' ? 'Αποκλεισμένες από τον browser' : 'Blocked by browser'}</p>
+                      : push.isSubscribed
+                        ? <p className="text-[11px] text-primary">{lang === 'el' ? 'Ενεργές — λαμβάνεις υπενθυμίσεις' : 'Enabled — receiving reminders'}</p>
+                        : <p className="text-[11px] text-muted">{lang === 'el' ? 'Ανενεργές' : 'Disabled'}</p>}
+                  </div>
                 </div>
+                {push.permission !== 'denied' && (
+                  push.isSubscribed ? (
+                    <button
+                      onClick={() => push.unsubscribe()}
+                      disabled={push.loading}
+                      className="rounded-full border border-border/50 px-3 py-1 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                    >
+                      {lang === 'el' ? 'Απενεργοποίηση' : 'Turn off'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => push.subscribe()}
+                      disabled={push.loading}
+                      className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {lang === 'el' ? 'Ενεργοποίηση' : 'Enable'}
+                    </button>
+                  )
+                )}
               </div>
-              {push.permission !== 'denied' && (
-                push.isSubscribed ? (
+              {/* Denied: show how-to steps + reload button */}
+              {push.permission === 'denied' && (
+                <div className="ml-8 rounded-lg bg-red-500/8 border border-red-500/20 px-3 py-2.5 space-y-1.5">
+                  <p className="text-[11px] font-medium text-foreground">
+                    {lang === 'el' ? 'Πώς να τις ενεργοποιήσεις:' : 'How to re-enable:'}
+                  </p>
+                  <ol className="text-[11px] text-muted space-y-0.5 list-decimal list-inside">
+                    <li>{lang === 'el' ? 'Κάνε κλικ στο 🔒 στη γραμμή διεύθυνσης' : 'Click the 🔒 in your browser address bar'}</li>
+                    <li>{lang === 'el' ? 'Βρες "Ειδοποιήσεις" και επίλεξε "Να επιτρέπεται"' : 'Find "Notifications" → set to "Allow"'}</li>
+                    <li>{lang === 'el' ? 'Ανανέωσε τη σελίδα' : 'Reload the page'}</li>
+                  </ol>
                   <button
-                    onClick={() => push.unsubscribe()}
-                    disabled={push.loading}
-                    className="rounded-full border border-border/50 px-3 py-1 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                    onClick={() => window.location.reload()}
+                    className="mt-1 rounded-full bg-red-500/15 border border-red-500/25 px-3 py-1 text-[11px] font-medium text-red-400 hover:bg-red-500/25 transition-colors"
                   >
-                    {lang === 'el' ? 'Απενεργοποίηση' : 'Turn off'}
+                    {lang === 'el' ? 'Ανανέωση σελίδας' : 'Reload page'}
                   </button>
-                ) : (
-                  <button
-                    onClick={() => push.subscribe()}
-                    disabled={push.loading}
-                    className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
-                    {lang === 'el' ? 'Ενεργοποίηση' : 'Enable'}
-                  </button>
-                )
+                </div>
               )}
             </div>
           )}
