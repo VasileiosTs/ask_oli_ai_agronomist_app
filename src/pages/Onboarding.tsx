@@ -203,6 +203,7 @@ export default function Onboarding() {
       location_lon: lon,
       primary_crop: finalCrops.join(', '),
       language: lang,
+      area_unit: lang === 'el' ? 'stremma' : 'ha',
       onboarding_complete: true,
       notification_followup: true,
     };
