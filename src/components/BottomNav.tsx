@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { MessageCircle, User, Users, Building2, Sprout, History } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { useAuth } from '../hooks/useAuth';
-import { isUnlimitedTier } from '../../shared/subscription';
+import { isAdvisorTier } from '../../shared/subscription';
 import clsx from 'clsx';
 
 export default function BottomNav() {
@@ -12,7 +12,7 @@ export default function BottomNav() {
   const { profile } = useAuth();
 
   const tier = typeof profile?.tier === 'string' ? profile.tier : null;
-  const showClients = isUnlimitedTier(tier);
+  const showClients = isAdvisorTier(tier);
   const isEnterprise = tier === 'enterprise';
 
   // Farmer (free / pro): Chat, Fields, History, Profile

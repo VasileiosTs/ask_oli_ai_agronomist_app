@@ -4,7 +4,7 @@ import { Users, ChevronRight, Plus, X, Loader2, Search, AlertCircle } from 'luci
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
-import { isUnlimitedTier } from '../../shared/subscription';
+import { isAdvisorTier } from '../../shared/subscription';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 
 interface Grower {
@@ -32,7 +32,7 @@ export default function ClientDashboard() {
   const [saving, setSaving] = useState(false);
 
   const tier = typeof profile?.tier === 'string' ? profile.tier : null;
-  const hasAccess = isUnlimitedTier(tier);
+  const hasAccess = isAdvisorTier(tier);
 
   useEffect(() => {
     if (!appUserId || !hasAccess) return;
