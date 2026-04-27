@@ -236,40 +236,40 @@ type TestimonialItem = { quote: string; name: string; crop: string; initial: str
 const TESTIMONIALS = (lang: string) => {
   const map: Record<string, TestimonialItem[]> = {
     el: [
-      { quote: 'Είχα στείλει φωτογραφία στον γεωπόνο μου και περίμενα 2 μέρες. Ο Oli μου έδωσε διάγνωση σε 10 δευτερόλεπτα. Ήταν ακριβώς σωστή.', name: 'Γιώργης Παπαδόπουλος', crop: 'Ελαιοκαλλιεργητής, Πελοπόννησος', initial: 'Γ' },
-      { quote: 'Τέλος στο να μαντεύω ποιο φάρμακο να χρησιμοποιήσω. Μου δίνει ακριβώς τι να αγοράσω και σε ποια δόση.', name: 'Νίκος Αθανασίου', crop: 'Κτηματίας, Κρήτη', initial: 'Ν' },
-      { quote: 'Ρώτησα πότε να κλαδέψω τα εσπεριδοειδή μου φέτος. Σε δευτερόλεπτα είχα συγκεκριμένο εβδομαδιαίο πρόγραμμα. Ο γεωπόνος μου χρεώνει 80 ευρώ την επίσκεψη για αυτό.', name: 'Σταύρος Πετράκης', crop: 'Εσπεριδοειδή, Λακωνία', initial: 'Σ' },
-      { quote: 'Πήγα στο αμπέλι το πρωί και είδα ύποπτα φύλλα. Έβγαλα φωτογραφία, την έστειλα στον Oli και πριν φύγω από το χωράφι είχα ήδη τη διάγνωση και τη θεραπεία.', name: 'Μαρία Ανδρέου', crop: 'Αμπελοκαλλιεργήτρια, Νεμέα', initial: 'Μ' },
+      { quote: 'Είχα στείλει φωτογραφία στον γεωπόνο μου και περίμενα 2 μέρες. Ο Oli μου έδωσε διάγνωση σε 10 δευτερόλεπτα. Ήταν ακριβώς σωστή.', name: 'Γιώργης', crop: 'Ελαιοκαλλιεργητής, Πελοπόννησος', initial: 'Γ' },
+      { quote: 'Τέλος στο να μαντεύω ποιο φάρμακο να χρησιμοποιήσω. Μου δίνει ακριβώς τι να αγοράσω και σε ποια δόση.', name: 'Νίκος', crop: 'Κτηματίας, Κρήτη', initial: 'Ν' },
+      { quote: 'Ρώτησα πότε να κλαδέψω τα εσπεριδοειδή μου φέτος. Σε δευτερόλεπτα είχα συγκεκριμένο εβδομαδιαίο πρόγραμμα. Ο γεωπόνος μου χρεώνει 80 ευρώ την επίσκεψη για αυτό.', name: 'Σταύρος', crop: 'Εσπεριδοειδή, Λακωνία', initial: 'Σ' },
+      { quote: 'Πήγα στο αμπέλι το πρωί και είδα ύποπτα φύλλα. Έβγαλα φωτογραφία, την έστειλα στον Oli και πριν φύγω από το χωράφι είχα ήδη τη διάγνωση και τη θεραπεία.', name: 'Μαρία', crop: 'Αμπελοκαλλιεργήτρια, Νεμέα', initial: 'Μ' },
     ],
     en: [
-      { quote: 'I sent a photo to my agronomist and waited 2 days. Oli gave me a diagnosis in 10 seconds. It was exactly right.', name: 'Giorgis Papadopoulos', crop: 'Olive farmer, Peloponnese', initial: 'G' },
-      { quote: 'No more guessing which product to use. It tells me exactly what to buy and at what dose.', name: 'Nikos Athanassiou', crop: 'Vineyard owner, Crete', initial: 'N' },
-      { quote: 'I asked when to prune my citrus trees. In seconds I had a specific week-by-week plan. My agronomist charges €80 a visit for exactly that.', name: 'Stavros Petrakis', crop: 'Citrus farmer, Laconia', initial: 'S' },
-      { quote: 'I spotted suspicious leaves during my morning walk through the vineyard. I took a photo, sent it to Oli, and had a full diagnosis and treatment plan before I even got back to my truck.', name: 'Maria Andreou', crop: 'Vineyard owner, Nemea', initial: 'M' },
+      { quote: 'I sent a photo to my agronomist and waited 2 days. Oli gave me a diagnosis in 10 seconds. It was exactly right.', name: 'Giorgis', crop: 'Olive farmer, Peloponnese', initial: 'G' },
+      { quote: 'No more guessing which product to use. It tells me exactly what to buy and at what dose.', name: 'Nikos', crop: 'Vineyard owner, Crete', initial: 'N' },
+      { quote: 'I asked when to prune my citrus trees. In seconds I had a specific week-by-week plan. My agronomist charges €80 a visit for exactly that.', name: 'Stavros', crop: 'Citrus farmer, Laconia', initial: 'S' },
+      { quote: 'I spotted suspicious leaves during my morning walk through the vineyard. I took a photo, sent it to Oli, and had a full diagnosis and treatment plan before I even got back to my truck.', name: 'Maria', crop: 'Vineyard owner, Nemea', initial: 'M' },
     ],
     it: [
-      { quote: 'Ho mandato una foto al mio agronomo e ho aspettato 2 giorni. Oli mi ha dato una diagnosi in 10 secondi. Era esattamente giusta.', name: 'Marco Bianchi', crop: 'Olivicoltore, Puglia', initial: 'M' },
-      { quote: 'Basta indovinare quale prodotto usare. Mi dice esattamente cosa comprare e a quale dose.', name: 'Lucia Ferraro', crop: 'Viticoltrice, Sicilia', initial: 'L' },
-      { quote: 'Ho chiesto quando potare i miei agrumi. In pochi secondi avevo un piano settimana per settimana. Il mio agronomo fa pagare €80 a visita per questo.', name: 'Antonio Greco', crop: 'Agricoltore di agrumi, Calabria', initial: 'A' },
-      { quote: 'Ho notato foglie sospette durante la mia mattinata nel vigneto. Ho scattato una foto, l\'ho inviata a Oli e avevo già diagnosi e piano di trattamento prima di tornare al furgone.', name: 'Sofia Ricci', crop: 'Viticoltrice, Toscana', initial: 'S' },
+      { quote: 'Ho mandato una foto al mio agronomo e ho aspettato 2 giorni. Oli mi ha dato una diagnosi in 10 secondi. Era esattamente giusta.', name: 'Marco', crop: 'Olivicoltore, Puglia', initial: 'M' },
+      { quote: 'Basta indovinare quale prodotto usare. Mi dice esattamente cosa comprare e a quale dose.', name: 'Lucia', crop: 'Viticoltrice, Sicilia', initial: 'L' },
+      { quote: 'Ho chiesto quando potare i miei agrumi. In pochi secondi avevo un piano settimana per settimana. Il mio agronomo fa pagare €80 a visita per questo.', name: 'Antonio', crop: 'Agricoltore di agrumi, Calabria', initial: 'A' },
+      { quote: 'Ho notato foglie sospette durante la mia mattinata nel vigneto. Ho scattato una foto, l\'ho inviata a Oli e avevo già diagnosi e piano di trattamento prima di tornare al furgone.', name: 'Sofia', crop: 'Viticoltrice, Toscana', initial: 'S' },
     ],
     es: [
-      { quote: 'Envié una foto a mi agrónomo y esperé 2 días. Oli me dio un diagnóstico en 10 segundos. Era exactamente correcto.', name: 'Carlos García', crop: 'Olivicultor, Andalucía', initial: 'C' },
-      { quote: 'Se acabó adivinar qué producto usar. Me dice exactamente qué comprar y a qué dosis.', name: 'María López', crop: 'Viticultora, La Rioja', initial: 'M' },
-      { quote: 'Pregunté cuándo podar mis cítricos. En segundos tenía un plan semana a semana. Mi agrónomo cobra €80 por visita exactamente por eso.', name: 'José Martínez', crop: 'Agricultor de cítricos, Valencia', initial: 'J' },
-      { quote: 'Vi hojas sospechosas en mi ronda matutina por el viñedo. Hice una foto, la mandé a Oli y ya tenía diagnóstico y plan de tratamiento antes de volver al coche.', name: 'Ana Fernández', crop: 'Viticultora, Castilla', initial: 'A' },
+      { quote: 'Envié una foto a mi agrónomo y esperé 2 días. Oli me dio un diagnóstico en 10 segundos. Era exactamente correcto.', name: 'Carlos', crop: 'Olivicultor, Andalucía', initial: 'C' },
+      { quote: 'Se acabó adivinar qué producto usar. Me dice exactamente qué comprar y a qué dosis.', name: 'María', crop: 'Viticultora, La Rioja', initial: 'M' },
+      { quote: 'Pregunté cuándo podar mis cítricos. En segundos tenía un plan semana a semana. Mi agrónomo cobra €80 por visita exactamente por eso.', name: 'José', crop: 'Agricultor de cítricos, Valencia', initial: 'J' },
+      { quote: 'Vi hojas sospechosas en mi ronda matutina por el viñedo. Hice una foto, la mandé a Oli y ya tenía diagnóstico y plan de tratamiento antes de volver al coche.', name: 'Ana', crop: 'Viticultora, Castilla', initial: 'A' },
     ],
     fr: [
-      { quote: "J'ai envoyé une photo à mon agronome et j'ai attendu 2 jours. Oli m'a donné un diagnostic en 10 secondes. C'était exactement juste.", name: 'Pierre Dupont', crop: 'Oléiculteur, Provence', initial: 'P' },
-      { quote: 'Fini de deviner quel produit utiliser. Il me dit exactement quoi acheter et à quelle dose.', name: 'Claire Martin', crop: 'Viticultrice, Bordeaux', initial: 'C' },
-      { quote: "J'ai demandé quand tailler mes agrumes. En quelques secondes j'avais un plan semaine par semaine. Mon agronome facture €80 la visite pour ça.", name: 'Jean Bernard', crop: 'Agrumiculteur, Corse', initial: 'J' },
-      { quote: "J'ai repéré des feuilles suspectes lors de ma tournée matinale dans le vignoble. J'ai pris une photo, l'ai envoyée à Oli et j'avais déjà un diagnostic et un plan de traitement avant de rentrer à la voiture.", name: 'Sophie Leroy', crop: 'Viticultrice, Languedoc', initial: 'S' },
+      { quote: "J'ai envoyé une photo à mon agronome et j'ai attendu 2 jours. Oli m'a donné un diagnostic en 10 secondes. C'était exactement juste.", name: 'Pierre', crop: 'Oléiculteur, Provence', initial: 'P' },
+      { quote: 'Fini de deviner quel produit utiliser. Il me dit exactement quoi acheter et à quelle dose.', name: 'Claire', crop: 'Viticultrice, Bordeaux', initial: 'C' },
+      { quote: "J'ai demandé quand tailler mes agrumes. En quelques secondes j'avais un plan semaine par semaine. Mon agronome facture €80 la visite pour ça.", name: 'Jean', crop: 'Agrumiculteur, Corse', initial: 'J' },
+      { quote: "J'ai repéré des feuilles suspectes lors de ma tournée matinale dans le vignoble. J'ai pris une photo, l'ai envoyée à Oli et j'avais déjà un diagnostic et un plan de traitement avant de rentrer à la voiture.", name: 'Sophie', crop: 'Viticultrice, Languedoc', initial: 'S' },
     ],
     ar: [
-      { quote: 'أرسلت صورة إلى زراعي وانتظرت يومين. أعطاني أولي تشخيصاً في 10 ثوانٍ. كان صحيحاً تماماً.', name: 'أحمد الحسن', crop: 'مزارع زيتون، المغرب', initial: 'أ' },
-      { quote: 'لا مزيد من التخمين حول أي منتج أستخدم. يخبرني بالضبط ما يجب شراؤه وبأي جرعة.', name: 'فاطمة العمري', crop: 'مزارعة كروم، تونس', initial: 'ف' },
-      { quote: 'سألت متى أقلم أشجار الحمضيات. في ثوانٍ كان لدي خطة أسبوعية محددة. يتقاضى زراعي €80 للزيارة مقابل ذلك بالضبط.', name: 'محمد الطاهر', crop: 'مزارع حمضيات، الجزائر', initial: 'م' },
-      { quote: 'لاحظت أوراقاً مريبة خلال جولتي الصباحية في الكرم. التقطت صورة وأرسلتها لأولي، وقبل أن أعود للسيارة كان لديّ تشخيص كامل وخطة علاج.', name: 'ليلى بنعلي', crop: 'مزارعة كروم، المغرب', initial: 'ل' },
+      { quote: 'أرسلت صورة إلى زراعي وانتظرت يومين. أعطاني أولي تشخيصاً في 10 ثوانٍ. كان صحيحاً تماماً.', name: 'أحمد', crop: 'مزارع زيتون، المغرب', initial: 'أ' },
+      { quote: 'لا مزيد من التخمين حول أي منتج أستخدم. يخبرني بالضبط ما يجب شراؤه وبأي جرعة.', name: 'فاطمة', crop: 'مزارعة كروم، تونس', initial: 'ف' },
+      { quote: 'سألت متى أقلم أشجار الحمضيات. في ثوانٍ كان لدي خطة أسبوعية محددة. يتقاضى زراعي €80 للزيارة مقابل ذلك بالضبط.', name: 'محمد', crop: 'مزارع حمضيات، الجزائر', initial: 'م' },
+      { quote: 'لاحظت أوراقاً مريبة خلال جولتي الصباحية في الكرم. التقطت صورة وأرسلتها لأولي، وقبل أن أعود للسيارة كان لديّ تشخيص كامل وخطة علاج.', name: 'ليلى', crop: 'مزارعة كروم، المغرب', initial: 'ل' },
     ],
   };
   return map[lang] ?? map.en;
@@ -1215,6 +1215,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-white/90">{t.name}</p>
+                    <p className="text-xs text-white/50">{t.crop}</p>
                   </div>
                 </div>
               </div>
