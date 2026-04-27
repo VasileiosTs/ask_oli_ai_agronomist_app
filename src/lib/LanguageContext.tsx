@@ -14,6 +14,13 @@ function getInitialLang(): Lang {
   if (browserLang.startsWith('es')) return 'es';
   if (browserLang.startsWith('fr')) return 'fr';
   if (browserLang.startsWith('ar')) return 'ar';
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz === 'Europe/Athens' || tz === 'Asia/Nicosia') return 'el';
+    if (tz?.startsWith('Europe/Rome') || tz === 'Europe/Vatican') return 'it';
+    if (tz?.startsWith('Europe/Madrid') || tz === 'Atlantic/Canary') return 'es';
+    if (tz?.startsWith('Europe/Paris') || tz === 'Indian/Reunion') return 'fr';
+  } catch { /* ignore */ }
   return 'en';
 }
 

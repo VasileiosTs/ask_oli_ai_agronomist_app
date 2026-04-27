@@ -33,3 +33,13 @@ English and Greek (more coming soon)
 
 ## Contact
 - Website: https://codex-ask-oli-app.vercel.app
+
+## Pages
+<!-- TODO: UPDATE URL — replace codex-ask-oli-app.vercel.app with final domain everywhere in this file -->
+
+- [Home](https://codex-ask-oli-app.vercel.app/): Landing page — product overview, features, and pricing
+- [Privacy Policy](https://codex-ask-oli-app.vercel.app/legal/privacy): Data handling, GDPR compliance, and user rights
+- [Terms of Service](https://codex-ask-oli-app.vercel.app/legal/terms): Usage terms and conditions
+- [Shared Diagnosis](https://codex-ask-oli-app.vercel.app/d/:shareId): Public shareable diagnosis pages
+- [Full Documentation](https://codex-ask-oli-app.vercel.app/llms-full.txt): Complete agent-ready documentation snapshot
+- [Agent Skill](https://codex-ask-oli-app.vercel.app/skill.md): How to invoke and use Oli as an agent tool

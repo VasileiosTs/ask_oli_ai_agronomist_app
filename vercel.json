@@ -3,7 +3,23 @@
   "buildCommand": "vite build && node scripts/inline-critical-css.mjs && node scripts/strip-eager-chunks.mjs",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/",                          "destination": "/index.html" },
+    { "source": "/auth",                      "destination": "/index.html" },
+    { "source": "/auth/callback",             "destination": "/index.html" },
+    { "source": "/onboarding",                "destination": "/index.html" },
+    { "source": "/chat",                      "destination": "/index.html" },
+    { "source": "/history",                   "destination": "/index.html" },
+    { "source": "/profile",                   "destination": "/index.html" },
+    { "source": "/fields",                    "destination": "/index.html" },
+    { "source": "/fields/:fieldId",           "destination": "/index.html" },
+    { "source": "/clients",                   "destination": "/index.html" },
+    { "source": "/clients/:growerId",         "destination": "/index.html" },
+    { "source": "/cooperative",               "destination": "/index.html" },
+    { "source": "/admin/metrics",             "destination": "/index.html" },
+    { "source": "/d/:shareId",                "destination": "/index.html" },
+    { "source": "/legal/privacy",             "destination": "/index.html" },
+    { "source": "/legal/terms",               "destination": "/index.html" },
+    { "source": "/about.md",                  "destination": "/docs/about.md" }
   ],
   "headers": [
     {
@@ -88,6 +104,27 @@
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
         { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/llms-full.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/skill.md",
+      "headers": [
+        { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/docs/(.*\\.md)",
+      "headers": [
+        { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
       ]
     }
   ]

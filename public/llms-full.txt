@@ -1,0 +1,191 @@
+# Oli — AI Agronomist — Full Documentation
+# https://codex-ask-oli-app.vercel.app
+# TODO: UPDATE URL — replace codex-ask-oli-app.vercel.app with final domain everywhere in this file
+# Last updated: April 2026
+
+---
+
+## Product Overview
+
+Oli is an AI-powered agronomist web application for farmers worldwide. It works with every crop — olives, vines, citrus, vegetables, fruit trees, herbs, and cereals. Farmers photograph or describe a crop problem; Oli diagnoses diseases, recommends organic and chemical treatments with exact product names and dosages, logs interventions, and follows up 13 days later to confirm the outcome.
+
+The core value proposition: an experienced agronomist costs €80–150/hour and is unavailable at 10pm when a disease outbreak starts. Oli is available 24/7, free to try, and understands farming contexts that generic AI tools do not.
+
+---
+
+## How It Works — Step by Step
+
+### Step 1: Ask or Snap
+The farmer types a question in natural language or uploads a photo of a sick plant. No technical terminology required. Voice input is available for farmers with dirty hands in the field.
+
+### Step 2: Diagnosis in Seconds
+Oli returns a structured diagnosis:
+- Disease name (e.g., "Early Blight / Alternaria")
+- Confidence percentage (0–100%), scored across five pillars
+- Organic treatment option: product name, dosage, frequency, re-entry interval
+- Chemical treatment option: active ingredient, formulation, dosage, frequency
+- Prevention notes
+
+### Step 3: Log the Intervention
+The farmer can log what treatment they applied, when, at what dosage, and on which field. This creates an intervention record.
+
+### Step 4: VIO Follow-up (Verified Intervention Outcome)
+13 days after logging a treatment, Oli automatically sends a follow-up:
+- First check (Day 3 after log): "Did you apply the treatment?"
+- Second check (Day 6): "Is there any improvement?"
+The outcome is recorded as: better / no change / worse / not applied.
+This creates the data flywheel — every outcome trains future recommendations.
+
+---
+
+## Five-Pillar Confidence System
+
+Confidence is scored 0–100 across five diagnostic pillars:
+
+1. **THE_VICTIM** — what crop is affected
+2. **THE_SYMPTOMS** — visible symptoms described or shown
+3. **THE_TIMELINE** — when symptoms appeared
+4. **THE_ENVIRONMENT** — weather, soil, location, season
+5. **THE_EVIDENCE** — photo quality and clarity
+
+Confidence thresholds:
+- Below 40: Oli does NOT name a disease — asks clarifying questions instead
+- 40–65: "Possible" / "suspected" — 2–3 candidates, safe actions only
+- 65–85: Primary diagnosis with uncertainty language + one follow-up question
+- Above 85: Full diagnosis, complete treatment plan, prevention advice
+- Quarantine diseases (Xylella, HLB, Fire Blight, Plum Pox) require above 85
+
+---
+
+## Crops Supported
+
+Oli works with any crop. Frequently used categories:
+
+**Tree crops:** Olive, vine, citrus (lemon, orange, mandarin, grapefruit), apple, pear, peach, cherry, apricot, plum, almond, walnut, fig, pomegranate, avocado
+
+**Vegetables:** Tomato, pepper, cucumber, zucchini, eggplant, potato, lettuce, spinach, onion, garlic, carrot, beet, bean, pea, artichoke, watermelon, melon
+
+**Cereals and legumes:** Wheat, barley, maize, sunflower, soybean, chickpea, lentil
+
+**Herbs and specialty:** Basil, oregano, thyme, saffron, lavender, cannabis (where legal)
+
+**Ornamental and nursery:** Roses, palms, ornamental trees, turfgrass
+
+---
+
+## Diseases and Pests Identified (450+ total)
+
+**Olive:** Cycloconium (Olive Leaf Spot), Olive Fruit Fly (Bactrocera oleae), Peacock Spot, Verticillium Wilt, Olive Knot (Pseudomonas savastanoi), Spilocea oleagina, Root Rot
+
+**Vine:** Downy Mildew (Plasmopara viticola), Powdery Mildew (Uncinula necator), Botrytis (Grey Mould), Eutypa Dieback, Grapevine Leafroll Virus, Black Rot, Phylloxera, Grape Berry Moth
+
+**Citrus:** Citrus Canker (Xanthomonas citri), Sooty Mould, Scale Insects (various), Brown Rot (Phytophthora), Citrus Tristeza Virus, Melanose, Alternaria Brown Spot, Greasy Spot
+
+**Tomato:** Late Blight (Phytophthora infestans), Early Blight (Alternaria), Fusarium Wilt, Verticillium Wilt, Tomato Mosaic Virus, Blossom End Rot, Grey Mould (Botrytis), Spider Mites, Whitefly, Leafminer
+
+**General / Cross-crop:** Aphids, Spider Mites (Tetranychus urticae), Whitefly, Thrips, Leafminers, Root-knot Nematodes (Meloidogyne), Nitrogen deficiency, Phosphorus deficiency, Potassium deficiency, Iron chlorosis, Magnesium deficiency
+
+---
+
+## Features
+
+### Photo Diagnosis
+Upload a JPEG or PNG photo of a sick leaf, fruit, stem, or root. Oli identifies the problem visually and combines the image analysis with any text description provided. Works best with clear, well-lit close-up photos.
+
+### Organic and Chemical Treatment Plans
+Every diagnosis includes both:
+- **Organic option:** e.g., "Copper-based fungicide (Bordeaux mixture), 200g/100L water. Apply every 7 days. Pre-harvest interval: 7 days."
+- **Chemical option:** e.g., "Mancozeb 80% WP, 250g/100L water. Apply every 10–14 days. Max 4 applications per season."
+
+Dosages are given per 100L water (spray volume), per hectare, or per tree as appropriate.
+
+### Voice Input
+Farmers can speak their question. Ideal for field use with dirty or wet hands. Works in any language Oli supports.
+
+### Intervention Log
+Every treatment recommendation can be saved with crop, field, date, product, dosage, application method, and notes.
+
+### Intervention History
+Full timeline of all diagnoses and treatments per farm. Exportable.
+
+### Field Memory
+Pro users can create field profiles (crop type, location, soil type, irrigation method, growing medium). Oli uses this context to give more precise advice.
+
+### Follow-up System (VIO Loop)
+Described in detail above. Push notifications and email reminders at 3-day intervals.
+
+### Shareable Diagnoses
+Each diagnosis can be shared as a public link for agronomists, cooperatives, or family members to review.
+
+---
+
+## Languages
+
+Currently supported: **Greek (el)**, **English (en)**, **Italian (it)**, **Spanish (es)**, **French (fr)**, **Arabic (ar)**
+
+Language is detected via browser locale, timezone, and user preference.
+
+---
+
+## Pricing
+
+**Free tier**
+- 20 questions per month
+- All features included
+- No credit card required
+- Full diagnosis quality
+
+**Pro tier — €4.99/month (or €49/year, saves 18%)**
+- Unlimited questions
+- Field memory and crop profiles
+- Follow-up like a real agronomist (VIO loop)
+- Planting plans and spacing calculations
+- Early access to new features
+
+---
+
+## Data and Privacy
+
+- **Hosting:** EU (Supabase, Frankfurt data centre) — GDPR compliant
+- **Encryption:** Data encrypted at rest and in transit
+- **Isolation:** Row-Level Security — each user can only access their own data
+- **Not sold:** User data is never sold to third parties
+- **Export:** Users can export their data from the Profile screen
+- **Deletion:** Users can delete their account and all data permanently
+
+---
+
+## Technical Architecture (for developers and integrators)
+
+- **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS, React Router
+- **Backend:** Supabase Edge Functions (Deno), PostgreSQL with Row-Level Security
+- **AI Model:** Google Gemini 2.5 Flash (primary), Gemini 1.5 Flash (fallback)
+- **Auth:** Supabase Auth (email/password, Google OAuth, Facebook OAuth)
+- **Deployment:** Vercel (frontend), Supabase Cloud (backend)
+
+### API Access
+There is no public API in the current phase. A crop disease diagnosis API for agrochemical companies and agtech platforms is planned for Phase 2. Contact hello@askoli.ai for early access enquiries.
+
+---
+
+## Frequently Asked Questions
+
+**Q: What crops does Oli work with?**
+A: Every crop. Deepest coverage on Mediterranean crops (olive, vine, citrus, tomato) but works with any plant worldwide.
+
+**Q: How accurate is the diagnosis?**
+A: Above 85% confidence, Oli provides a full diagnosis. Between 40–65%, it gives candidate diseases and safe interim actions. Below 40%, it asks for more information rather than guessing.
+
+**Q: Can Oli replace a licensed agronomist?**
+A: No. Oli is a first-response tool. For quarantine diseases or high-value decisions, Oli always recommends consulting a licensed agronomist.
+
+**Q: Is there a mobile app?**
+A: Oli is a Progressive Web App (PWA). On iOS and Android, users can install it to their home screen for a native app experience.
+
+---
+
+## Contact and Support
+
+- Website: https://codex-ask-oli-app.vercel.app
+- Email: hello@askoli.ai
+- Social: @askoli (Instagram, TikTok, LinkedIn — coming soon)
