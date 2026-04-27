@@ -24,7 +24,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       iconColor: 'text-[#606659]',
       name: { en: 'Starter', el: 'Starter' },
       price: { en: '€0 / month', el: '€0 / μήνα' },
-      note: { en: 'For hobby gardeners & curious growers', el: 'Για ερασιτέχνες κηπουρούς και νέους χρήστες' },
+      note: { en: 'For part-time growers and plant enthusiasts', el: 'Για μερικής απασχόλησης παραγωγούς και λάτρεις των φυτών' },
       features: {
         en: [
           '20 questions per month',
@@ -54,10 +54,12 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       iconColor: 'text-[#194121]',
       name: { en: 'Pro', el: 'Pro' },
       price: { en: '€49 / year', el: '€49 / χρόνο' },
-      note: { en: 'For farmers and growers who depend on their crops', el: 'Για αγρότες και παραγωγούς που εξαρτώνται από τη γη τους' },
+      note: { en: 'For farmers, plant growers and everyone working with plants everyday', el: 'Για αγρότες, παραγωγούς και όσους δουλεύουν καθημερινά με φυτά' },
       features: {
         en: [
           'Unlimited questions',
+          'Photo disease diagnosis',
+          'Plant & weed identification',
           'Unlimited fields + crop memory',
           'Full intervention history',
           'Irrigation & planting calculations',
@@ -65,6 +67,8 @@ const TIERS = (lang: string, currentTier?: string | null) => {
         ],
         el: [
           'Απεριόριστες ερωτήσεις',
+          'Διάγνωση ασθένειας από φωτογραφία',
+          'Αναγνώριση φυτών και ζιζανίων',
           'Απεριόριστα χωράφια + μνήμη καλλιεργειών',
           'Πλήρες ιστορικό παρεμβάσεων',
           'Υπολογισμοί άρδευσης και φύτευσης',
