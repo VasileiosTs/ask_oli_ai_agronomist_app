@@ -665,9 +665,8 @@ function validateResponse(json: AiResponseJson, hasActiveField: boolean): { vali
     errors.push('has_banned_opener == true: Response starts with a banned opener.');
   }
 
-  if (hasActiveField && json.field_scope !== 'specific') {
-    errors.push("field_scope must be 'specific' when an active field exists.");
-  }
+  // field_scope is enforced server-side in generateValidatedResponse before this function
+  // is called, so no need to validate it here.
 
   if (!json.response_text || json.response_text.trim() === '') {
     errors.push('response_text is empty.');
@@ -821,6 +820,15 @@ function splitIntoChunks(text: string, targetSize = 64): string[] {
   if (current) chunks.push(current);
   return chunks;
 }
+// Thrown when all available Gemini models have exhausted their quota (HTTP 429).
+// The outer handler converts this into a 503 with a user-friendly message.
+class GeminiQuotaError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeminiQuotaError';
+  }
+}
+
 interface GeminiCallResult {
   json: AiResponseJson;
   promptTokens: number;
@@ -880,13 +888,15 @@ async function callGemini(
     },
   );
 
-  // I2: On 5xx, retry once with gemini-1.5-flash as a fallback model
+  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-1.5-flash as a fallback model.
+  // 429 means the primary model's quota is exhausted — the fallback model has its own quota.
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini request failed (${response.status}):`, errorText);
 
-    if (response.status >= 500 && GEMINI_MODEL !== 'gemini-1.5-flash') {
-      console.warn('Primary model returned 5xx — retrying with gemini-1.5-flash fallback');
+    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-1.5-flash';
+    if (shouldFallback) {
+      console.warn(`Primary model returned ${response.status} — retrying with gemini-1.5-flash fallback`);
       const fallbackResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
         {
@@ -902,6 +912,9 @@ async function callGemini(
       if (!fallbackResponse.ok) {
         const fbErr = await fallbackResponse.text();
         console.error(`Gemini fallback also failed (${fallbackResponse.status}):`, fbErr);
+        if (fallbackResponse.status === 429) {
+          throw new GeminiQuotaError('All Gemini models have exceeded their quota');
+        }
         throw new Error(`Gemini request failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
       }
       const fallbackData = await fallbackResponse.json();
@@ -915,6 +928,9 @@ async function callGemini(
       };
     }
 
+    if (response.status === 429) {
+      throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL}`);
+    }
     throw new Error(`Gemini request failed (${response.status})`);
   }
 
@@ -964,13 +980,14 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     },
   );
 
-  // I2: On 5xx, retry once with gemini-1.5-flash fallback
+  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-1.5-flash fallback
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini extraction failed (${response.status}):`, errorText);
 
-    if (response.status >= 500 && GEMINI_MODEL !== 'gemini-1.5-flash') {
-      console.warn('Primary extraction model returned 5xx — retrying with gemini-1.5-flash fallback');
+    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-1.5-flash';
+    if (shouldFallback) {
+      console.warn(`Primary extraction model returned ${response.status} — retrying with gemini-1.5-flash fallback`);
       const fallbackResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
         {
@@ -986,12 +1003,18 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
       if (!fallbackResponse.ok) {
         const fbErr = await fallbackResponse.text();
         console.error(`Gemini extraction fallback also failed (${fallbackResponse.status}):`, fbErr);
+        if (fallbackResponse.status === 429) {
+          throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
+        }
         throw new Error(`Gemini extraction failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
       }
       const fallbackData = await fallbackResponse.json();
       return parseGeminiPayload<ExtractionResult>(fallbackData);
     }
 
+    if (response.status === 429) {
+      throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL} (extraction)`);
+    }
     throw new Error(`Gemini extraction failed (${response.status})`);
   }
 
@@ -1042,6 +1065,12 @@ async function generateValidatedResponse(
   // The AI occasionally lies about this; we verify directly from response_text.
   if (BANNED_OPENER_RE.test(json.response_text)) {
     json = { ...json, has_banned_opener: true };
+  }
+
+  // F1: Enforce field_scope server-side — we know the correct value from hasActiveField,
+  // so override instead of triggering a costly repair retry for every active-field session.
+  if (hasActiveField) {
+    json = { ...json, field_scope: 'specific' };
   }
 
   const validation = validateResponse(json, hasActiveField);
@@ -2707,6 +2736,14 @@ Return ONLY the greeting text, nothing else.`;
         effectiveConversationId,
         conversationCreatedByFunction,
       );
+      // Q1: Quota errors get a 503 + user-friendly message instead of a generic 500.
+      // The frontend can detect 503 and show "AI is busy, try again in a moment."
+      if (error instanceof GeminiQuotaError) {
+        return jsonResponse(
+          { error: 'AI service is temporarily at capacity. Please try again in a few minutes.' },
+          503,
+        );
+      }
       return jsonResponse({ error: 'Failed to process your message' }, 500);
     }
 
@@ -2759,8 +2796,20 @@ Return ONLY the greeting text, nothing else.`;
 
     const stream = new ReadableStream({
       async start(controller) {
+        // S3: Guard against client disconnect mid-stream.
+        // If the consumer cancels (navigates away, timeout, network drop), the controller
+        // enters a closed/errored state. Any subsequent enqueue() or close() call throws
+        // "The stream controller cannot close or enqueue". Wrapping here prevents that
+        // secondary throw from polluting the error logs with a misleading TypeError.
         const sendEvent = (event: string, payload: Record<string, unknown>) => {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+          try {
+            controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+          } catch {
+            // Client already disconnected — safe to ignore.
+          }
+        };
+        const closeController = () => {
+          try { controller.close(); } catch { /* already closed */ }
         };
 
         try {
@@ -2868,14 +2917,14 @@ Return ONLY the greeting text, nothing else.`;
             userMessageId,
             fieldId: finalFieldId,
           });
-          controller.close();
+          closeController();
         } catch (error) {
           console.error('chat function stream error', error);
           // H2: Don't leak internal error details to client
           sendEvent('error', {
             message: 'An error occurred while processing your request',
           });
-          controller.close();
+          closeController();
         }
       },
     });

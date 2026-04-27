@@ -1133,6 +1133,23 @@ export default function Chat() {
         return;
       }
 
+      // 503 — AI service temporarily at capacity (Gemini quota exhausted across all models)
+      if (status === 503) {
+        if (!latestUserMessagePersisted && latestAttachmentPaths.length > 0) {
+          await cleanupUploadedAssets(latestAttachmentPaths);
+        }
+        dispatch({ type: 'filter', predicate: (msg) => !(msg.role === 'assistant' && !msg.content) });
+        if (streamedContent.length > 0) {
+          dispatch({ type: 'update', id: assistantMsgId, patch: { interrupted: true, retryText: userText } });
+        } else {
+          const capacityMsg = lang === 'el'
+            ? 'Η υπηρεσία AI είναι προσωρινά σε πλήρη χρήση. Δοκίμασε ξανά σε λίγα λεπτά.'
+            : 'AI service is temporarily at capacity. Please try again in a few minutes.';
+          dispatch({ type: 'update_by', predicate: (msg) => msg.role === 'assistant' && !msg.content, patch: { content: capacityMsg, interrupted: true, retryText: userText } });
+        }
+        return;
+      }
+
       if (typeof status === 'number' && !latestUserMessagePersisted && latestAttachmentPaths.length > 0) {
         await cleanupUploadedAssets(latestAttachmentPaths);
       }
