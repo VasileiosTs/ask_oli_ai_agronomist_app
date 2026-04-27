@@ -8,6 +8,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import { getTierLimits } from '../lib/constants';
 import { isAdvisorTier } from '../../shared/subscription';
 import { downloadFieldReport } from '../lib/generateReport';
+import PaywallModal from '../components/PaywallModal';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 import { formatArea, unitLabel, displayToHa, haToDisplay, type AreaUnit } from '../lib/areaUnits';
 import clsx from 'clsx';
@@ -52,7 +53,7 @@ export default function Fields() {
     ? (lang === 'el' ? 'Οι Παραγωγοί μου' : 'My Growers')
     : t.myFields;
   const [editingField, setEditingField] = useState<Field | null>(null);
-  const [limitToast, setLimitToast] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [form, setForm] = useState<FieldFormData>({
     name: '', crop_type: '', location: '', size_ha: '',
     soil_type: '', irrigation_type: '', growing_medium: '',
@@ -60,6 +61,7 @@ export default function Fields() {
   });
 
   const tier = (profile as { tier?: string })?.tier || 'free';
+  const isFree = !profile?.tier || profile.tier === 'free';
   const limits = getTierLimits(tier);
 
   const STATUS_CONFIG = {
@@ -136,9 +138,18 @@ export default function Fields() {
 
   const handleDownloadReport = async () => {
     if (!appUserId || reportLoading) return;
+    let currentReportCount = 0;
+    if (isFree) {
+      const { data: userData } = await supabase.from('users').select('report_count_month').eq('id', appUserId).single();
+      currentReportCount = userData?.report_count_month ?? 0;
+      if (currentReportCount >= 1) { setShowPaywall(true); return; }
+    }
     setReportLoading(true);
     try {
       await downloadFieldReport(appUserId, fields, (profile as any)?.name ?? '', lang);
+      if (isFree) {
+        await supabase.from('users').update({ report_count_month: currentReportCount + 1 }).eq('id', appUserId);
+      }
     } finally {
       setReportLoading(false);
     }
@@ -147,8 +158,7 @@ export default function Fields() {
   const openAdd = () => {
     // Enforce field limit for free tier
     if (fields.length >= limits.fields) {
-      setLimitToast(true);
-      setTimeout(() => setLimitToast(false), 3000);
+      setShowPaywall(true);
       return;
     }
     setEditingField(null);
@@ -259,15 +269,7 @@ export default function Fields() {
         </button>
       )}
 
-      {/* Field limit toast */}
-      {limitToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 shadow-lg backdrop-blur-sm">
-            <p className="text-sm font-medium text-amber-400">{t.fieldLimitReached}</p>
-            <p className="text-xs text-muted mt-0.5">{t.fieldLimitBody}</p>
-          </div>
-        </div>
-      )}
+      <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} />
 
       {/* Add/Edit sheet */}
       {sheetOpen && (

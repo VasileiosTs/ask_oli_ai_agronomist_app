@@ -1279,7 +1279,8 @@ export default function Landing() {
                 <span className="text-3xl font-bold text-[#1b1c19]" style={{ fontFamily: "'Noto Serif', serif" }}>€0</span>
                 <span className="text-sm text-[#606659]">{lt.perMonth}</span>
               </div>
-              <p className="text-xs text-[#606659] mb-5">{lt.noCreditCard}</p>
+              <p className="text-xs text-[#606659] mb-1">{lt.noCreditCard}</p>
+              <p className="text-xs text-[#4a6b50] font-medium mb-5 italic">{lt.freeTagline}</p>
               <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.freeFeatures.map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-[#3a4035]">
@@ -1302,7 +1303,7 @@ export default function Landing() {
                     <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€4,99</span>
                     <span className="text-sm text-white/70">{lt.perMonth}</span>
                   </div>
-                  <p className="text-xs text-white/50 mb-5">{lt.proYearlyNote}</p>
+                  <p className="text-xs text-white/50 mb-1">{lt.proYearlyNote}</p>
                 </>
               ) : (
                 <>
@@ -1310,9 +1311,10 @@ export default function Landing() {
                     <span className="text-3xl font-bold" style={{ fontFamily: "'Noto Serif', serif" }}>€49</span>
                     <span className="text-sm text-white/70">{lt.perYear}</span>
                   </div>
-                  <p className="text-xs text-white/50 mb-5">€4,08 {lt.perMonth}</p>
+                  <p className="text-xs text-white/50 mb-1">€4,08 {lt.perMonth}</p>
                 </>
               )}
+              <p className="text-xs text-white/70 font-medium mb-5 italic">{lt.proTagline}</p>
               <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.proFeatures.map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-white/90">
