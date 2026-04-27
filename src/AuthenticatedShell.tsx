@@ -106,9 +106,19 @@ const Terms = () => {
   );
 };
 
+const GUEST_CHAT_ENTRY_KEY = 'oli_guest_chat_entry';
+
 function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boolean; needsOnboarding: boolean }) {
   const [searchParams] = useSearchParams();
-  const [guestEntry] = useState(() => searchParams.has('q'));
+  // Persist guest entry in sessionStorage so that Chat.tsx removing ?q= from
+  // the URL doesn't cause an unauthenticated user to be bounced back to landing.
+  const [guestEntry] = useState(() => {
+    if (typeof window === 'undefined') return searchParams.has('q');
+    const hasQuery = searchParams.has('q');
+    const stored = sessionStorage.getItem(GUEST_CHAT_ENTRY_KEY) === '1';
+    if (hasQuery) sessionStorage.setItem(GUEST_CHAT_ENTRY_KEY, '1');
+    return hasQuery || stored;
+  });
 
   if (authenticated) {
     return (
