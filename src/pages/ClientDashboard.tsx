@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, Plus, X, Loader2, Search, AlertCircle, UserCog } from 'lucide-react';
+import { Users, ChevronRight, ChevronLeft, Plus, X, Loader2, Search, AlertCircle, UserCog } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -135,6 +135,13 @@ export default function ClientDashboard() {
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border/50 bg-surface px-4 py-4">
+        <button
+          onClick={() => navigate('/chat')}
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors mb-3"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {lang === 'el' ? 'Πίσω' : 'Back'}
+        </button>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />

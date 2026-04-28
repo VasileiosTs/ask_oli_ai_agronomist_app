@@ -8,7 +8,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { isAdvisorTier } from '../../shared/subscription';
 import clsx from 'clsx';
-import LanguageToggle from './LanguageToggle';
 
 interface Conversation {
   id: string;
@@ -323,11 +322,6 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
 
       {/* User footer */}
       <div className="border-t border-border/50 p-3">
-        {!desktop && (
-          <div className="mb-3">
-            <LanguageToggle className="w-full justify-center bg-background/70" compact />
-          </div>
-        )}
         <button
           onClick={() => { if (!desktop) onClose(); navigate('/profile'); }}
           className="flex w-full items-center gap-3 rounded-xl p-1.5 transition-colors hover:bg-background/60"
