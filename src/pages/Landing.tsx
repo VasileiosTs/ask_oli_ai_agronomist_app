@@ -159,34 +159,63 @@ function StepPreviewAnswer({ lang }: { lang: string }) {
 }
 
 function StepPreviewFollowup({ lang }: { lang: string }) {
-  const lt = LANDING_DICT[lang as keyof typeof LANDING_DICT] ?? LANDING_DICT.en;
+  // The actual VIO check-in that Oli sends 3 days after a logged treatment.
+  // Shows the real outcome buttons — not a notification permission prompt.
+  const CHECK_IN: Record<string, string> = {
+    el: 'Πέρασαν 3 μέρες από τη θεραπεία για Εναλτερίωση Ντομάτας. Βελτιώθηκαν τα συμπτώματα;',
+    en: "It's been 3 days since you treated for Early Blight. Are the symptoms improving?",
+    it: 'Sono passati 3 giorni dal trattamento per Alternariosi. I sintomi migliorano?',
+    es: 'Han pasado 3 días desde el tratamiento del Tizón Temprano. ¿Mejoran los síntomas?',
+    fr: "Cela fait 3 jours depuis le traitement de l'Alternariose. Les symptômes s'améliorent ?",
+    ar: 'مرّت 3 أيام منذ علاج البثرة المبكرة. هل تتحسن الأعراض؟',
+  };
+  const DIVIDER: Record<string, string> = {
+    el: '3 μέρες αργότερα', en: '3 days later', it: '3 giorni dopo',
+    es: '3 días después', fr: '3 jours plus tard', ar: '3 أيام لاحقاً',
+  };
+  const OUTCOMES: Record<string, [string, string, string]> = {
+    el: ['✅ Βελτιώθηκε', '➡️ Δεν άλλαξε', '⚠️ Χειροτέρεψε'],
+    en: ['✅ Improved',   '➡️ No change',  '⚠️ Got worse'],
+    it: ['✅ Migliorato', '➡️ Invariato',  '⚠️ Peggiorato'],
+    es: ['✅ Mejorado',   '➡️ Sin cambios','⚠️ Empeorado'],
+    fr: ['✅ Amélioré',   '➡️ Inchangé',  '⚠️ Aggravé'],
+    ar: ['✅ تحسّن',      '➡️ لا تغيير',  '⚠️ تفاقم'],
+  };
+  const msg = CHECK_IN[lang] ?? CHECK_IN.en;
+  const divider = DIVIDER[lang] ?? DIVIDER.en;
+  const [better, same, worse] = OUTCOMES[lang] ?? OUTCOMES.en;
+
   return (
     <div className="mt-4 rounded-xl border border-[#e8e8e3] bg-white p-3"
       style={{ boxShadow: '0 2px 12px rgba(25,65,33,0.07)' }}>
-      {/* Oli follow-up message */}
+      {/* Time divider — makes it clear this happens 3 days later, not immediately */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 h-px bg-[#e8e8e3]" />
+        <span className="text-[9px] text-[#9a9b93] font-medium">{divider}</span>
+        <div className="flex-1 h-px bg-[#e8e8e3]" />
+      </div>
+      {/* Oli's check-in message */}
       <div className="flex gap-2 items-start mb-3">
         <div className="w-5 h-5 rounded-full bg-[#194121]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
           <span style={{ fontSize: '10px' }}>🌿</span>
         </div>
         <div className="flex-1 text-[11px] text-[#1b1c19] leading-snug bg-[#f5f4ef] rounded-xl rounded-tl-sm px-3 py-2">
-          {DEMO_DISEASE(lang).followup}
+          {msg}
         </div>
       </div>
-      {/* Response buttons */}
-      <div className="flex gap-1.5 justify-end">
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-hidden="true"
-          className="rounded-full bg-[#194121] text-white text-[10px] px-3 py-1 font-semibold pointer-events-none">
-          ✓ Yes
+      {/* Real outcome buttons — matches the actual in-app VIO experience */}
+      <div className="flex gap-1.5 justify-end flex-wrap">
+        <button type="button" tabIndex={-1} aria-hidden="true"
+          className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] px-2.5 py-1 font-medium pointer-events-none">
+          {better}
         </button>
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-hidden="true"
-          className="rounded-full border border-[#e8e8e3] text-[#606659] text-[10px] px-3 py-1 pointer-events-none">
-          Not yet
+        <button type="button" tabIndex={-1} aria-hidden="true"
+          className="rounded-full bg-[#f5f4ef] text-[#606659] border border-[#e8e8e3] text-[10px] px-2.5 py-1 font-medium pointer-events-none">
+          {same}
+        </button>
+        <button type="button" tabIndex={-1} aria-hidden="true"
+          className="rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] px-2.5 py-1 font-medium pointer-events-none">
+          {worse}
         </button>
       </div>
     </div>
