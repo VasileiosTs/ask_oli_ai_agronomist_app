@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "buildCommand": "vite build && node scripts/inline-critical-css.mjs && node scripts/strip-eager-chunks.mjs",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/",                          "destination": "/index.html" },
