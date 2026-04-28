@@ -22,7 +22,6 @@ import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, A
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
-import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
 import FieldSelector from '../components/FieldSelector';
@@ -109,6 +108,10 @@ export default function Chat() {
   }, [profile?.id]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const handleSendRef = useRef<((text: string) => Promise<void>) | null>(null);
+  // Holds a message typed before appUserId loaded; drained automatically
+  // once the profile lookup completes. Prevents the "send 2-3 times" symptom
+  // where a first message would silently fail with a toast and disappear.
+  const pendingMessageRef = useRef<string | null>(null);
   useEffect(() => {
     const on = async () => {
       setIsOnline(true);
@@ -1296,7 +1299,14 @@ export default function Chat() {
     }
 
     if (!appUserId) {
-      showToast(t.profileSyncing);
+      // Profile is still loading — queue the message and let the effect
+      // below drain it as soon as appUserId becomes available. The user's
+      // text is already in the input so no work is lost.
+      if (messageText) {
+        pendingMessageRef.current = messageText;
+        // Keep input populated so user sees their text wasn't dropped
+        setInput(messageText);
+      }
       return;
     }
 
@@ -1420,6 +1430,20 @@ export default function Chat() {
 
   // Keep ref current so the online-drain callback can call handleSend
   handleSendRef.current = handleSend;
+
+  // Drain a pending first message as soon as appUserId becomes available.
+  // Fires when the user typed and hit send before the profile lookup completed.
+  useEffect(() => {
+    if (!appUserId) return;
+    const pending = pendingMessageRef.current;
+    if (!pending) return;
+    pendingMessageRef.current = null;
+    // Defer to next tick so the latest closure of handleSend (with appUserId set)
+    // is the one that runs.
+    const t = setTimeout(() => { void handleSend(pending); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUserId]);
 
   // Disambiguation removed — field context detected silently from AI response metadata.
 
@@ -1911,7 +1935,6 @@ export default function Chat() {
                     onDismiss={() => setPendingAutoLog(null)}
                   />
                 )}
-                <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
                 {/* Guest conversion nudge — appears after first AI reply */}
                 {isGuestMode && messages.length >= 2 && !isTyping && (
                   <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/8 px-4 py-3 animate-fade-in">
