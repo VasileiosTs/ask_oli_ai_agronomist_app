@@ -1826,6 +1826,7 @@ export default function Chat() {
               <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
                 <ChatInputBar {...desktopInputBarProps} />
               </div>
+              <p className="mt-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
             </div>
           </div>
         )}
@@ -1862,6 +1863,7 @@ export default function Chat() {
               </div>
             </div>
             <ChatInputBar {...inputBarProps} />
+            <p className="px-4 pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
           </div>
         )}
 
@@ -1967,6 +1969,7 @@ export default function Chat() {
                   </div>
                 )}
                 <ChatInputBar {...inputBarProps} />
+                <p className="px-4 pb-1 pt-1 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
               </div>
             </div>
           </div>
