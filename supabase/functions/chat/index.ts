@@ -221,6 +221,12 @@ function classifyIntent(message: string, hasImages: boolean): QueryIntent {
   // Indoor/container care: watering, repotting, light, position, drainage — care queries, not symptom queries
   // Specific care keywords (unambiguous): always indoor
   if (/\b(repot|repotting|overwater|overwatered|underwater|underwatered|root.?bound|drainage hole|pot.*size|outgrow.*pot|γλάστρα|ξαναφύτεμα|ξαναφυτεύ)\b/.test(m)) return 'indoor';
+  // Houseplant species names — strongly imply indoor/container context even
+  // without explicit "indoor"/"pot" keywords. Common questions like
+  // "how do I water my monstera" otherwise fall through to TYPE D (general)
+  // and miss the mandatory specifics request on first turn.
+  const isHouseplantSpecies = /\b(monstera|orchid|ficus|pothos|philodendron|peace lily|snake plant|spider plant|aloe vera|cactus|succulent|bonsai|fiddle leaf|rubber tree|μονστέρα|ορχιδέα|φίκο|φίκος|παχύφυτο|κάκτος|κακτος|μπονσάι|μπονσαι|αλόη)\b/.test(m);
+  if (isHouseplantSpecies) return 'indoor';
   // Generic indoor + no disease/symptom context → indoor care
   const hasIndoorContext = /\b(indoor|inside|potted|balcony|windowsill|houseplant|container plant|εσωτερικ|μπαλκόν|εσωτερικού χώρου)\b/.test(m);
   const hasSymptomContext = /\b(yellow|spot|dying|disease|pest|rot|symptom|brown|curl|wilt|infected|dead|decay|sticky|aphid|mite|κίτρινα|ασθένεια|μύκητ)\b/.test(m);
