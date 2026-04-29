@@ -244,6 +244,7 @@ function buildSystemPrompt(
   intent: QueryIntent = 'general',
   conversationDepth = 0,
   areaUnit = 'stremma',
+  userLocation = '',
 ): string {
   // Language detection instruction, single source of truth for all languages.
   // AI models reason better in English; we set the default language but let
@@ -321,9 +322,22 @@ Only flag when the field's crop and current month both match, do not invent risk
   const includeCalcGuide = intent !== 'diagnosis' && intent !== 'followup' && intent !== 'indoor';
   const includeDiagnosticFlow = intent !== 'calculation';
 
+  const currentDate = new Date().toISOString().split('T')[0];
+  const growthStageInstruction = `GROWTH STAGE AWARENESS:
+Today's date: ${currentDate}. User's location: ${userLocation || 'unknown'}.
+Before giving any advice, determine what growth stage the user's crop is currently in based on the date, their hemisphere/climate zone, and the specific crop. Factor this into every recommendation:
+- Spray timing must match the current growth stage (e.g. dormant sprays only during dormancy, not during bloom)
+- Product selection must be safe for the current stage (e.g. no sulfur during bloom, no copper near harvest, no systemic insecticides during flowering for pollinator safety)
+- Watering advice must reflect current water demand for this growth stage
+- Fertilization must match the crop's nutrient needs at this stage
+- If the user asks a generic "how do I care for X" question, organize your answer around what they should be doing NOW (this month), not a full-year calendar, unless they explicitly ask for annual planning
+- For greenhouse/indoor crops, growth stage depends on planting date rather than season`;
+
   return `${langInstruction}
 
 ${dosageInstruction}
+
+${growthStageInstruction}
 
 ${weatherRules}
 
@@ -889,6 +903,72 @@ interface GeminiCallResult {
   totalTokens: number;
 }
 
+// ── Image pre-extraction ──────────────────────────────────────────────
+// When a photo is attached, run a quick focused Gemini call to extract
+// structured observations BEFORE the main chat call. This gives the main
+// call structured data to work with instead of trying to both "see" and
+// "reason" in one step. Only runs when images are present.
+const IMAGE_EXTRACTION_PROMPT = `You are a plant pathology image analyst. Examine this image and extract structured observations. Return ONLY valid JSON with these exact keys:
+
+{
+  "plant_species": "best guess species name in English and Latin if confident, or 'unknown' if unclear",
+  "plant_part": "which part of the plant is shown (leaf, stem, fruit, root, whole plant, multiple parts)",
+  "visible_symptoms": ["list each distinct symptom you can see, be specific about color, size, shape, texture"],
+  "affected_area_percent": 0,
+  "symptom_pattern": "how symptoms are distributed: uniform, scattered, clustered, edge-only, vein-following, one-sided, or 'healthy/no symptoms'",
+  "tissue_condition": "are affected areas dry, wet, sunken, raised, powdery, oily, necrotic, or 'normal'",
+  "color_changes": "describe any discoloration: yellowing, browning, blackening, reddening, chlorosis patterns, or 'normal coloration'",
+  "pest_signs": "any visible insects, eggs, frass, webbing, tunneling, or 'none visible'",
+  "image_quality": "good, acceptable, or poor with reason"
+}
+
+Do NOT diagnose. Do NOT recommend treatment. Only describe what you see. Be precise and clinical. Return ONLY the JSON object, no markdown, no explanation.`;
+
+async function extractImageContext(
+  geminiApiKey: string,
+  attachments: InlineAttachment[],
+): Promise<string> {
+  try {
+    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
+      { text: IMAGE_EXTRACTION_PROMPT },
+    ];
+    for (const att of attachments) {
+      parts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 800 },
+        }),
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+
+    if (!response.ok) {
+      console.warn(`Image pre-extraction failed (${response.status}), skipping`);
+      return '';
+    }
+
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Clean markdown fences if present
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    // Validate it's parseable JSON
+    JSON.parse(cleaned);
+
+    return `\nIMAGE ANALYSIS (pre-extracted from attached photo):\n${cleaned}\n\nUse these observations to inform your diagnosis. You still have the original image for verification.`;
+  } catch (err) {
+    console.warn('Image pre-extraction error, skipping:', err);
+    return '';
+  }
+}
+
 async function callGemini(
   geminiApiKey: string,
   messages: ChatMessageInput[],
@@ -1106,8 +1186,9 @@ async function generateValidatedResponse(
   intent: QueryIntent = 'general',
   conversationDepth = 0,
   areaUnit = 'stremma',
+  userLocation = '',
 ): Promise<ValidatedResponseResult> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth, areaUnit);
+  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth, areaUnit, userLocation);
   const temperature = intentTemperature(intent);
   const initial = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
   let json = initial.json;
@@ -2746,16 +2827,30 @@ Return ONLY the greeting text, nothing else.`;
       const queryIntent = classifyIntent(latestUserMessage.content, hasImages);
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
+      // Image pre-extraction: when photo is attached, run a quick focused call
+      // to extract structured observations before the main chat call
+      let imageContext = '';
+      if (hasImages) {
+        const latestAttachments = requestMessages
+          .filter(m => Array.isArray(m.attachments) && m.attachments.length > 0)
+          .flatMap(m => m.attachments!)
+          .slice(-3); // max 3 images
+        if (latestAttachments.length > 0) {
+          imageContext = await extractImageContext(geminiApiKey, latestAttachments);
+        }
+      }
+
       const genResult = await generateValidatedResponse(
         geminiApiKey,
         requestMessages,
-        serverContext.fieldContext,
+        serverContext.fieldContext + imageContext,
         serverContext.hasActiveField,
         growerContext,
         userLang,
         queryIntent,
         convDepth,
         appUser.area_unit || (userLang === 'el' ? 'stremma' : 'ha'),
+        appUser.location || '',
       );
       aiResponse = genResult.json;
       assistantText = aiResponse.response_text;
