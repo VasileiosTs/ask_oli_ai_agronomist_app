@@ -150,7 +150,7 @@ const ALLOWED_GEMINI_MODELS = [
   'gemini-2.5-pro',
   'gemini-2.0-flash',
   'gemini-2.0-pro',
-  'gemini-1.5-flash',
+  'gemini-2.0-flash-lite',
   'gemini-1.5-pro',
 ];
 const _rawGeminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
@@ -901,17 +901,17 @@ async function callGemini(
     },
   );
 
-  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-1.5-flash as a fallback model.
+  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-2.0-flash-lite as a fallback model.
   // 429 means the primary model's quota is exhausted — the fallback model has its own quota.
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini request failed (${response.status}):`, errorText);
 
-    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-1.5-flash';
+    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-2.0-flash-lite';
     if (shouldFallback) {
-      console.warn(`Primary model returned ${response.status} — retrying with gemini-1.5-flash fallback`);
+      console.warn(`Primary model returned ${response.status} — retrying with gemini-2.0-flash-lite fallback`);
       const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
         {
           method: 'POST',
           headers: {
@@ -993,16 +993,16 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     },
   );
 
-  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-1.5-flash fallback
+  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-2.0-flash-lite fallback
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini extraction failed (${response.status}):`, errorText);
 
-    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-1.5-flash';
+    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-2.0-flash-lite';
     if (shouldFallback) {
-      console.warn(`Primary extraction model returned ${response.status} — retrying with gemini-1.5-flash fallback`);
+      console.warn(`Primary extraction model returned ${response.status} — retrying with gemini-2.0-flash-lite fallback`);
       const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
         {
           method: 'POST',
           headers: {
