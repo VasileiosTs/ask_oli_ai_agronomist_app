@@ -193,11 +193,18 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
       <div className="flex-1 overflow-y-auto mt-2">
 
         {/* ── Fields / Clients section ── */}
-        {listItems.length > 0 && (
+        {(listItems.length > 0 || advisor) && (
           <div className="mb-1">
             <SectionHeader label={fieldsSectionLabel} count={listItems.length} open={fieldsOpen} toggle={() => setFieldsOpen(v => !v)} />
             {fieldsOpen && (
               <div className="pb-1">
+                {listItems.length === 0 && (
+                  <p className="px-4 py-2 text-xs text-muted">
+                    {advisor
+                      ? (lang === 'el' ? 'Δεν έχεις πελάτες ακόμα' : 'No clients yet')
+                      : (lang === 'el' ? 'Δεν έχεις χωράφια ακόμα' : 'No fields yet')}
+                  </p>
+                )}
                 {listItems.slice(0, 5).map(item => (
                   <button key={item.id}
                     onClick={() => { navigate(listPath(item.id)); if (!desktop) onClose(); }}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useReducer } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
-import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
+import { SquarePen, Send, Menu } from 'lucide-react';
 import OliLogo from '../components/OliLogo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -1663,7 +1663,7 @@ export default function Chat() {
         {isGuestMode && (
           <header className="hidden md:flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-6">
             <div className="flex items-center gap-2">
-              <Leaf className="h-[18px] w-[18px] text-primary" />
+              <OliLogo size={18} bg="#161C23" />
               <span className="text-[16px] font-medium text-primary">Oli</span>
             </div>
             <button
@@ -1684,7 +1684,7 @@ export default function Chat() {
                 <Menu className="h-5 w-5" />
               </button>
             )}
-            <Leaf className="h-[18px] w-[18px] text-primary" />
+            <OliLogo size={18} bg="#161C23" />
             <span className="text-[16px] font-medium text-primary">Oli</span>
           </div>
           {isGuestMode ? (
@@ -1717,7 +1717,7 @@ export default function Chat() {
         {/* ── DESKTOP ACTIVE FIELD INDICATOR ── */}
         {!isGuestMode && activeField && messages.length > 0 && (
           <div className="hidden md:flex h-9 flex-shrink-0 items-center gap-2 border-b border-border/40 bg-surface/60 px-6 backdrop-blur-sm">
-            <Leaf className="h-3.5 w-3.5 text-primary/60" />
+            <OliLogo size={14} bg="#161C23" />
             <span className="text-xs text-muted">{lang === 'el' ? 'Ενεργό χωράφι:' : 'Active field:'}</span>
             <span className="text-xs font-semibold text-foreground">{activeField.name}</span>
             {activeField.crop_type && (
@@ -1797,7 +1797,7 @@ export default function Chat() {
           <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
             <div className="w-full max-w-2xl">
               <div className="mb-3 flex items-center justify-center gap-3">
-                <Leaf className="h-10 w-10 text-primary" />
+                <OliLogo size={40} bg="#0D1117" />
                 <h1 className="text-4xl font-semibold text-primary">Oli</h1>
               </div>
               <p className="mb-1 text-center text-xl font-medium text-foreground">{t.welcomeTitle}</p>
@@ -1835,8 +1835,8 @@ export default function Chat() {
         {messages.length === 0 && (
           <div className="md:hidden flex flex-1 flex-col">
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
-              <Leaf className="mb-3 h-10 w-10 text-primary" />
-              <h1 className="mb-1 text-2xl font-semibold text-primary">Oli</h1>
+              <OliLogo size={40} bg="#0D1117" />
+              <h1 className="mb-1 mt-3 text-2xl font-semibold text-primary">Oli</h1>
               <p className="text-sm text-muted mb-5">{dynamicGreeting || t.chatSubtitle}</p>
 
               {/* Quick feature hints */}
