@@ -55,11 +55,6 @@ export default function ClientDetail() {
   const [creating, setCreating] = useState(false);
   const [newField, setNewField] = useState({ name: '', crop_type: '', location: '' });
 
-  // Create-new-field form (separate from "link existing field")
-  const [createOpen, setCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newField, setNewField] = useState({ name: '', crop_type: '', location: '' });
-
   useEffect(() => {
     if (!growerId || !appUserId) return;
     void reload();
@@ -114,38 +109,6 @@ export default function ClientDetail() {
   // Create a new field owned by the agronomist and immediately link it to this client.
   // Keeps the form minimal (name + crop + location). Advanced fields like soil type,
   // irrigation, and exact size are edited later via the field detail page.
-  const createAndLink = async () => {
-    if (creating) return;
-    const name = newField.name.trim();
-    if (!name) return;
-    setCreating(true);
-    try {
-      const { data: created, error: createErr } = await supabase
-        .from('fields')
-        .insert({
-          user_id: appUserId!,
-          name,
-          crop_type: newField.crop_type.trim() || null,
-          location: newField.location.trim() || null,
-          is_active: true,
-          source: 'manual',
-        })
-        .select('id')
-        .single();
-      if (createErr || !created) {
-        setCreating(false);
-        return;
-      }
-      // Link the just-created field to the current client
-      await supabase.from('grower_links').insert({ grower_id: growerId!, field_id: created.id });
-      setNewField({ name: '', crop_type: '', location: '' });
-      setCreateOpen(false);
-      await reload();
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const createField = async () => {
     if (creating) return;
     const name = newField.name.trim();
