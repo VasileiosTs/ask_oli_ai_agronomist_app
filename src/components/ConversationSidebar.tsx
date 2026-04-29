@@ -198,6 +198,18 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
             <SectionHeader label={fieldsSectionLabel} count={listItems.length} open={fieldsOpen} toggle={() => setFieldsOpen(v => !v)} />
             {fieldsOpen && (
               <div className="pb-1">
+                {/* Add new client/field button — always visible at top */}
+                <button
+                  onClick={() => { navigate(listAllPath); if (!desktop) onClose(); }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-primary/10"
+                >
+                  <Plus className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium text-primary">
+                    {advisor
+                      ? (lang === 'el' ? 'Νέος πελάτης' : 'New client')
+                      : (lang === 'el' ? 'Νέο χωράφι' : 'New field')}
+                  </span>
+                </button>
                 {listItems.length === 0 && (
                   <p className="px-4 py-2 text-xs text-muted">
                     {advisor
