@@ -25,7 +25,7 @@ export default function Auth() {
   }, []);
 
   useEffect(() => {
-    document.title = isEl ? 'Σύνδεση — Oli' : 'Sign in — Oli';
+    document.title = isEl ? 'Σύνδεση, Oli' : 'Sign in, Oli';
     let robotsMeta = document.querySelector('meta[name="robots"]') as HTMLMetaElement;
     if (!robotsMeta) {
       robotsMeta = document.createElement('meta');
@@ -230,7 +230,7 @@ export default function Auth() {
             </div>
           </div>
 
-          {/* Sign in / Sign up — email + password */}
+          {/* Sign in / Sign up, email + password */}
           {(mode === 'signin' || mode === 'signup') && (
             <>
               {/* Toggle */}
@@ -316,7 +316,7 @@ export default function Auth() {
                 </button>
               </form>
 
-              {/* Magic link — full-width button */}
+              {/* Magic link, full-width button */}
               <button
                 type="button"
                 onClick={() => switchMode('magic')}
@@ -376,8 +376,8 @@ export default function Auth() {
             <form onSubmit={handleMagicLink} className="space-y-3">
               <p className="text-sm" style={{ color: '#606659' }}>
                 {isEl
-                  ? 'Εισήγαγε το email σου και θα σου στείλω έναν σύνδεσμο σύνδεσης — χωρίς κωδικό.'
-                  : "Enter your email and I'll send you a sign-in link — no password needed."}
+                  ? 'Εισήγαγε το email σου και θα σου στείλω έναν σύνδεσμο σύνδεσης, χωρίς κωδικό.'
+                  : "Enter your email and I'll send you a sign-in link, no password needed."}
               </p>
               <input
                 type="email" required autoFocus

@@ -359,11 +359,25 @@ export default function MessageBubble({
             <p className="whitespace-pre-wrap text-base leading-relaxed">
               {msg.content.replace(/^\[The user attached[^\]]*\]\n?/i, '')}
             </p>
-          ) : (
+          ) : (() => {
+            // Split out the "Για ακριβέστερη συμβουλή" line and render it as a visual card
+            const specificsRegex = /(Για (?:ακριβέστερη συμβουλή|συμβουλή ακριβώς)[^]*)/i;
+            const match = msg.content.match(specificsRegex);
+            const mainContent = match ? msg.content.slice(0, match.index).trimEnd() : msg.content;
+            const specificsContent = match ? match[1].trim() : null;
+
+            return (
             <div>
               <div className="prose prose-sm prose-invert max-w-none">
-                <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{msg.content}</ReactMarkdown>
+                <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{mainContent}</ReactMarkdown>
               </div>
+
+              {specificsContent && (
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-3">
+                  <span className="text-lg flex-shrink-0 mt-0.5">📸</span>
+                  <p className="text-sm text-primary leading-relaxed">{specificsContent}</p>
+                </div>
+              )}
 
               {/* ── History card (from natural language history query) ── */}
               {msg.metadata?.history_data && (
@@ -464,10 +478,8 @@ export default function MessageBubble({
                 </div>
               )}
             </div>
-          )}
+          )})()}
         </div>
-
-        {/* Timestamp */}
         <span className={clsx(
           'text-[11px] text-muted opacity-0 transition-opacity group-hover:opacity-100',
           isUser ? 'text-right' : 'text-left',
