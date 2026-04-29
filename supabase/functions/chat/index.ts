@@ -243,6 +243,7 @@ function buildSystemPrompt(
   lang = 'en',
   intent: QueryIntent = 'general',
   conversationDepth = 0,
+  areaUnit = 'stremma',
 ): string {
   // Language detection instruction, single source of truth for all languages.
   // AI models reason better in English; we set the default language but let
@@ -264,13 +265,15 @@ function buildSystemPrompt(
   Arabic: بياض زغبي (Downy Mildew), بياض دقيقي (Powdery Mildew), جرب (Scab), عفن رمادي (Botrytis), العنكبوت الأحمر (Spider Mite), حشرات المن (Aphids)`;
 
   // Dosage simplification, always add practical equipment conversions
+  const unitName = areaUnit === 'ha' ? 'hectares (ha)' : areaUnit === 'ac' ? 'acres (ac)' : 'στρέμματα (στρ.)';
   const dosageInstruction = `DOSAGE COMMUNICATION: After every technical dosage (e.g., "300g/100L"), always add a practical conversion for common farm equipment on the next line:
 - For 15L backpack sprayer: show grams or ml needed
 - For 100L tractor tank: already covered by the /100L rate
 - Use local measurement terms where appropriate (e.g. Greek: κουταλιά σούπας = 15ml, φλιτζάνι = 250ml, στρέμμα = 0.1 ha)
 - Example: "Myclobutanil 40ml/100L → 15L backpack: 6ml"
 - Area conversions: 1 στρέμμα = 0.1 ha, 1 acre = 0.405 ha
-- MENA units: فدان/feddan = 0.42 ha (Egypt); دونم/dunum = 0.1 ha (Jordan, Palestine) or 0.25 ha (Iraq, Syria, confirm locally)`;
+- MENA units: فدان/feddan = 0.42 ha (Egypt); دونم/dunum = 0.1 ha (Jordan, Palestine) or 0.25 ha (Iraq, Syria, confirm locally)
+- THIS USER'S PREFERRED AREA UNIT: ${unitName}. Use ONLY this unit for all area measurements, yields, and rates in your responses. Convert all values to this unit.`;
 
   // Weather context, directive rules for using live weather data injected in field context
   const weatherRules = `WEATHER CONTEXT RULES (field context may include current weather, use it actively):
@@ -445,6 +448,8 @@ HARD LIMITS:
 - Never say "it depends on many factors", pick the most likely scenario, answer for that, mention the assumption briefly.
 - Never list more than 3 treatment options. Pick the best one, recommend it, mention 1 alternative max.
 - Never explain WHY something happens unless the user asked why. They want WHAT TO DO.
+- MEASUREMENT UNITS: Use the unit system that matches the user's locale. For Greek users: στρέμματα (στρ.), kg/στρ, m³/στρ, L/στρ. For international users: hectares (ha), kg/ha, m³/ha, L/ha. If the user's profile specifies a unit preference (ha, στρ., ac), always use that. Never mix units in the same response. 1 στρ. = 0.1 ha = 0.247 ac.
+- CONFIDENCE DISPLAY: Never show a numeric percentage in your text response. Express confidence using words only: Χαμηλή βεβαιότητα (< 40), Μέτρια βεβαιότητα (40-65), Υψηλή βεβαιότητα (65-85), Πολύ υψηλή βεβαιότητα (> 85). The numeric confidence_score still goes in the JSON metadata, but the farmer sees words, not numbers.
 
 QUESTION DISCIPLINE:
 - You may ask for specifics ONLY in the "Για ακριβέστερη συμβουλή" line at the end.
@@ -1100,8 +1105,9 @@ async function generateValidatedResponse(
   lang = 'en',
   intent: QueryIntent = 'general',
   conversationDepth = 0,
+  areaUnit = 'stremma',
 ): Promise<ValidatedResponseResult> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth);
+  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth, areaUnit);
   const temperature = intentTemperature(intent);
   const initial = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
   let json = initial.json;
@@ -2749,6 +2755,7 @@ Return ONLY the greeting text, nothing else.`;
         userLang,
         queryIntent,
         convDepth,
+        appUser.area_unit || (userLang === 'el' ? 'stremma' : 'ha'),
       );
       aiResponse = genResult.json;
       assistantText = aiResponse.response_text;

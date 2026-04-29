@@ -94,10 +94,14 @@ function ConfidenceIndicator({ score, lang }: { score: number; lang: string }) {
   let dot: string;
   let label: string;
 
-  if (score >= 70) {
+  if (score > 85) {
     colour = 'text-green-400';
     dot = 'bg-green-400';
-    label = isEl ? 'Αρκετά σίγουρος' : 'Fairly confident';
+    label = isEl ? 'Πολύ υψηλή βεβαιότητα' : 'Very high confidence';
+  } else if (score >= 65) {
+    colour = 'text-green-400';
+    dot = 'bg-green-400';
+    label = isEl ? 'Υψηλή βεβαιότητα' : 'High confidence';
   } else if (score >= 40) {
     colour = 'text-amber-400';
     dot = 'bg-amber-400';
