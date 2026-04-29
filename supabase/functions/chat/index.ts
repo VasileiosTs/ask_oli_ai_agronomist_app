@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+// Edge function: chat — last deployed via CI on 2026-04-29
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface InlineAttachment {
