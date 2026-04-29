@@ -2189,7 +2189,7 @@ Deno.serve(async (req) => {
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date')
+      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date, area_unit')
       .eq('auth_id', user.id)
       .single();
 
