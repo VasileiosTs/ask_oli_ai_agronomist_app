@@ -48,6 +48,17 @@ export default function ClientDetail() {
   const [loading, setLoading] = useState(true);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linking, setLinking] = useState(false);
+  // Inline "create new field for this client" flow — required because previously
+  // an agronomist could only LINK an existing field, never create a fresh one
+  // directly under a client.
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newField, setNewField] = useState({ name: '', crop_type: '', location: '' });
+
+  // Create-new-field form (separate from "link existing field")
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newField, setNewField] = useState({ name: '', crop_type: '', location: '' });
 
   useEffect(() => {
     if (!growerId || !appUserId) return;
@@ -97,6 +108,77 @@ export default function ClientDetail() {
       await reload();
     } finally {
       setLinking(false);
+    }
+  };
+
+  // Create a new field owned by the agronomist and immediately link it to this client.
+  // Keeps the form minimal (name + crop + location). Advanced fields like soil type,
+  // irrigation, and exact size are edited later via the field detail page.
+  const createAndLink = async () => {
+    if (creating) return;
+    const name = newField.name.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      const { data: created, error: createErr } = await supabase
+        .from('fields')
+        .insert({
+          user_id: appUserId!,
+          name,
+          crop_type: newField.crop_type.trim() || null,
+          location: newField.location.trim() || null,
+          is_active: true,
+          source: 'manual',
+        })
+        .select('id')
+        .single();
+      if (createErr || !created) {
+        setCreating(false);
+        return;
+      }
+      // Link the just-created field to the current client
+      await supabase.from('grower_links').insert({ grower_id: growerId!, field_id: created.id });
+      setNewField({ name: '', crop_type: '', location: '' });
+      setCreateOpen(false);
+      await reload();
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createField = async () => {
+    if (creating) return;
+    const name = newField.name.trim();
+    if (!name || !growerId || !appUserId) return;
+    setCreating(true);
+    try {
+      // 1. Insert field owned by the agronomist
+      const { data: created, error: fieldError } = await supabase
+        .from('fields')
+        .insert({
+          user_id: appUserId,
+          name,
+          crop_type: newField.crop_type.trim() || null,
+          location: newField.location.trim() || null,
+          is_active: true,
+          source: 'manual' as const,
+        })
+        .select('id')
+        .single();
+      if (fieldError || !created) throw fieldError ?? new Error('Field creation failed');
+      // 2. Link field to this client
+      const { error: linkError } = await supabase
+        .from('grower_links')
+        .insert({ grower_id: growerId, field_id: created.id });
+      if (linkError) throw linkError;
+      // 3. Reset form and reload
+      setNewField({ name: '', crop_type: '', location: '' });
+      setCreateOpen(false);
+      await reload();
+    } catch (err) {
+      console.error('createField failed:', err);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -287,15 +369,78 @@ export default function ClientDetail() {
               ))
             )}
 
-            {/* Add existing field link */}
-            {!linkOpen && unlinkedFields.length > 0 && (
-              <button
-                onClick={() => setLinkOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-surface/50 py-3 text-sm font-medium text-muted transition-colors hover:text-foreground"
-              >
-                <Plus className="h-4 w-4" />
-                {lang === 'el' ? 'Σύνδεση υπάρχοντος χωραφιού' : 'Link existing field'}
-              </button>
+            {/* Add field actions: create new OR link existing */}
+            {!linkOpen && !createOpen && (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  onClick={() => setCreateOpen(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  <Plus className="h-4 w-4" />
+                  {lang === 'el' ? 'Νέο χωράφι' : 'New field'}
+                </button>
+                {unlinkedFields.length > 0 && (
+                  <button
+                    onClick={() => setLinkOpen(true)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-surface/50 py-3 text-sm font-medium text-muted transition-colors hover:text-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {lang === 'el' ? 'Σύνδεση υπάρχοντος' : 'Link existing'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Inline create-new-field form */}
+            {createOpen && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">
+                    {lang === 'el' ? 'Νέο χωράφι για ' + (grower?.name ?? '') : 'New field for ' + (grower?.name ?? '')}
+                  </p>
+                  <button
+                    onClick={() => { setCreateOpen(false); setNewField({ name: '', crop_type: '', location: '' }); }}
+                    className="text-muted hover:text-foreground"
+                    disabled={creating}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={newField.name}
+                  onChange={(e) => setNewField(s => ({ ...s, name: e.target.value }))}
+                  placeholder={lang === 'el' ? 'Όνομα χωραφιού (π.χ. Άνω Ελαιώνας)' : 'Field name (e.g. Upper Olive Grove)'}
+                  className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  disabled={creating}
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  value={newField.crop_type}
+                  onChange={(e) => setNewField(s => ({ ...s, crop_type: e.target.value }))}
+                  placeholder={lang === 'el' ? 'Καλλιέργεια (π.χ. Ελιές)' : 'Crop (e.g. Olives)'}
+                  className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  disabled={creating}
+                />
+                <input
+                  type="text"
+                  value={newField.location}
+                  onChange={(e) => setNewField(s => ({ ...s, location: e.target.value }))}
+                  placeholder={lang === 'el' ? 'Τοποθεσία (προαιρετικό)' : 'Location (optional)'}
+                  className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  disabled={creating}
+                />
+                <button
+                  onClick={createField}
+                  disabled={creating || !newField.name.trim()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {creating
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : (lang === 'el' ? 'Δημιουργία και σύνδεση' : 'Create and link')}
+                </button>
+              </div>
             )}
 
             {linkOpen && (
