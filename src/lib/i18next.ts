@@ -12,6 +12,24 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { dict } from './i18n';
 
+function getStoredManualLanguage(): 'en' | 'el' | null {
+  try {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const storage = window.localStorage;
+    if (!storage || typeof storage.getItem !== 'function') {
+      return null;
+    }
+
+    const manual = storage.getItem('oli_lang_manual');
+    return manual === 'el' || manual === 'en' ? manual : null;
+  } catch {
+    return null;
+  }
+}
+
 i18n
   .use(initReactI18next)
   .init({
@@ -22,10 +40,8 @@ i18n
     // Language is set by LanguageContext after detectLang() resolves.
     // We use a safe default here; LanguageProvider will call changeLanguage().
     lng: (() => {
-      const manual = typeof window !== 'undefined'
-        ? localStorage.getItem('oli_lang_manual')
-        : null;
-      if (manual === 'el' || manual === 'en') return manual;
+      const manual = getStoredManualLanguage();
+      if (manual) return manual;
       if (typeof window !== 'undefined' && navigator.language?.startsWith('el')) return 'el';
       return 'en';
     })(),

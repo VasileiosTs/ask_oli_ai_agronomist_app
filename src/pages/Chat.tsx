@@ -136,6 +136,17 @@ export default function Chat() {
   // ── Personalised greeting (non-blocking; shown in welcome state subtitle) ──
   const [dynamicGreeting, setDynamicGreeting] = useState('');
   const greetingFetchedRef = useRef(false);
+  // ── Guest mode state ──
+  const guestQuery = searchParams.get('q');
+  // oli_guest_used persists across reloads so the same browser can't get unlimited free messages
+  const guestAlreadyUsed = !user && !!localStorage.getItem('oli_guest_used');
+  const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
+  const [guestMessageSent, setGuestMessageSent] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
+  useEffect(() => {
+    greetingFetchedRef.current = false;
+  }, [user?.id, lang, isGuestMode]);
   useEffect(() => {
     if (!user || !profile || isGuestMode || greetingFetchedRef.current) return;
     greetingFetchedRef.current = true;
@@ -182,18 +193,6 @@ export default function Chat() {
       .catch(() => { /* fail silently — static subtitle is the fallback */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, !!profile, lang, isGuestMode]);
-
-  // ── Guest mode state ──
-  const guestQuery = searchParams.get('q');
-  // oli_guest_used persists across reloads so the same browser can't get unlimited free messages
-  const guestAlreadyUsed = !user && !!localStorage.getItem('oli_guest_used');
-  const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
-  const [guestMessageSent, setGuestMessageSent] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
-  useEffect(() => {
-    greetingFetchedRef.current = false;
-  }, [user?.id, lang, isGuestMode]);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();
