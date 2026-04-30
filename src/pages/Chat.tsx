@@ -64,6 +64,7 @@ function messagesReducer(state: Message[], action: MsgAction): Message[] {
 
 // ── Guest session storage keys ──
 const GUEST_SESSION_KEY = 'oli_guest_messages';
+const GREETING_SESSION_TTL_MS = 10 * 60 * 1000;
 
 export default function Chat() {
   const { user, profile, appUserId } = useAuth();
@@ -138,15 +139,49 @@ export default function Chat() {
   useEffect(() => {
     if (!user || !profile || isGuestMode || greetingFetchedRef.current) return;
     greetingFetchedRef.current = true;
-    supabase.functions.invoke('chat', { body: { mode: 'greeting' } })
+    const cacheKey = `oli_dynamic_greeting:${user.id}:${lang}`;
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (raw) {
+        const cached = JSON.parse(raw) as { greeting?: string; cachedAt?: number };
+        if (
+          typeof cached.greeting === 'string'
+          && cached.greeting.trim()
+          && typeof cached.cachedAt === 'number'
+          && Date.now() - cached.cachedAt < GREETING_SESSION_TTL_MS
+        ) {
+          setDynamicGreeting(cached.greeting.trim());
+          return;
+        }
+      }
+    } catch {
+      // Ignore cache parse errors and refetch.
+    }
+
+    supabase.functions.invoke('chat', {
+      body: {
+        mode: 'greeting',
+        lang,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+    })
       .then(({ data, error }) => {
         if (!error && typeof data?.greeting === 'string' && data.greeting.trim()) {
-          setDynamicGreeting(data.greeting.trim());
+          const greeting = data.greeting.trim();
+          setDynamicGreeting(greeting);
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify({
+              greeting,
+              cachedAt: Date.now(),
+            }));
+          } catch {
+            // Ignore sessionStorage quota errors.
+          }
         }
       })
       .catch(() => { /* fail silently — static subtitle is the fallback */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, !!profile]);
+  }, [user?.id, !!profile, lang, isGuestMode]);
 
   // ── Guest mode state ──
   const guestQuery = searchParams.get('q');
@@ -156,6 +191,9 @@ export default function Chat() {
   const [guestMessageSent, setGuestMessageSent] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
+  useEffect(() => {
+    greetingFetchedRef.current = false;
+  }, [user?.id, lang, isGuestMode]);
   
   const [fields, setFields] = useState<Field[]>([]);
   const [activeFieldId, setActiveFieldId] = useState<string | undefined>();

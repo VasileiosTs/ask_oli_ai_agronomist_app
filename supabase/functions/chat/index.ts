@@ -145,6 +145,7 @@ const MAX_HISTORY_MESSAGES = 10;
 const MAX_INLINE_ATTACHMENTS = 3;
 const MAX_MESSAGE_CHARS = 8000;
 const MAX_TOTAL_INLINE_ATTACHMENT_CHARS = 12_000_000;
+const GREETING_CACHE_TTL_MS = 10 * 60 * 1000;
 const ALLOWED_GEMINI_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-pro',
@@ -654,6 +655,37 @@ function cleanAssistantText(text: string): string {
     .trim();
 }
 
+function isGreetingCacheFresh(lastGreetingAt: string | null | undefined, now: Date): boolean {
+  if (!lastGreetingAt) {
+    return false;
+  }
+
+  const generatedAt = new Date(lastGreetingAt);
+  if (Number.isNaN(generatedAt.getTime())) {
+    return false;
+  }
+
+  return now.getTime() - generatedAt.getTime() < GREETING_CACHE_TTL_MS;
+}
+
+function buildFallbackGreeting(name: string, lang: string, crop: string, month: string): string {
+  const firstName = name || (lang === 'el' ? 'φίλε μου' : 'there');
+
+  if (lang === 'el') {
+    if (crop && crop !== 'crops') {
+      return `${firstName}, πες μου τι βλέπεις σήμερα στο ${crop} σου και θα το δουλέψουμε μαζί. Με τον ${month} να τρέχει, αν θέλεις μπορούμε να το δούμε είτε γενικά είτε για συγκεκριμένο χωράφι.`;
+    }
+
+    return `${firstName}, πες μου τι συμβαίνει σήμερα στις καλλιέργειές σου και θα το δουλέψουμε μαζί. Αν θέλεις πιο στοχευμένη βοήθεια, διάλεξε πρώτα ένα συγκεκριμένο χωράφι.`;
+  }
+
+  if (crop && crop !== 'crops') {
+    return `${firstName}, tell me what you're seeing in your ${crop} today and we'll work through it together. With ${month} underway, we can keep it general or focus on a specific field if you choose one.`;
+  }
+
+  return `${firstName}, tell me what's happening with your crops today and we'll work through it together. If you want field-specific advice, choose a field first and I'll use that context.`;
+}
+
 function validateResponse(json: AiResponseJson, hasActiveField: boolean): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -713,7 +745,37 @@ function parseGeminiPayload<T>(payload: any): T {
     .replace(/\s*```$/i, '')
     .trim();
 
-  return JSON.parse(text) as T;
+  if (!text) {
+    throw new GeminiPayloadError('Gemini returned an empty payload');
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (error) {
+    console.error('Failed to parse Gemini payload:', text);
+    throw new GeminiPayloadError(
+      error instanceof Error ? `Gemini returned malformed JSON: ${error.message}` : 'Gemini returned malformed JSON',
+    );
+  }
+}
+
+async function fetchGeminiGenerateContent(
+  geminiApiKey: string,
+  model: string,
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  return await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': geminiApiKey,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
 }
 
 function buildResponseSchema() {
@@ -829,6 +891,13 @@ class GeminiQuotaError extends Error {
   }
 }
 
+class GeminiPayloadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeminiPayloadError';
+  }
+}
+
 interface GeminiCallResult {
   json: AiResponseJson;
   promptTokens: number;
@@ -874,75 +943,67 @@ async function callGemini(
     },
   };
 
-  // T1: 20s hard timeout — prevents 25s+ hangs when Gemini is slow or unresponsive
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': geminiApiKey,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(20_000),
-    },
-  );
+  const parseResponseData = (data: any) => {
+    const parsed = parseGeminiPayload<AiResponseJson>(data);
+    const assistantText = cleanAssistantText(parsed.response_text);
+    if (!assistantText) {
+      throw new GeminiPayloadError('Gemini returned an empty response_text');
+    }
+    const usage = data?.usageMetadata ?? {};
+    return {
+      json: { ...parsed, response_text: assistantText },
+      promptTokens: usage.promptTokenCount ?? 0,
+      outputTokens: usage.candidatesTokenCount ?? 0,
+      totalTokens: usage.totalTokenCount ?? 0,
+    };
+  };
 
-  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-1.5-flash as a fallback model.
-  // 429 means the primary model's quota is exhausted — the fallback model has its own quota.
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Gemini request failed (${response.status}):`, errorText);
+  const tryModel = async (model: string) => {
+    const response = await fetchGeminiGenerateContent(geminiApiKey, model, payload);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini request failed (${model}, ${response.status}):`, errorText);
+      return { ok: false as const, status: response.status };
+    }
 
-    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-1.5-flash';
-    if (shouldFallback) {
-      console.warn(`Primary model returned ${response.status} — retrying with gemini-1.5-flash fallback`);
-      const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': geminiApiKey,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(20_000),
-        },
-      );
-      if (!fallbackResponse.ok) {
-        const fbErr = await fallbackResponse.text();
-        console.error(`Gemini fallback also failed (${fallbackResponse.status}):`, fbErr);
-        if (fallbackResponse.status === 429) {
-          throw new GeminiQuotaError('All Gemini models have exceeded their quota');
-        }
-        throw new Error(`Gemini request failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
+    const data = await response.json();
+    return { ok: true as const, data };
+  };
+
+  const primary = await tryModel(GEMINI_MODEL);
+  if (primary.ok) {
+    try {
+      return parseResponseData(primary.data);
+    } catch (error) {
+      if (!(error instanceof GeminiPayloadError) || GEMINI_MODEL === 'gemini-1.5-flash') {
+        throw error;
       }
-      const fallbackData = await fallbackResponse.json();
-      const fallbackParsed = parseGeminiPayload<AiResponseJson>(fallbackData);
-      const fu = fallbackData?.usageMetadata ?? {};
-      return {
-        json: { ...fallbackParsed, response_text: cleanAssistantText(fallbackParsed.response_text) },
-        promptTokens: fu.promptTokenCount ?? 0,
-        outputTokens: fu.candidatesTokenCount ?? 0,
-        totalTokens: fu.totalTokenCount ?? 0,
-      };
+      console.warn(`Primary model returned unusable payload — retrying with gemini-1.5-flash fallback: ${error.message}`);
     }
-
-    if (response.status === 429) {
-      throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL}`);
-    }
-    throw new Error(`Gemini request failed (${response.status})`);
+  } else if (primary.status === 429 && GEMINI_MODEL === 'gemini-1.5-flash') {
+    throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL}`);
+  } else if (primary.status !== 429 && primary.status < 500) {
+    throw new Error(`Gemini request failed (${primary.status})`);
   }
 
-  const data = await response.json();
-  const parsed = parseGeminiPayload<AiResponseJson>(data);
-  const u = data?.usageMetadata ?? {};
-  return {
-    json: { ...parsed, response_text: cleanAssistantText(parsed.response_text) },
-    promptTokens: u.promptTokenCount ?? 0,
-    outputTokens: u.candidatesTokenCount ?? 0,
-    totalTokens: u.totalTokenCount ?? 0,
-  };
+  if (GEMINI_MODEL === 'gemini-1.5-flash') {
+    if (!primary.ok && primary.status === 429) {
+      throw new GeminiQuotaError('All Gemini models have exceeded their quota');
+    }
+    throw new Error(primary.ok ? 'Gemini returned unusable payload' : `Gemini request failed (${primary.status})`);
+  }
+
+  const fallback = await tryModel('gemini-1.5-flash');
+  if (!fallback.ok) {
+    if (fallback.status === 429) {
+      throw new GeminiQuotaError('All Gemini models have exceeded their quota');
+    }
+    throw new Error(
+      `Gemini request failed (${primary.ok ? 'payload' : primary.status}), fallback also failed (${fallback.status})`,
+    );
+  }
+
+  return parseResponseData(fallback.data);
 }
 
 async function callGeminiExtraction(geminiApiKey: string, message: string): Promise<ExtractionResult> {
@@ -966,60 +1027,52 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     },
   };
 
-  // T1: 20s hard timeout — extraction is lightweight; if it hangs this long something is wrong
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': geminiApiKey,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(20_000),
-    },
-  );
+  const tryModel = async (model: string) => {
+    const response = await fetchGeminiGenerateContent(geminiApiKey, model, payload);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini extraction failed (${model}, ${response.status}):`, errorText);
+      return { ok: false as const, status: response.status };
+    }
 
-  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-1.5-flash fallback
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Gemini extraction failed (${response.status}):`, errorText);
+    const data = await response.json();
+    return { ok: true as const, data };
+  };
 
-    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-1.5-flash';
-    if (shouldFallback) {
-      console.warn(`Primary extraction model returned ${response.status} — retrying with gemini-1.5-flash fallback`);
-      const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': geminiApiKey,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(20_000),
-        },
-      );
-      if (!fallbackResponse.ok) {
-        const fbErr = await fallbackResponse.text();
-        console.error(`Gemini extraction fallback also failed (${fallbackResponse.status}):`, fbErr);
-        if (fallbackResponse.status === 429) {
-          throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
-        }
-        throw new Error(`Gemini extraction failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
+  const primary = await tryModel(GEMINI_MODEL);
+  if (primary.ok) {
+    try {
+      return parseGeminiPayload<ExtractionResult>(primary.data);
+    } catch (error) {
+      if (!(error instanceof GeminiPayloadError) || GEMINI_MODEL === 'gemini-1.5-flash') {
+        throw error;
       }
-      const fallbackData = await fallbackResponse.json();
-      return parseGeminiPayload<ExtractionResult>(fallbackData);
+      console.warn(`Primary extraction model returned unusable payload — retrying with gemini-1.5-flash fallback: ${error.message}`);
     }
-
-    if (response.status === 429) {
-      throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL} (extraction)`);
-    }
-    throw new Error(`Gemini extraction failed (${response.status})`);
+  } else if (primary.status === 429 && GEMINI_MODEL === 'gemini-1.5-flash') {
+    throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL} (extraction)`);
+  } else if (primary.status !== 429 && primary.status < 500) {
+    throw new Error(`Gemini extraction failed (${primary.status})`);
   }
 
-  const data = await response.json();
-  return parseGeminiPayload<ExtractionResult>(data);
+  if (GEMINI_MODEL === 'gemini-1.5-flash') {
+    if (!primary.ok && primary.status === 429) {
+      throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
+    }
+    throw new Error(primary.ok ? 'Gemini extraction returned unusable payload' : `Gemini extraction failed (${primary.status})`);
+  }
+
+  const fallback = await tryModel('gemini-1.5-flash');
+  if (!fallback.ok) {
+    if (fallback.status === 429) {
+      throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
+    }
+    throw new Error(
+      `Gemini extraction failed (${primary.ok ? 'payload' : primary.status}), fallback also failed (${fallback.status})`,
+    );
+  }
+
+  return parseGeminiPayload<ExtractionResult>(fallback.data);
 }
 
 // P3: Temperature varies by intent — diagnosis needs precision, general can be warmer
@@ -1508,6 +1561,17 @@ async function assembleServerFieldContext(
   activeFieldId?: string | null,
   fallbackFieldContext = '',
 ) {
+  if (!activeFieldId) {
+    return {
+      fieldContext: fallbackFieldContext || 'No field selected for this conversation.',
+      activeFieldId: null,
+      activeFieldName: null,
+      hasActiveField: false,
+      recentInterventions: [] as InterventionContextRow[],
+      pendingFollowUps: [] as InterventionContextRow[],
+    };
+  }
+
   const [interventions, pendingFollowUps, recentSnapshots, cropsResult] = await Promise.all([
     fetchContextInterventions(supabaseAdmin, appUserId, activeFieldId),
     fetchPendingFollowUps(supabaseAdmin, appUserId, activeFieldId),
@@ -1520,9 +1584,7 @@ async function assembleServerFieldContext(
 
   const fieldMap = new Map(fields.map((field) => [field.id, field]));
   const sections: string[] = [];
-  const activeField =
-    (activeFieldId ? fields.find((field) => field.id === activeFieldId) : null) ??
-    (fields.length === 1 ? fields[0] : null);
+  const activeField = fields.find((field) => field.id === activeFieldId) ?? null;
 
   if (activeField) {
     let fieldBlock = formatFieldContextBlock(activeField);
@@ -1533,12 +1595,8 @@ async function assembleServerFieldContext(
     if (Array.isArray(activeField.recent_diagnoses) && activeField.recent_diagnoses.length > 0) {
       sections.push(`RECENT DIAGNOSES:\n- ${activeField.recent_diagnoses.join('\n- ')}`);
     }
-  } else if (fields.length > 1) {
-    sections.push(
-      `USER HAS ${fields.length} FIELDS:\n${fields.map((field) => formatFieldContextBlock(field)).join('\n')}\n(No specific field selected for this conversation.)`,
-    );
-  } else if (fields.length === 1) {
-    sections.push(`USER FIELD:\n${formatFieldContextBlock(fields[0])}`);
+  } else {
+    sections.push(fallbackFieldContext || 'Selected field context could not be loaded.');
   }
 
   if (interventions.length > 0) {
@@ -1737,7 +1795,20 @@ async function cleanupFailedChatAttempt(
   userMessageId: string | null,
   conversationId: string | null,
   conversationCreatedByFunction: boolean,
+  refundMessageCount = false,
+  requestTimestamp?: string,
 ) {
+  if (refundMessageCount) {
+    const { error: refundError } = await supabaseAdmin.rpc('refund_message_count', {
+      p_user_id: appUserId,
+      p_now: requestTimestamp ?? new Date().toISOString(),
+    });
+
+    if (refundError) {
+      console.error('Failed to refund message count:', refundError);
+    }
+  }
+
   if (userMessageId) {
     await supabaseAdmin
       .from('chat_messages')
@@ -2135,7 +2206,7 @@ Deno.serve(async (req) => {
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date')
+      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date, last_greeting, last_greeting_at')
       .eq('auth_id', user.id)
       .single();
 
@@ -2192,6 +2263,12 @@ Deno.serve(async (req) => {
       const crop = appUser.primary_crop || 'crops';
       const location = appUser.location || '';
       const name = appUser.name ? appUser.name.split(' ')[0] : '';
+      const cachedGreeting = typeof appUser.last_greeting === 'string' ? appUser.last_greeting.trim() : '';
+
+      if (cachedGreeting && isGreetingCacheFresh(appUser.last_greeting_at ?? null, now)) {
+        console.info('[chat:greeting] cache_hit');
+        return jsonResponse({ greeting: cachedGreeting, cached: true });
+      }
 
       // Fetch the most recent pending follow-up and memory snapshot for continuity
       const [pendingFollowUpResult, recentSnapshotResult] = await Promise.all([
@@ -2262,18 +2339,30 @@ Return ONLY the greeting text, nothing else.`;
         generationConfig: { temperature: 0.7, maxOutputTokens: 150 },
       };
 
-      const greetingRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey }, body: JSON.stringify(payload) }
-      );
+      const greetingRes = await fetchGeminiGenerateContent(geminiApiKey, GEMINI_MODEL, payload);
 
       if (!greetingRes.ok) {
-        return jsonResponse({ error: 'Greeting generation failed' }, 502);
+        console.warn(`[chat:greeting] gemini_failed status=${greetingRes.status}`);
+        return jsonResponse({
+          greeting: cachedGreeting || buildFallbackGreeting(name, userLang, crop, month),
+          cached: Boolean(cachedGreeting),
+          fallback: true,
+        });
       }
 
       const greetingData = await greetingRes.json();
       const greetingText = greetingData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
-      return jsonResponse({ greeting: greetingText });
+      const finalGreeting = greetingText || cachedGreeting || buildFallbackGreeting(name, userLang, crop, month);
+
+      await supabaseAdmin
+        .from('users')
+        .update({
+          last_greeting: finalGreeting,
+          last_greeting_at: now.toISOString(),
+        })
+        .eq('id', appUser.id);
+
+      return jsonResponse({ greeting: finalGreeting, cached: false });
     }
 
     const requestMessages = Array.isArray(body.messages)
@@ -2365,38 +2454,6 @@ Return ONLY the greeting text, nothing else.`;
       }
     }
 
-    // For pro users skip the limit. For free users the limit check AND increment
-    // happen atomically inside the SQL function (FOR UPDATE lock) so two
-    // concurrent requests can never both slip past the quota.
-    let nextMessageCount: number;
-    if (!UNLIMITED_TIERS.has(appUser.tier ?? 'free')) {
-      const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
-        p_user_id: appUser.id,
-        p_now: now.toISOString(),
-        p_limit: FREE_LIMIT,
-      });
-      // -1 means the function detected limit exceeded (inside the lock)
-      if (countResult === -1) {
-        return jsonResponse(
-          {
-            error: 'Monthly message limit reached',
-            code: 'monthly_limit',
-            limit: FREE_LIMIT,
-          },
-          429,
-        );
-      }
-      nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
-    } else {
-      // Pro users: just increment, no limit
-      const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
-        p_user_id: appUser.id,
-        p_now: now.toISOString(),
-        p_limit: 999999,
-      });
-      nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
-    }
-
     const attachmentPaths = (Array.isArray(body.attachmentPaths) ? body.attachmentPaths : body.imageUrls ?? [])
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
       .filter((value) => value.startsWith(`${user.id}/`));
@@ -2438,7 +2495,6 @@ Return ONLY the greeting text, nothing else.`;
       }
     }
 
-    const fields = await fetchFieldContextRows(supabaseAdmin, appUser.id);
     let effectiveConversationId = ownedConversation?.id ?? body.conversationId ?? null;
     let effectiveFieldId: string | null = body.fieldId ?? ownedConversation?.field_id ?? null;
     let fieldResolutionSource = body.fieldId
@@ -2447,18 +2503,46 @@ Return ONLY the greeting text, nothing else.`;
         ? 'conversation'
         : 'none';
 
-    if (!effectiveFieldId && fields.length === 1) {
-      effectiveFieldId = fields[0].id;
-      fieldResolutionSource = 'single_field_default';
-    }
-
     let userMessageId: string | null = null;
     let conversationCreatedByFunction = false;
-    let extractionResult: ExtractionResult | null = null;
     let serverContext: Awaited<ReturnType<typeof assembleServerFieldContext>>;
     let aiResponse: AiResponseJson;
     let assistantText = '';
     let assistantMetadata: Record<string, unknown> = {};
+    let nextMessageCount: number;
+    let shouldRefundMessageCount = false;
+
+    // For pro users skip the limit. For free users the limit check AND increment
+    // happen atomically inside the SQL function (FOR UPDATE lock) so two
+    // concurrent requests can never both slip past the quota.
+    if (!UNLIMITED_TIERS.has(appUser.tier ?? 'free')) {
+      const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
+        p_user_id: appUser.id,
+        p_now: now.toISOString(),
+        p_limit: FREE_LIMIT,
+      });
+      if (countResult === -1) {
+        return jsonResponse(
+          {
+            error: 'Monthly message limit reached',
+            code: 'monthly_limit',
+            limit: FREE_LIMIT,
+          },
+          429,
+        );
+      }
+      nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
+    } else {
+      const { data: countResult } = await supabaseAdmin.rpc('increment_message_count', {
+        p_user_id: appUser.id,
+        p_now: now.toISOString(),
+        p_limit: 999999,
+      });
+      nextMessageCount = typeof countResult === 'number' ? countResult : currentCount + 1;
+    }
+    shouldRefundMessageCount = true;
+
+    const fields = effectiveFieldId ? await fetchFieldContextRows(supabaseAdmin, appUser.id) : [];
 
     // Seasonal context injection — lets Gemini give month-relevant advice
     const tz = body.timezone || 'UTC';
@@ -2508,37 +2592,6 @@ Return ONLY the greeting text, nothing else.`;
     ].filter(Boolean).join('\n');
 
     try {
-      if (!effectiveFieldId) {
-        try {
-          extractionResult = await callGeminiExtraction(geminiApiKey, latestUserMessage.content);
-
-          let resolvedField = extractionResult.field_mention
-            ? await resolveSingleFieldByHint(
-                supabaseAdmin,
-                appUser.id,
-                extractionResult.field_mention,
-                typeof extractionResult.confidence === 'number' && extractionResult.confidence >= 0.7 ? 0.25 : 0.45,
-              )
-            : null;
-
-          if (!resolvedField && extractionResult.crop_type) {
-            resolvedField = await resolveSingleFieldByHint(
-              supabaseAdmin,
-              appUser.id,
-              extractionResult.crop_type,
-              fields.length === 1 ? 0.15 : 0.55,
-            );
-          }
-
-          if (resolvedField) {
-            effectiveFieldId = resolvedField.id;
-            fieldResolutionSource = 'message_extract';
-          }
-        } catch (error) {
-          console.error('Server-side field extraction failed', error);
-        }
-      }
-
       if (!effectiveConversationId) {
         const createdConversationId = await createConversation(
           supabaseAdmin,
@@ -2549,6 +2602,16 @@ Return ONLY the greeting text, nothing else.`;
         );
 
         if (!createdConversationId) {
+          await cleanupFailedChatAttempt(
+            supabaseAdmin,
+            appUser.id,
+            null,
+            null,
+            false,
+            shouldRefundMessageCount,
+            now.toISOString(),
+          );
+          shouldRefundMessageCount = false;
           return jsonResponse({ error: 'Failed to create conversation' }, 500);
         }
 
@@ -2557,6 +2620,16 @@ Return ONLY the greeting text, nothing else.`;
       }
 
       if (!effectiveConversationId) {
+        await cleanupFailedChatAttempt(
+          supabaseAdmin,
+          appUser.id,
+          null,
+          null,
+          false,
+          shouldRefundMessageCount,
+          now.toISOString(),
+        );
+        shouldRefundMessageCount = false;
         return jsonResponse({ error: 'Conversation setup failed' }, 500);
       }
 
@@ -2586,7 +2659,10 @@ Return ONLY the greeting text, nothing else.`;
             null,
             effectiveConversationId,
             conversationCreatedByFunction,
+            shouldRefundMessageCount,
+            now.toISOString(),
           );
+          shouldRefundMessageCount = false;
           return jsonResponse({ error: 'Failed to process your message' }, 500);
         }
 
@@ -2624,7 +2700,10 @@ Return ONLY the greeting text, nothing else.`;
             null,
             effectiveConversationId,
             conversationCreatedByFunction,
+            shouldRefundMessageCount,
+            now.toISOString(),
           );
+          shouldRefundMessageCount = false;
           return jsonResponse({ error: 'Failed to save your message' }, 500);
         }
 
@@ -2635,10 +2714,6 @@ Return ONLY the greeting text, nothing else.`;
         field_context_source: 'backend',
         field_resolution_source: fieldResolutionSource,
       };
-
-      if (extractionResult) {
-        userMessageMetadata.extracted_context = extractionResult;
-      }
 
       if (effectiveFieldId) {
         userMessageMetadata.resolved_field_id = effectiveFieldId;
@@ -2724,7 +2799,10 @@ Return ONLY the greeting text, nothing else.`;
           userMessageId,
           effectiveConversationId,
           conversationCreatedByFunction,
+          shouldRefundMessageCount,
+          now.toISOString(),
         );
+        shouldRefundMessageCount = false;
         return jsonResponse({ error: 'Gemini returned an empty response' }, 502);
       }
     } catch (error) {
@@ -2735,7 +2813,10 @@ Return ONLY the greeting text, nothing else.`;
         userMessageId,
         effectiveConversationId,
         conversationCreatedByFunction,
+        shouldRefundMessageCount,
+        now.toISOString(),
       );
+      shouldRefundMessageCount = false;
       // Q1: Quota errors get a 503 + user-friendly message instead of a generic 500.
       // The frontend can detect 503 and show "AI is busy, try again in a moment."
       if (error instanceof GeminiQuotaError) {
@@ -2755,36 +2836,6 @@ Return ONLY the greeting text, nothing else.`;
     const chunks = splitIntoChunks(assistantText);
     let finalFieldId = effectiveFieldId;
     let finalFieldName = serverContext.activeFieldName;
-
-    if (!finalFieldId && aiResponse.crop_mentioned) {
-      const resolvedFromAi = await resolveSingleFieldByHint(
-        supabaseAdmin,
-        appUser.id,
-        aiResponse.crop_mentioned,
-        fields.length === 1 ? 0.15 : 0.55,
-      );
-
-      if (resolvedFromAi) {
-        finalFieldId = resolvedFromAi.id;
-        finalFieldName = resolvedFromAi.name;
-        fieldResolutionSource = 'ai_crop_match';
-
-        await updateConversationFieldLink(supabaseAdmin, appUser.id, effectiveConversationId, finalFieldId);
-        await mergeMessageMetadata(
-          supabaseAdmin,
-          appUser.id,
-          userMessageId,
-          {
-            resolved_field_id: finalFieldId,
-            resolved_field_name: finalFieldName,
-            field_context_source: 'backend',
-            field_resolution_source: fieldResolutionSource,
-          },
-          finalFieldId,
-          effectiveConversationId,
-        );
-      }
-    }
 
     const finalAssistantMetadata = {
       ...(assistantMetadata ?? {}),
@@ -2848,64 +2899,68 @@ Return ONLY the greeting text, nothing else.`;
             throw insertAssistantMessageError ?? new Error('Failed to insert assistant message');
           }
 
-          // C3: Message count already incremented before Gemini call (atomic, no TOCTOU race)
+          shouldRefundMessageCount = false;
 
-          await persistFieldMemorySnapshot(
-            supabaseAdmin,
-            appUser.id,
-            finalFieldId,
-            userMessageId,
-            insertedAssistantMessage.id,
-            aiResponse,
-            assistantText,
-            serverContext.recentInterventions,
-            serverContext.pendingFollowUps,
-          );
+          try {
+            await persistFieldMemorySnapshot(
+              supabaseAdmin,
+              appUser.id,
+              finalFieldId,
+              userMessageId,
+              insertedAssistantMessage.id,
+              aiResponse,
+              assistantText,
+              serverContext.recentInterventions,
+              serverContext.pendingFollowUps,
+            );
 
-          // Set conversation title — use AI-detected crop + problem for meaningful labels
-          if (effectiveConversationId) {
-            // C4: Owner check — only update conversations belonging to this user
-            const { data: convo } = await supabaseAdmin
-              .from('conversations')
-              .select('title')
-              .eq('id', effectiveConversationId)
-              .eq('user_id', appUser.id)
-              .single();
-            if (convo && (!convo.title || convo.title === 'New conversation')) {
-              let title = '';
-
-              // Build a meaningful title from AI response metadata
-              const crop = aiResponse.crop_mentioned || '';
-              const problem = aiResponse.diagnosis_data?.problem || '';
-
-              if (crop && problem) {
-                title = `${crop} — ${problem}`;
-              } else if (crop) {
-                title = crop;
-              } else if (problem) {
-                title = problem;
-              }
-
-              // Fallback to cleaned user message text
-              if (!title) {
-                const rawText = latestUserMessage.content
-                  .replace(/^\[The user attached[^\]]*\]\n?/i, '')
-                  .trim();
-                title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
-              }
-
-              // Add month/year suffix for easy scanning
-              const now = new Date();
-              const monthStr = now.toLocaleString('en', { month: 'short', year: 'numeric' });
-              title = `${title.slice(0, 50)} – ${monthStr}`;
-
-              await supabaseAdmin
+            // Set conversation title — use AI-detected crop + problem for meaningful labels
+            if (effectiveConversationId) {
+              // C4: Owner check — only update conversations belonging to this user
+              const { data: convo } = await supabaseAdmin
                 .from('conversations')
-                .update({ title })
+                .select('title')
                 .eq('id', effectiveConversationId)
                 .eq('user_id', appUser.id)
-                .or('title.is.null,title.eq.New conversation');
+                .single();
+              if (convo && (!convo.title || convo.title === 'New conversation')) {
+                let title = '';
+
+                // Build a meaningful title from AI response metadata
+                const crop = aiResponse.crop_mentioned || '';
+                const problem = aiResponse.diagnosis_data?.problem || '';
+
+                if (crop && problem) {
+                  title = `${crop} — ${problem}`;
+                } else if (crop) {
+                  title = crop;
+                } else if (problem) {
+                  title = problem;
+                }
+
+                // Fallback to cleaned user message text
+                if (!title) {
+                  const rawText = latestUserMessage.content
+                    .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+                    .trim();
+                  title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
+                }
+
+                // Add month/year suffix for easy scanning
+                const now = new Date();
+                const monthStr = now.toLocaleString('en', { month: 'short', year: 'numeric' });
+                title = `${title.slice(0, 50)} – ${monthStr}`;
+
+                await supabaseAdmin
+                  .from('conversations')
+                  .update({ title })
+                  .eq('id', effectiveConversationId)
+                  .eq('user_id', appUser.id)
+                  .or('title.is.null,title.eq.New conversation');
+              }
             }
+          } catch (postSaveError) {
+            console.error('chat function post-save tasks failed', postSaveError);
           }
 
           sendEvent('done', {
@@ -2920,6 +2975,18 @@ Return ONLY the greeting text, nothing else.`;
           closeController();
         } catch (error) {
           console.error('chat function stream error', error);
+          if (shouldRefundMessageCount) {
+            await cleanupFailedChatAttempt(
+              supabaseAdmin,
+              appUser.id,
+              userMessageId,
+              effectiveConversationId,
+              conversationCreatedByFunction,
+              true,
+              now.toISOString(),
+            );
+            shouldRefundMessageCount = false;
+          }
           // H2: Don't leak internal error details to client
           sendEvent('error', {
             message: 'An error occurred while processing your request',
