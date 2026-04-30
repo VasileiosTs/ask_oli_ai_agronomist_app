@@ -255,7 +255,7 @@ export default function Profile() {
   };
 
   return (
-    <main className="h-[100dvh] overflow-y-auto bg-background">
+    <main className="h-[100dvh] overflow-y-auto bg-background pt-safe">
       {/* Back button */}
       <div className="px-4 pt-4 pb-0">
         <button

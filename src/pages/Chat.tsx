@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useReducer } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
-import { Leaf, SquarePen, Send, Menu } from 'lucide-react';
+import { SquarePen, Send, Menu } from 'lucide-react';
 import OliLogo from '../components/OliLogo';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -22,7 +22,6 @@ import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, A
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
-import PushPrompt from '../components/PushPrompt';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
 import FieldSelector from '../components/FieldSelector';
@@ -110,6 +109,10 @@ export default function Chat() {
   }, [profile?.id]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const handleSendRef = useRef<((text: string) => Promise<void>) | null>(null);
+  // Holds a message typed before appUserId loaded; drained automatically
+  // once the profile lookup completes. Prevents the "send 2-3 times" symptom
+  // where a first message would silently fail with a toast and disappear.
+  const pendingMessageRef = useRef<string | null>(null);
   useEffect(() => {
     const on = async () => {
       setIsOnline(true);
@@ -190,7 +193,7 @@ export default function Chat() {
           }
         }
       })
-      .catch(() => { /* fail silently — static subtitle is the fallback */ });
+      .catch(() => { /* fail silently, static subtitle is the fallback */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, !!profile, lang, isGuestMode]);
   
@@ -246,7 +249,7 @@ export default function Chat() {
   const loadGenerationRef = useRef(0);
   const lastSendAttemptRef = useRef(0);
 
-  // Only use explicitly selected field — never auto-select.
+  // Only use explicitly selected field, never auto-select.
   // Field context is inferred per-message via extraction, not forced globally.
   const activeField = activeFieldId
     ? fields.find((field) => field.id === activeFieldId)
@@ -417,8 +420,8 @@ export default function Chat() {
     // Replace the follow-up message with a confirmation
     const outcomeLabels = { better: t.outcomeBetter, same: t.outcomeSame, worse: t.outcomeWorse };
     const confirmContent = lang === 'el'
-      ? `${outcomeLabels[outcome]} — ευχαριστώ για την ενημέρωση. Έχω καταχωρήσει το αποτέλεσμα.`
-      : `${outcomeLabels[outcome]} — thanks for the update. I've recorded the outcome.`;
+      ? `${outcomeLabels[outcome]}, ευχαριστώ για την ενημέρωση. Έχω καταχωρήσει το αποτέλεσμα.`
+      : `${outcomeLabels[outcome]}, thanks for the update. I've recorded the outcome.`;
     const confirmMsg: Message = {
       id: `outcome-confirm-${Date.now()}`,
       role: 'assistant',
@@ -591,7 +594,7 @@ export default function Chat() {
       await navigator.clipboard.writeText(shareUrl);
       showToast(t.linkCopied);
     } catch {
-      // Clipboard blocked — always show the modal with the URL so user can copy manually
+      // Clipboard blocked, always show the modal with the URL so user can copy manually
       setShareModalUrl(shareUrl);
     }
   };
@@ -611,7 +614,7 @@ export default function Chat() {
         if (data) setFields(data as Field[]);
       });
 
-      // Check for pending follow-ups — VIO multi-step loop
+      // Check for pending follow-ups, VIO multi-step loop
       supabase
         .from('interventions')
         .select('id, crop_type, diagnosis, follow_up_at, field_id, vio_step, product_applied')
@@ -655,7 +658,7 @@ export default function Chat() {
           });
         });
 
-      // No API call for greeting — the empty state UI already serves as the welcome.
+      // No API call for greeting, the empty state UI already serves as the welcome.
       return;
     }
     setFields([]);
@@ -846,7 +849,7 @@ export default function Chat() {
         metadata: result.metadata,
       }));
 
-      // Mark this browser as having used the guest quota — persists across reloads
+      // Mark this browser as having used the guest quota, persists across reloads
       localStorage.setItem('oli_guest_used', '1');
 
       trackEvent(Events.MESSAGE_SENT, { guest: true });
@@ -893,7 +896,7 @@ export default function Chat() {
     newParams.delete('q');
     setSearchParams(newParams, { replace: true });
 
-    // Clear any stale draft — the ?q= param is the canonical input here
+    // Clear any stale draft, the ?q= param is the canonical input here
     sessionStorage.removeItem('oli_draft_input');
     setInput('');
 
@@ -905,7 +908,7 @@ export default function Chat() {
   useEffect(() => {
     if (!appUserId) return;
 
-    // User is now authenticated — clear the guest quota flag so it doesn't affect their experience
+    // User is now authenticated, clear the guest quota flag so it doesn't affect their experience
     localStorage.removeItem('oli_guest_used');
 
     // Restore any question that was pending before login (e.g. from ?q= when quota was used)
@@ -1124,7 +1127,7 @@ export default function Chat() {
         setInput((currentInput) => currentInput || userText);
       }
 
-      // 401 — session expired. Try to refresh silently; if that fails, redirect to /auth.
+      // 401, session expired. Try to refresh silently; if that fails, redirect to /auth.
       if (status === 401) {
         dispatch({ type: 'filter', predicate: (msg) => !(msg.role === 'assistant' && !msg.content) });
         if (latestUserMessageId && !latestUserMessagePersisted) {
@@ -1134,14 +1137,14 @@ export default function Chat() {
         try {
           const { error: refreshError } = await supabase.auth.refreshSession();
           if (refreshError) throw refreshError;
-          // Session refreshed — restore input so user can resend
+          // Session refreshed, restore input so user can resend
           showToast(
             lang === 'el'
               ? 'Η σύνδεσή σου ανανεώθηκε. Δοκίμασε ξανά.'
               : 'Session refreshed. Please try again.',
           );
         } catch {
-          // Refresh failed — session is dead, send to auth
+          // Refresh failed, session is dead, send to auth
           showToast(
             lang === 'el'
               ? 'Η σύνδεσή σου έληξε. Παρακαλώ συνδέσου ξανά.'
@@ -1170,7 +1173,7 @@ export default function Chat() {
         return;
       }
 
-      // 503 — AI service temporarily at capacity (Gemini quota exhausted across all models)
+      // 503, AI service temporarily at capacity (Gemini quota exhausted across all models)
       if (status === 503) {
         if (!latestUserMessagePersisted && latestAttachmentPaths.length > 0) {
           await cleanupUploadedAssets(latestAttachmentPaths);
@@ -1306,25 +1309,25 @@ export default function Chat() {
     const messageText = text.trim() || input.trim();
     if ((!messageText && attachments.length === 0) || isTyping) return;
 
-    // Offline — queue the message and show feedback
+    // Offline, queue the message and show feedback
     if (!navigator.onLine && messageText) {
       await enqueueMessage({ id: crypto.randomUUID(), text: messageText, enqueuedAt: Date.now() });
       setInput('');
       showToast(
         lang === 'el'
-          ? 'Χωρίς σύνδεση — το μήνυμα θα σταλεί αυτόματα όταν επιστρέψει το internet'
-          : 'Offline — your message will send automatically when you reconnect',
+          ? 'Χωρίς σύνδεση, το μήνυμα θα σταλεί αυτόματα όταν επιστρέψει το internet'
+          : 'Offline, your message will send automatically when you reconnect',
       );
       return;
     }
 
-    // History query — intercept before sending to AI, handle locally with DB query
+    // History query, intercept before sending to AI, handle locally with DB query
     if (messageText && !isGuestMode && appUserId && isHistoryQuery(messageText) && attachments.length === 0) {
       await handleHistoryQuery(messageText);
       return;
     }
 
-    // Guest mode: gate 2nd message with login modal — save pending input so it survives login
+    // Guest mode: gate 2nd message with login modal, save pending input so it survives login
     if (isGuestMode) {
       if (messageText) sessionStorage.setItem('oli_pending_input', messageText);
       setShowLoginModal(true);
@@ -1333,7 +1336,14 @@ export default function Chat() {
     }
 
     if (!appUserId) {
-      showToast(t.profileSyncing);
+      // Profile is still loading, queue the message and let the effect
+      // below drain it as soon as appUserId becomes available. The user's
+      // text is already in the input so no work is lost.
+      if (messageText) {
+        pendingMessageRef.current = messageText;
+        // Keep input populated so user sees their text wasn't dropped
+        setInput(messageText);
+      }
       return;
     }
 
@@ -1441,7 +1451,7 @@ export default function Chat() {
     if (hasPhotos) trackEvent(Events.FIRST_PHOTO);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
-    // No extraction pipeline — the main Gemini call already returns crop_mentioned
+    // No extraction pipeline, the main Gemini call already returns crop_mentioned
     // in its response metadata. This saves a second API call per message.
     const currentActiveFieldId = activeFieldId;
 
@@ -1458,7 +1468,21 @@ export default function Chat() {
   // Keep ref current so the online-drain callback can call handleSend
   handleSendRef.current = handleSend;
 
-  // Disambiguation removed — field context detected silently from AI response metadata.
+  // Drain a pending first message as soon as appUserId becomes available.
+  // Fires when the user typed and hit send before the profile lookup completed.
+  useEffect(() => {
+    if (!appUserId) return;
+    const pending = pendingMessageRef.current;
+    if (!pending) return;
+    pendingMessageRef.current = null;
+    // Defer to next tick so the latest closure of handleSend (with appUserId set)
+    // is the one that runs.
+    const t = setTimeout(() => { void handleSend(pending); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUserId]);
+
+  // Disambiguation removed, field context detected silently from AI response metadata.
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1482,7 +1506,7 @@ export default function Chat() {
     setInput('');
     setIsTyping(false);
     setActiveConversationId(undefined);
-    setActiveFieldId(undefined); // Reset field context — each chat starts fresh
+    setActiveFieldId(undefined); // Reset field context, each chat starts fresh
     setActiveGrowerId(undefined); // Reset grower context too (advisors)
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
@@ -1672,11 +1696,11 @@ export default function Chat() {
       {/* ── MAIN AREA ── */}
       <main className="flex flex-1 flex-col min-w-0">
 
-        {/* Desktop guest header — sign-in bar, only shown in guest mode on md+ */}
+        {/* Desktop guest header, sign-in bar, only shown in guest mode on md+ */}
         {isGuestMode && (
           <header className="hidden md:flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-6">
             <div className="flex items-center gap-2">
-              <Leaf className="h-[18px] w-[18px] text-primary" />
+              <OliLogo size={18} bg="#161C23" />
               <span className="text-[16px] font-medium text-primary">Oli</span>
             </div>
             <button
@@ -1697,7 +1721,7 @@ export default function Chat() {
                 <Menu className="h-5 w-5" />
               </button>
             )}
-            <Leaf className="h-[18px] w-[18px] text-primary" />
+            <OliLogo size={18} bg="#161C23" />
             <span className="text-[16px] font-medium text-primary">Oli</span>
           </div>
           {isGuestMode ? (
@@ -1725,12 +1749,12 @@ export default function Chat() {
           )}
         </header>
 
-        {/* Desktop: no top header — sidebar owns all navigation */}
+        {/* Desktop: no top header, sidebar owns all navigation */}
 
         {/* ── DESKTOP ACTIVE FIELD INDICATOR ── */}
         {!isGuestMode && activeField && messages.length > 0 && (
           <div className="hidden md:flex h-9 flex-shrink-0 items-center gap-2 border-b border-border/40 bg-surface/60 px-6 backdrop-blur-sm">
-            <Leaf className="h-3.5 w-3.5 text-primary/60" />
+            <OliLogo size={14} bg="#161C23" />
             <span className="text-xs text-muted">{lang === 'el' ? 'Ενεργό χωράφι:' : 'Active field:'}</span>
             <span className="text-xs font-semibold text-foreground">{activeField.name}</span>
             {activeField.crop_type && (
@@ -1751,7 +1775,7 @@ export default function Chat() {
         {!isOnline && (
           <div className="flex items-center justify-center gap-2 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
             <span>●</span>
-            <span>{lang === 'el' ? 'Δεν υπάρχει σύνδεση — τα μηνύματα δεν αποστέλλονται' : 'No internet connection — messages cannot be sent'}</span>
+            <span>{lang === 'el' ? 'Δεν υπάρχει σύνδεση, τα μηνύματα δεν αποστέλλονται' : 'No internet connection, messages cannot be sent'}</span>
           </div>
         )}
 
@@ -1810,7 +1834,7 @@ export default function Chat() {
           <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
             <div className="w-full max-w-2xl">
               <div className="mb-3 flex items-center justify-center gap-3">
-                <Leaf className="h-10 w-10 text-primary" />
+                <OliLogo size={40} bg="#0D1117" />
                 <h1 className="text-4xl font-semibold text-primary">Oli</h1>
               </div>
               <p className="mb-1 text-center text-xl font-medium text-foreground">{t.welcomeTitle}</p>
@@ -1839,6 +1863,7 @@ export default function Chat() {
               <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
                 <ChatInputBar {...desktopInputBarProps} />
               </div>
+              <p className="mt-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
             </div>
           </div>
         )}
@@ -1847,8 +1872,8 @@ export default function Chat() {
         {messages.length === 0 && (
           <div className="md:hidden flex flex-1 flex-col">
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
-              <Leaf className="mb-3 h-10 w-10 text-primary" />
-              <h1 className="mb-1 text-2xl font-semibold text-primary">Oli</h1>
+              <OliLogo size={40} bg="#0D1117" />
+              <h1 className="mb-1 mt-3 text-2xl font-semibold text-primary">Oli</h1>
               <p className="text-sm text-muted mb-5">{dynamicGreeting || t.chatSubtitle}</p>
 
               {/* Quick feature hints */}
@@ -1875,6 +1900,7 @@ export default function Chat() {
               </div>
             </div>
             <ChatInputBar {...inputBarProps} />
+            <p className="px-4 pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
           </div>
         )}
 
@@ -1948,14 +1974,13 @@ export default function Chat() {
                     onDismiss={() => setPendingAutoLog(null)}
                   />
                 )}
-                <PushPrompt userId={appUserId ?? null} messageCount={messages.length} />
-                {/* Guest conversion nudge — appears after first AI reply */}
+                {/* Guest conversion nudge, appears after first AI reply */}
                 {isGuestMode && messages.length >= 2 && !isTyping && (
                   <div className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/8 px-4 py-3 animate-fade-in">
                     <p className="text-xs text-foreground/80 leading-snug">
                       {lang === 'el'
-                        ? '🌿 Συνέχισε δωρεάν — 20 ερωτήσεις τον μήνα'
-                        : '🌿 Continue free — 20 questions/month'}
+                        ? '🌿 Συνέχισε δωρεάν, 20 ερωτήσεις τον μήνα'
+                        : '🌿 Continue free, 20 questions/month'}
                     </p>
                     <a
                       href="/auth"
@@ -1981,6 +2006,7 @@ export default function Chat() {
                   </div>
                 )}
                 <ChatInputBar {...inputBarProps} />
+                <p className="px-4 pb-1 pt-1 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
               </div>
             </div>
           </div>

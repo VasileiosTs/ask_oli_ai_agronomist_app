@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ChevronRight, Plus, X, Loader2, Search, AlertCircle, UserCog } from 'lucide-react';
+import { Users, ChevronRight, ChevronLeft, Plus, X, Loader2, Search, AlertCircle, UserCog } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -11,6 +11,8 @@ interface Grower {
   id: string;
   name: string;
   phone: string | null;
+  email: string | null;
+  vat_number: string | null;
   location: string | null;
   notes: string | null;
   created_at: string;
@@ -29,7 +31,7 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState<{ name: string; phone: string; location: string; notes: string; location_lat: number | null; location_lon: number | null }>({ name: '', phone: '', location: '', notes: '', location_lat: null, location_lon: null });
+  const [form, setForm] = useState<{ name: string; phone: string; email: string; vat_number: string; location: string; notes: string; location_lat: number | null; location_lon: number | null }>({ name: '', phone: '', email: '', vat_number: '', location: '', notes: '', location_lat: null, location_lon: null });
   const [saving, setSaving] = useState(false);
 
   const tier = typeof profile?.tier === 'string' ? profile.tier : null;
@@ -47,7 +49,7 @@ export default function ClientDashboard() {
     try {
       const { data, error } = await supabase
         .from('growers')
-        .select('id, name, phone, location, notes, created_at')
+        .select('id, name, phone, email, vat_number, location, notes, created_at')
         .eq('advisor_id', appUserId!)
         .order('created_at', { ascending: false });
 
@@ -92,15 +94,17 @@ export default function ClientDashboard() {
           advisor_id: appUserId,
           name: form.name.trim(),
           phone: form.phone.trim() || null,
+          email: form.email.trim() || null,
+          vat_number: form.vat_number.trim() || null,
           location: form.location.trim() || null,
           notes: form.notes.trim() || null,
         })
-        .select('id, name, phone, location, notes, created_at')
+        .select('id, name, phone, email, vat_number, location, notes, created_at')
         .single();
 
       if (error) throw error;
       setGrowers(prev => [{ ...data, diagnosis_count: 0, field_count: 0, last_diagnosis_at: null }, ...prev]);
-      setForm({ name: '', phone: '', location: '', notes: '', location_lat: null, location_lon: null });
+      setForm({ name: '', phone: '', email: '', vat_number: '', location: '', notes: '', location_lat: null, location_lon: null });
       setAddOpen(false);
     } finally {
       setSaving(false);
@@ -135,6 +139,13 @@ export default function ClientDashboard() {
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border/50 bg-surface px-4 py-4">
+        <button
+          onClick={() => navigate('/chat')}
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors mb-3"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {lang === 'el' ? 'Πίσω' : 'Back'}
+        </button>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -236,13 +247,15 @@ export default function ClientDashboard() {
             </div>
             <div className="space-y-3">
               {([
-                { key: 'name', label: lang === 'el' ? 'Όνομα*' : 'Name*' },
-                { key: 'phone', label: lang === 'el' ? 'Τηλέφωνο' : 'Phone' },
-              ] as const).map(({ key, label }) => (
+                { key: 'name', label: lang === 'el' ? 'Όνομα*' : 'Name*', type: 'text' },
+                { key: 'phone', label: lang === 'el' ? 'Τηλέφωνο' : 'Phone', type: 'tel' },
+                { key: 'email', label: 'Email', type: 'email' },
+                { key: 'vat_number', label: lang === 'el' ? 'ΑΦΜ' : 'VAT Number', type: 'text' },
+              ] as const).map(({ key, label, type }) => (
                 <div key={key}>
                   <label className="mb-1 block text-xs font-medium text-muted">{label}</label>
                   <input
-                    type="text"
+                    type={type}
                     value={form[key]}
                     onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
                     className="w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none"

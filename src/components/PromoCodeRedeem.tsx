@@ -134,15 +134,15 @@ export default function PromoCodeRedeem({ onSuccess }: Props) {
           autoCapitalize="characters"
           autoCorrect="off"
           spellCheck={false}
-          className="flex-1 rounded-xl border border-border/60 bg-background px-3 py-2 text-sm font-mono tracking-wider text-foreground outline-none focus:border-primary"
+          className="min-w-0 flex-1 rounded-xl border border-border/60 bg-background px-3 py-2 text-sm font-mono tracking-wider text-foreground outline-none focus:border-primary"
           disabled={loading}
         />
         <button
           onClick={submit}
           disabled={loading || code.trim().length < 3}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="flex-shrink-0 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (lang === 'el' ? 'Εξαργύρωση' : 'Redeem')}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (lang === 'el' ? 'Εξαργ.' : 'Redeem')}
         </button>
       </div>
       {error && (

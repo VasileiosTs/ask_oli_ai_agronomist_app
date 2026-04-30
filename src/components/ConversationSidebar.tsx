@@ -8,7 +8,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { isAdvisorTier } from '../../shared/subscription';
 import clsx from 'clsx';
-import LanguageToggle from './LanguageToggle';
 
 interface Conversation {
   id: string;
@@ -194,11 +193,30 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
       <div className="flex-1 overflow-y-auto mt-2">
 
         {/* ── Fields / Clients section ── */}
-        {listItems.length > 0 && (
+        {(listItems.length > 0 || advisor) && (
           <div className="mb-1">
             <SectionHeader label={fieldsSectionLabel} count={listItems.length} open={fieldsOpen} toggle={() => setFieldsOpen(v => !v)} />
             {fieldsOpen && (
               <div className="pb-1">
+                {/* Add new client/field button — always visible at top */}
+                <button
+                  onClick={() => { navigate(listAllPath); if (!desktop) onClose(); }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-primary/10"
+                >
+                  <Plus className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium text-primary">
+                    {advisor
+                      ? (lang === 'el' ? 'Νέος πελάτης' : 'New client')
+                      : (lang === 'el' ? 'Νέο χωράφι' : 'New field')}
+                  </span>
+                </button>
+                {listItems.length === 0 && (
+                  <p className="px-4 py-2 text-xs text-muted">
+                    {advisor
+                      ? (lang === 'el' ? 'Δεν έχεις πελάτες ακόμα' : 'No clients yet')
+                      : (lang === 'el' ? 'Δεν έχεις χωράφια ακόμα' : 'No fields yet')}
+                  </p>
+                )}
                 {listItems.slice(0, 5).map(item => (
                   <button key={item.id}
                     onClick={() => { navigate(listPath(item.id)); if (!desktop) onClose(); }}
@@ -323,11 +341,6 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
 
       {/* User footer */}
       <div className="border-t border-border/50 p-3">
-        {!desktop && (
-          <div className="mb-3">
-            <LanguageToggle className="w-full justify-center bg-background/70" compact />
-          </div>
-        )}
         <button
           onClick={() => { if (!desktop) onClose(); navigate('/profile'); }}
           className="flex w-full items-center gap-3 rounded-xl p-1.5 transition-colors hover:bg-background/60"

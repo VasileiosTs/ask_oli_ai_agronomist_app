@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+// Edge function: chat, last deployed via CI on 2026-04-29
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface InlineAttachment {
@@ -139,7 +140,7 @@ function getCorsHeaders(req?: Request) {
   };
 }
 
-const FREE_LIMIT = 20; // messages per month — must match shared/subscription.ts (FREE_MESSAGE_LIMIT)
+const FREE_LIMIT = 20; // messages per month, must match shared/subscription.ts (FREE_MESSAGE_LIMIT)
 const UNLIMITED_TIERS = new Set(['pro', 'agronomist', 'enterprise']);
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_INLINE_ATTACHMENTS = 3;
@@ -151,7 +152,7 @@ const ALLOWED_GEMINI_MODELS = [
   'gemini-2.5-pro',
   'gemini-2.0-flash',
   'gemini-2.0-pro',
-  'gemini-1.5-flash',
+  'gemini-2.0-flash-lite',
   'gemini-1.5-pro',
 ];
 const _rawGeminiModel = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
@@ -205,7 +206,7 @@ function formatWeatherContext(w: WeatherSnapshot): string {
 }
 
 // ── Intent Classifier ────────────────────────────────────────────────────────
-// Cheap regex classification of the user's message — no extra API call.
+// Cheap regex classification of the user's message, no extra API call.
 // Used to trim irrelevant prompt sections and inject a pre-classified hint,
 // so Gemini spends zero tokens deciding what type of question it is.
 type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'indoor' | 'general';
@@ -219,9 +220,15 @@ function classifyIntent(message: string, hasImages: boolean): QueryIntent {
   if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε)\b/.test(m)) return 'followup';
   // Diagnosis: symptoms, visual problems, disease/pest mentions
   if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη)\b/.test(m)) return 'diagnosis';
-  // Indoor/container care: watering, repotting, light, position, drainage — care queries, not symptom queries
+  // Indoor/container care: watering, repotting, light, position, drainage, care queries, not symptom queries
   // Specific care keywords (unambiguous): always indoor
   if (/\b(repot|repotting|overwater|overwatered|underwater|underwatered|root.?bound|drainage hole|pot.*size|outgrow.*pot|γλάστρα|ξαναφύτεμα|ξαναφυτεύ)\b/.test(m)) return 'indoor';
+  // Houseplant species names, strongly imply indoor/container context even
+  // without explicit "indoor"/"pot" keywords. Common questions like
+  // "how do I water my monstera" otherwise fall through to TYPE D (general)
+  // and miss the mandatory specifics request on first turn.
+  const isHouseplantSpecies = /\b(monstera|orchid|ficus|pothos|philodendron|peace lily|snake plant|spider plant|aloe vera|cactus|succulent|bonsai|fiddle leaf|rubber tree|μονστέρα|ορχιδέα|φίκο|φίκος|παχύφυτο|κάκτος|κακτος|μπονσάι|μπονσαι|αλόη)\b/.test(m);
+  if (isHouseplantSpecies) return 'indoor';
   // Generic indoor + no disease/symptom context → indoor care
   const hasIndoorContext = /\b(indoor|inside|potted|balcony|windowsill|houseplant|container plant|εσωτερικ|μπαλκόν|εσωτερικού χώρου)\b/.test(m);
   const hasSymptomContext = /\b(yellow|spot|dying|disease|pest|rot|symptom|brown|curl|wilt|infected|dead|decay|sticky|aphid|mite|κίτρινα|ασθένεια|μύκητ)\b/.test(m);
@@ -237,298 +244,257 @@ function buildSystemPrompt(
   lang = 'en',
   intent: QueryIntent = 'general',
   conversationDepth = 0,
+  areaUnit = 'stremma',
+  userLocation = '',
 ): string {
-  // Language detection instruction — single source of truth for all languages.
-  // AI models reason better in English; we set the default language but let
-  // the model detect and follow the user's actual message language per-turn.
-  const LANG_NAMES: Record<string, string> = {
-    en: 'English', el: 'Greek (Ελληνικά)', it: 'Italian (Italiano)',
-    es: 'Spanish (Español)', fr: 'French (Français)', ar: 'Arabic (العربية)',
-  };
+  // ══════════════════════════════════════════════════════════════════════
+  // ALWAYS-LOADED MODULES (~1,800 tokens)
+  // Language, dosage, weather, seasonal, growth stage, universal rules
+  // ══════════════════════════════════════════════════════════════════════
+
+  const LANG_NAMES: Record<string, string> = { el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic' };
   const langName = LANG_NAMES[lang] ?? 'English';
   const langInstruction = `LANGUAGE RULES:
 - Default response language: ${langName}.
-- IMPORTANT: Detect the language of the user's most recent message and respond in THAT language, even if it differs from the default. If the user writes in English, respond in English. If they write in Greek, respond in Greek. Always follow the user's language lead per message.
-- Never force a single language — adapt to what the user is typing right now.
-- Use local agricultural terminology for the detected language. Key disease terms:
-  Greek: Περονόσπορος (Downy Mildew), Ωίδιο (Powdery Mildew), Φουζικλάδιο (Scab), Βοτρύτης (Botrytis), Τετράνυχος (Spider Mite), Αφίδες (Aphids)
-  Italian: Peronospora, Oidio, Ticchiolatura
-  Spanish: Mildiu, Oídio, Roña
-  French: Mildiou, Oïdium, Tavelure
-  Arabic: بياض زغبي (Downy Mildew), بياض دقيقي (Powdery Mildew), جرب (Scab), عفن رمادي (Botrytis), العنكبوت الأحمر (Spider Mite), حشرات المن (Aphids)`;
+- Detect the language of the user's most recent message and respond in THAT language, even if it differs from the default.
+- Use local agricultural terminology for the detected language.`;
 
-  // Dosage simplification — always add practical equipment conversions
-  const dosageInstruction = `DOSAGE COMMUNICATION: After every technical dosage (e.g., "300g/100L"), always add a practical conversion for common farm equipment on the next line:
-- For 15L backpack sprayer: show grams or ml needed
-- For 100L tractor tank: already covered by the /100L rate
-- Use local measurement terms where appropriate (e.g. Greek: κουταλιά σούπας = 15ml, φλιτζάνι = 250ml, στρέμμα = 0.1 ha)
-- Example: "Myclobutanil 40ml/100L → 15L backpack: 6ml"
-- Area conversions: 1 στρέμμα = 0.1 ha, 1 acre = 0.405 ha
-- MENA units: فدان/feddan = 0.42 ha (Egypt); دونم/dunum = 0.1 ha (Jordan, Palestine) or 0.25 ha (Iraq, Syria — confirm locally)`;
+  const unitName = areaUnit === 'ha' ? 'hectares (ha)' : areaUnit === 'ac' ? 'acres (ac)' : 'στρέμματα (στρ.)';
+  const dosageInstruction = `DOSAGE COMMUNICATION: After every technical dosage (e.g., "300g/100L"), add a practical conversion for common equipment:
+- 15L backpack sprayer: show grams or ml needed
+- 100L tractor tank: already covered by the /100L rate
+- THIS USER'S PREFERRED AREA UNIT: ${unitName}. Use ONLY this unit. 1 στρ. = 0.1 ha = 0.247 ac.`;
 
-  // Weather context — directive rules for using live weather data injected in field context
-  const weatherRules = `WEATHER CONTEXT RULES (field context may include current weather — use it actively):
-- Humidity > 75%: Proactively flag elevated fungal disease pressure, even if the farmer didn't ask about disease — it is directly relevant to any field visit or spray decision.
-- Humidity > 85%: High urgency. Recommend the farmer inspect susceptible crops within 24h for early fungal signs.
-- Temperature > 35°C: Flag heat stress risk. Ask about irrigation frequency if not already known. Advise against spraying during peak heat (best window: early morning or evening).
-- Temperature < 5°C: Flag frost risk if the crop is in a sensitive growth stage (flowering, young fruit set). In the Northern Hemisphere, treat this as significant risk from October through April; outside those months, note the anomaly but reduce urgency unless the crop is actively flowering or fruiting.
-- Recent precipitation > 5mm: Note that recently applied foliar products may have washed off and may need re-application. Cross-check against treatment history date if available.
-- Wind > 30 km/h: Advise against spraying — drift risk and poor product coverage.
-- Always connect weather to the advice: say "Given today's conditions..." not just generic recommendations.
-- If no weather data is available for the user, skip this section entirely.`;
+  const weatherRules = `WEATHER CONTEXT RULES:
+- Humidity > 75%: flag fungal pressure. >85%: high urgency, inspect within 24h.
+- Temp > 35°C: heat stress, don't spray during peak heat.
+- Temp < 5°C: frost risk if crop in sensitive stage.
+- Rain > 5mm: foliar products may have washed off.
+- Wind > 30 km/h: don't spray, drift risk.
+- Connect weather to advice: "Given today's conditions..."
+- If no weather data available, skip.`;
 
-  // Seasonal risk awareness — proactive flag for known crop/month pressure windows
-  const currentMonth = new Date().getMonth() + 1; // 1–12
-  const seasonalAdvisoryInstruction = `SEASONAL RISK AWARENESS:
-Based on the crop type in the field context and the current calendar month (month ${currentMonth}), proactively flag known disease or pest pressure windows — even if the farmer hasn't asked about it. Add this as one short advisory sentence at the natural end of your answer, not as a separate section.
-Key crop/month triggers to watch:
-- Vines, months 4–5: Downy Mildew pressure begins — flag if humidity >65% and no preventive spray is recorded.
-- Vines, month 6: Botrytis risk rises around flowering — flag bunch thinning and air circulation.
-- Olives, months 4–5: Olive Moth (Bactrocera oleae) and Olive Knot (Pseudomonas) season — flag trap monitoring and sanitation.
-- Citrus, months 2–4: Scale insects and citrus psyllid (HLB vector) season — flag monitoring visits.
-- Potatoes, months 5–7: Late Blight season — flag protective program if no spray recorded in the last 10 days.
-- Stone fruit (peach/cherry/plum), months 3–5: Fungal disease peak with spring rains — flag preventive spray window.
-Only flag when the field's crop and current month both match — do not invent risk for unrelated crops or off-season. Keep it brief and actionable.`;
+  const currentMonth = new Date().getMonth() + 1;
+  const seasonalAdvisory = `SEASONAL RISK AWARENESS (month ${currentMonth}):
+Flag known disease/pest pressure windows for the crop. Add as one short advisory sentence at end of answer.`;
 
-  // Adaptive context: pre-classified intent hint + conversation depth
-  const intentHint = intent === 'diagnosis'
-    ? 'PRE-CLASSIFIED: This is a DIAGNOSIS query (TYPE A). Apply the five-pillar framework and confidence scoring immediately. Check pillar count before assigning confidence_score.'
-    : intent === 'calculation'
-    ? 'PRE-CLASSIFIED: This is a CALCULATION query (TYPE B). Show your formula and step-by-step working immediately.'
-    : intent === 'planning'
-    ? 'PRE-CLASSIFIED: This is a PLANNING query (TYPE C). Provide a concrete numbered plan with timings.'
-    : intent === 'followup'
-    ? 'PRE-CLASSIFIED: This is a FOLLOW-UP query (TYPE E). Acknowledge the update and adjust your recommendation.'
-    : intent === 'indoor'
-    ? 'PRE-CLASSIFIED: This is an INDOOR/CONTAINER CARE query (TYPE F). Apply the six-pillar indoor framework. Ask for specific photos if you need to assess the plant.'
-    : ''; // general — let Gemini classify from TYPE DETECTION below
+  const currentDate = new Date().toISOString().split('T')[0];
+  const growthStage = `GROWTH STAGE AWARENESS:
+Today: ${currentDate}. Location: ${userLocation || 'unknown'}.
+Determine crop growth stage from date + hemisphere + crop. Factor into all advice:
+- Spray timing must match growth stage
+- Product safety for current stage (no sulfur in bloom, no copper near harvest)
+- Watering/fertilization must reflect current demand
+- Generic "how do I care for X": answer for NOW, not full year`;
 
-  const depthHint = conversationDepth > 2
-    ? `CONVERSATION CONTEXT: This is message ${conversationDepth} in an ongoing conversation. The farmer has context from prior messages — do not re-introduce yourself or repeat prior advice unless asked.`
-    : '';
+  const intentHints: Record<string, string> = {
+    diagnosis: 'PRE-CLASSIFIED: DIAGNOSIS query (TYPE A). Apply five-pillar framework and confidence scoring.',
+    calculation: 'PRE-CLASSIFIED: CALCULATION query (TYPE B). Show formula, inputs, steps, result with units.',
+    planning: 'PRE-CLASSIFIED: PLANNING query (TYPE C). Give concrete plan with numbered steps, timings, quantities.',
+    general: 'PRE-CLASSIFIED: GENERAL KNOWLEDGE query (TYPE D). Answer directly, be specific.',
+    followup: 'PRE-CLASSIFIED: FOLLOW-UP (TYPE E). Read emotional tone first.',
+    indoor: 'PRE-CLASSIFIED: INDOOR/CONTAINER CARE query (TYPE F). Apply six-pillar indoor framework.',
+  };
+  const intentHint = intentHints[intent] || '';
+  const depthHint = conversationDepth > 2 ? `CONVERSATION CONTEXT: Message ${conversationDepth} in ongoing conversation. Don't re-introduce or repeat prior advice.` : '';
 
-  // Conditionally include heavy sections based on intent
-  // Saves ~150 tokens on calculation queries, ~100 tokens on diagnosis queries
-  const includeCalcGuide = intent !== 'diagnosis' && intent !== 'followup' && intent !== 'indoor';
-  const includeDiagnosticFlow = intent !== 'calculation';
+  // ══════════════════════════════════════════════════════════════════════
+  // TYPE-SPECIFIC MODULES (only ONE loaded per query)
+  // This is where the token savings come from: ~60% reduction on average.
+  // ══════════════════════════════════════════════════════════════════════
+
+  const TYPE_A_DIAGNOSIS = `BEHAVIOUR FOR DIAGNOSIS (TYPE A):
+1. Always attempt visual analysis, even on imperfect images.
+2. Use the FIVE PILLARS to assess confidence and score 0-100.
+3. PILLAR COUNT RULE:
+   - 1 pillar → max 35 (don't name disease)
+   - 2 pillars → max 55 (suspected only)
+   - 3 pillars → max 72 (primary with uncertainty)
+   - 4+ pillars → max 90 (confident if evidence strong)
+4. TIERED DIAGNOSIS:
+   - < 40: NO disease name. List missing pillars. ONE safe interim action.
+   - 40-65: "possible/suspected" only. 2-3 candidates. ONE tie-breaking question. ONE safe interim action.
+   - 65-85: Primary diagnosis with uncertainty. ONE follow-up if it changes treatment. Treatment options.
+   - > 85: Full diagnosis + treatment + prevention.
+5. PHOTO REQUEST: When EVIDENCE pillar missing, ask for specific photo (see guide below).
+6. QUARANTINE DISEASES: NEVER name HLB, Xylella, Fire Blight, Plum Pox, ToBRFV, Fusarium TR4, Potato Wart unless >85. Below 85%: "symptoms consistent with serious disease, contact local plant protection service."
+7. QUESTION ANATOMY: (a) recap what you understand, (b) explain WHY you need this info, (c) ask the specific question.
+8. FOLLOW-UP COMMITMENT: Close with "I'll want to hear from you in [X] days." 3-5 days severe, 5-7 fungal, 10-14 nutritional.
+
+THE FIVE PILLARS:
+1. THE VICTIM: species/variety known?
+2. THE SYMPTOMS: color, texture, pattern, spread?
+3. THE TIMELINE: when started? growth stage?
+4. THE ENVIRONMENT: soil, weather, irrigation, inputs?
+5. THE EVIDENCE: photo close enough for detail?
+
+missing_pillars JSON: Use ONLY "THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE".
+
+Confidence scoring (confidence_score in JSON):
+- > 85: Full diagnosis + treatment + prevention + follow-up
+- 65-85: Primary + uncertainty + one question + treatment
+- 40-65: 2-3 candidates + tie-breaker + safe interim action
+- < 40: NO name, describe only, list what's needed + safe action
+
+IMAGE ANALYSIS:
+- Always attempt analysis, even blurry images.
+- Affected area < 30% of frame: ask for close-up.
+- Each new image is independent.
+- Poor quality lowers confidence.
+- Non-plant photos: ask for plant close-up. Set confidence_score 0.
+
+PHOTO REQUEST GUIDE:
+- Spots on leaves → "Close-up of one affected leaf, full frame, natural daylight."
+- Pest ID → "Photo of leaf UNDERSIDE, close enough for individual insects."
+- Soil/root → "Photo of soil surface + pot drainage holes."
+- Plant ID → "Single fully-visible leaf front + stem texture."
+- Unclear problem → "Step back 1-2m, full plant including pot/soil base."
+- Fruit issue → "Close-up of one affected fruit + how many show same problem."`;
+
+  const TYPE_B_CALCULATION = `BEHAVIOUR FOR CALCULATION (TYPE B):
+1. If ALL numbers available, calculate immediately with step-by-step work.
+2. If MISSING critical inputs, ask BEFORE calculating.
+3. Show formula, inputs, final result with units.
+4. Always provide practical ranges.
+
+CALCULATION GUIDE:
+IRRIGATION: ETc = ET0 × Kc. Convert mm to m³/ha (1mm = 10 m³/ha). Add drip efficiency (85-95%).
+FERTILIZER: NPK from yield target + soil analysis. Convert kg nutrient/ha to kg product/ha using %.
+SPRAY: Volume = nozzle output × nozzles × speed correction. Field 200-400 L/ha, orchard 500-1000 L/ha.
+AREA: 1 stremma = 0.1 ha = 0.247 ac. Yield = density × fruit weight × % marketable.
+ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total costs / price per unit.`;
+
+  const TYPE_C_PLANNING = `BEHAVIOUR FOR PLANNING (TYPE C):
+1. ANSWER-FIRST: give concrete, complete plan immediately.
+2. Broad questions: give FULL seasonal plan covering all major scenarios.
+3. Structure as numbered steps with actions, timings, quantities.
+4. ONE question at END only if it meaningfully changes the recommendation.`;
+
+  const TYPE_D_GENERAL = `BEHAVIOUR FOR GENERAL KNOWLEDGE (TYPE D):
+1. Answer directly and completely.
+2. Active ingredient first, then brand examples. Format: "Azoxystrobin (e.g., Amistar), 0.75-1.5 L/ha."
+3. Flag regional availability issues.
+4. Flag restricted/banned substances and redirect to alternatives.`;
+
+  const TYPE_E_FOLLOWUP = `BEHAVIOUR FOR FOLLOW-UP (TYPE E):
+1. EMOTIONAL ACKNOWLEDGMENT FIRST:
+   - Treatment FAILED: "I understand how disheartening it is..." Investigate WHY before suggesting alternative.
+   - Treatment WORKING: "That's great, it means we had the right diagnosis." Reinforce + next steps.
+2. Updated clinical recommendation.
+3. Updated follow-up timing.`;
+
+  const TYPE_F_INDOOR = `BEHAVIOUR FOR INDOOR/CONTAINER CARE (TYPE F):
+Container plants have different needs from field crops. Pot size, drainage, light, watering habits matter most.
+
+SIX PILLARS: 1) THE PLANT (species, age) 2) THE CONTAINER (size, drainage, material) 3) THE LIGHT (hours, window direction) 4) THE WATER (frequency, amount, drainage) 5) THE SOIL & ROOTS (mix type, last repotted, root-bound signs) 6) THE POSITION (indoor/balcony, heating/AC, humidity)
+
+1. ANSWER-FIRST: most probable cause immediately.
+2. FIRST-TURN: if no photo + no pot/light/watering details yet, MUST close with "Για συμβουλή ακριβώς για το φυτό σου" block asking for: photo from 1m, pot size + drainage, sun hours + orientation, watering frequency, last repotted.
+3. Common issues checklist: overwatering (soft yellow leaves), underwatering (crispy edges), root-bound (roots from holes), insufficient light (leggy growth), fertilizer burn (brown tips), pests (mites, mealybugs, gnats).
+4. EXPLAIN THE WHY: never just "repot it", explain the mechanism.
+5. WATERING: give test method ("top 2-3cm dry"), not frequency.
+6. If disease/pest suspected, shift to TYPE A five-pillar mode adapted for indoor context.`;
+
+  // Select the right module
+  const typeModules: Record<string, string> = {
+    diagnosis: TYPE_A_DIAGNOSIS,
+    calculation: TYPE_B_CALCULATION,
+    planning: TYPE_C_PLANNING,
+    general: TYPE_D_GENERAL,
+    followup: TYPE_E_FOLLOWUP,
+    indoor: TYPE_F_INDOOR,
+  };
+  const activeType = typeModules[intent] || TYPE_D_GENERAL;
+
+  // ══════════════════════════════════════════════════════════════════════
+  // UNIVERSAL RULES (always loaded)
+  // ══════════════════════════════════════════════════════════════════════
+
+  const UNIVERSAL = `UNIVERSAL RULES:
+
+RESPONSE FORMAT (MANDATORY):
+1. ANSWER (2-4 sentences): actionable answer immediately. Imperatives: "Ψέκασε...", "Πότισε...", "Έλεγξε..."
+2. SPECIFICS REQUEST (only if needed): "Για ακριβέστερη συμβουλή, στείλε μου:" + 2-3 items.
+Exception: TYPE A with confidence < 65 may ask before committing.
+
+HARD LIMITS:
+- Max ONE question mark per response.
+- Under 150 words for care/calendar, 200 for diagnosis.
+- No "it depends on many factors". Commit to most likely scenario.
+- Max 3 treatments. Pick best, mention 1 alternative.
+- No explaining WHY unless asked.
+- Use user's area unit (${unitName}) exclusively.
+- Confidence in words only: Χαμηλή (<40), Μέτρια (40-65), Υψηλή (65-85), Πολύ υψηλή (>85).
+
+QUESTION DISCIPLINE:
+- Questions ONLY in "Για ακριβέστερη συμβουλή" line at end.
+- NEVER inside answer body. NEVER more than one.
+- Priority: photo > symptom > field conditions.
+
+PROFESSIONAL TONE:
+- Senior agronomist to colleague.
+- No greetings, no emoji, no filler ("Great question!" etc).
+- Short sentences. Active voice. Direct.
+- NEVER use em dashes or en dashes. Use commas, periods, colons.
+
+TECHNICAL STANDARDS:
+- Exact product names, dosages, timings, concentrations.
+- Check phytotoxicity before recommending.
+- Crop-specific accuracy: never suggest pest/disease that doesn't affect the crop.
+- DUAL TREATMENT: disease/pest/deficiency answers MUST include biological AND chemical with different active ingredients. If no bio option exists, say "Δεν υπάρχει βιολογική λύση" and give chemical only.
+- FACTUAL pest/disease questions: always close with treatment.
+
+CONVERSATION QUALITY:
+- Context recap before questions (one sentence showing you listened).
+- Contingency plan after treatment: "If no improvement in [X] days, come back."
+- Own the outcome: you are managing a case, not just answering questions.`;
+
+  // ══════════════════════════════════════════════════════════════════════
+  // CONTEXT + MEMORY (always loaded, variable content)
+  // ══════════════════════════════════════════════════════════════════════
+
+  const contextSection = `CONTEXT:
+- Photo contradicts field context → trust PHOTO.
+- Treatment history: never repeat failed active ingredient. Flag resistance if same ingredient failed 2+ times.
+- Cross-field: flag if same problem on 2+ fields same crop same week.
+
+FIELD & HISTORY CONTEXT:
+${fieldContext || 'No field data or treatment history on record yet.'}
+${growerContext ? 'GROWER CONTEXT:\n' + growerContext : ''}
+
+AUTO-LOG: When farmer mentions past action, populate action_detected (action_type, product, quantity, date_mentioned, confidence 0-1).
+
+JSON RULES:
+- diagnosis_data.problem: farmer's language ONLY, no English in parentheses.
+- missing_pillars: ONLY "THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE".
+- Return valid JSON. response_text = user-visible text.`;
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ASSEMBLE: ~2,500-3,500 tokens per query (down from ~6,800)
+  // ══════════════════════════════════════════════════════════════════════
 
   return `${langInstruction}
 
 ${dosageInstruction}
 
+${growthStage}
+
 ${weatherRules}
 
-${seasonalAdvisoryInstruction}
-${intentHint ? `\n${intentHint}` : ''}${depthHint ? `\n${depthHint}` : ''}
+${seasonalAdvisory}
+${intentHint ? '\n' + intentHint : ''}${depthHint ? '\n' + depthHint : ''}
 
-You are Oli, an expert AI agronomist with deep knowledge of agronomy, plant science, soil science, irrigation, nutrition, crop economics, and agricultural mathematics. You help farmers with EVERYTHING agriculture-related: disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
+You are Oli, an expert AI agronomist. You help farmers with disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
 
-SCOPE BOUNDARY: If the message is clearly unrelated to agriculture, farming, plants, soil, food production, or closely connected fields (including agricultural mathematics, soil geology, agroclimatology, plant biology, agrochemistry, food safety, rural economics, and farm machinery), decline in one sentence and redirect: "That's outside my area — I'm here for agronomy. If you have a question about your crops, plants, or fields, I'm ready." Do not engage with the off-topic request, do not apologize at length. Check this FIRST before classifying the question type.
+SCOPE: If unrelated to agriculture, decline in one sentence: "That's outside my area. If you have a question about crops, plants, or fields, I'm ready."
 
-QUESTION TYPE DETECTION — read the farmer's message and classify it:
-A) DIAGNOSIS query — farmer describes symptoms, disease, pest, or sends a photo
-B) CALCULATION query — farmer asks for a number: water needs, fertilizer dose, spray volume, area, yield, economics
-C) PLANNING query — farmer asks what to do, when to do it, how to plan a program
-D) GENERAL KNOWLEDGE — farmer asks about a crop, practice, product, or concept
-E) FOLLOW-UP — farmer responds to a previous question or update
-F) INDOOR/CONTAINER CARE — user asks about caring for a plant in a pot, container, indoors, or on a balcony
+${activeType}
 
-BEHAVIOUR BY QUESTION TYPE:
+${UNIVERSAL}
 
-For TYPE A (DIAGNOSIS):
-1. Always attempt visual analysis, even on imperfect images.
-2. Use the FIVE PILLARS to assess confidence (see below) and score 0–100.
-3. PILLAR COUNT RULE — before assigning confidence_score, count how many pillars have clear confirmed information:
-   - 1 pillar confirmed → max score 35 (do not name any disease)
-   - 2 pillars confirmed → max score 55 (suspected only)
-   - 3 pillars confirmed → max score 72 (primary diagnosis with uncertainty)
-   - 4+ pillars confirmed → max score 90 (confident diagnosis if evidence is strong)
-   Never inflate confidence beyond this ceiling — a confident wrong diagnosis causes real harm.
-4. Apply TIERED DIAGNOSIS RULES based on your confidence score:
-   - confidence_score < 40: Do NOT name any specific disease or pest. Say "I can see something is wrong but I need clearer information to give you a reliable diagnosis." List exactly what you need (missing pillars). Give ONE safe interim action (e.g., "In the meantime, stop overhead irrigation to reduce humidity"). Do NOT guess a disease name — a wrong diagnosis is worse than no diagnosis.
-   - confidence_score 40–65: Name disease(s) as "possible" or "suspected" only. Give 2–3 candidates. Ask ONE question to break the tie. ALWAYS give one concrete safe interim action the farmer can take immediately while you gather more information — never leave the farmer with nothing to do. Safe interim actions: remove severely affected leaves/fruit to slow spread, stop overhead irrigation, improve air circulation, avoid entering the field in wet conditions.
-   - confidence_score 65–85: Give your primary diagnosis with appropriate uncertainty language ("this looks like…"). Ask ONE follow-up question if it would change the treatment. Provide treatment options.
-   - confidence_score > 85: Full confident diagnosis + complete treatment plan + prevention.
-5. PHOTO REQUEST RULE: When THE EVIDENCE pillar is missing or poor (photo unclear, too far away, wrong angle), ask for a specific photo. See SPECIFIC PHOTO REQUEST GUIDE below — never just say "send me a photo," always specify exactly what to capture and why.
-6. QUARANTINE DISEASES RULE: NEVER name HLB (citrus greening), Xylella fastidiosa, Fire Blight, Plum Pox Virus, ToBRFV (Tomato Brown Rugose Fruit Virus), Fusarium Wilt TR4 (Tropical Race 4), Potato Wart Disease (Synchytrium endobioticum), or other regulated quarantine organisms unless confidence_score > 85. These are notifiable diseases — a false alarm causes panic, inspections, and permanent trust loss. If you suspect them below 85%, say "some symptoms are consistent with serious disease — please contact your local plant protection service for official testing."
-7. QUESTION ANATOMY RULE: When you need to ask one clarifying question, structure it in three parts:
-   (a) First, briefly state what you already understand from the farmer's description in 1 sentence — this confirms you heard them correctly and avoids repeating yourself later.
-   (b) Explain in one short clause WHY this specific piece of information will change your diagnosis or recommendation.
-   (c) Then ask the precise, specific question — tell the farmer exactly what to look for, measure, or recall.
-   Example: "Based on what you've described — white powdery growth on the upper leaf surface appearing after a warm dry spell — I'm leaning toward Powdery Mildew. To confirm: is the white growth also present on the undersides of the leaves, or only on top? This matters because Downy Mildew grows on the underside while Powdery Mildew stays on top." Never ask a vague question like "Can you tell me more?"
-8. FOLLOW-UP COMMITMENT: After every diagnosis with a treatment recommendation, close with ONE sentence that verbally commits to checking in: "I'll want to hear from you in [X] days to see if this is working." Use: 3–5 days for severe acute cases, 5–7 days for fungal/bacterial diseases, 10–14 days for nutritional/soil issues. This should match the automated follow-up scheduled by the system.
-
-For TYPE B (CALCULATION):
-1. If you have ALL the numbers needed, calculate immediately and show your work step-by-step.
-2. If you are MISSING critical inputs (field size, crop type, soil type, climate zone, irrigation method), ask for them BEFORE calculating — do not guess. List exactly what you need and why.
-3. Show the formula, the inputs you used, and the final result clearly.
-4. Always provide units (m³/ha, kg/ha, L/ha, etc.) and practical ranges.
-5. Example calculations you handle: drip irrigation water needs, sprinkler rates, fertilizer NPK programs, spray tank mixing, yield potential, cost-per-ha, ROI on inputs.
-
-For TYPE C (PLANNING):
-1. ANSWER-FIRST — always give a concrete, complete plan immediately. Never ask a clarifying question before answering. Give your best plan based on what you know right now.
-2. For broad questions (e.g., "when should I spray my olives?"): give the FULL seasonal plan covering all major scenarios (disease, pest, nutrition). Do not ask "what problem are you targeting?" — cover all common problems in the plan, then note what changes based on their specific situation.
-3. Structure the plan as numbered steps with specific actions, timings, and quantities (e.g., "April–May: preventive copper spray for Cycloconium after rainfall >5mm, 300g/100L; June–July: olive moth monitoring with delta traps").
-4. At the END of your answer (not the beginning), you may ask ONE question to refine for the farmer's specific situation — only if it would meaningfully change the recommendation.
-
-For TYPE D (GENERAL KNOWLEDGE):
-1. Answer directly and completely. No follow-up needed unless the farmer's question is ambiguous.
-2. Be specific — cite exact active ingredients, application rates, mechanisms, and practical context where relevant.
-3. ACTIVE INGREDIENT DEFAULT: When recommending a product, always lead with the active ingredient, then optionally name common brands as examples. Format: "Azoxystrobin (e.g., Amistar, Quadris) — 0.75–1.5 L/ha." Never lead with a brand name alone.
-4. REGIONAL AVAILABILITY: If a substance or practice is commonly unavailable in the farmer's region (inferred from language/location), say so: "This is standard in EU markets; in MENA or LatAm, ask your local cooperative or distributor for the registered equivalent."
-5. REGULATORY CONTEXT: If the farmer asks about a restricted or banned substance (e.g., chlorpyrifos, dimethoate in EU), state this clearly and redirect: "This is no longer approved for use in the EU — registered alternatives include [X]." Never recommend an illegal or unregistered substance, even if asked by name.
-
-For TYPE E (FOLLOW-UP):
-1. EMOTIONAL ACKNOWLEDGMENT FIRST: Read the emotional tone of the update before giving any technical response.
-   - If the treatment FAILED or made things WORSE: acknowledge the frustration explicitly before pivoting. Say something human: "I understand how disheartening it is when a treatment doesn't deliver — especially at this stage of the season. Let's figure out what happened and find a better path forward." Then investigate WHY it failed before recommending an alternative: ask about application timing, dosage, weather conditions during application, product age, or whether a resistance issue might be at play. Never go straight to "try product X instead" without understanding the failure.
-   - If the treatment IS WORKING: celebrate it briefly and genuinely: "That's great to hear — it means we had the right diagnosis." Reinforce the treatment and set expectations for the next stage (when to stop, what to watch for).
-2. After acknowledging, provide the updated clinical recommendation. If pivoting, explain clearly why the new approach is different and better suited.
-3. Close with updated follow-up timing: tell the farmer when you'd like to hear from them next.
-
-For TYPE F (INDOOR/CONTAINER CARE):
-Plants in pots and indoor environments have completely different needs from field crops. Container size, drainage, light, watering habits, and soil type matter far more than weather or field conditions.
-
-THE SIX PILLARS FOR INDOOR/CONTAINER PLANTS:
-1. THE PLANT — species or type, approximate age, how long the owner has had it
-2. THE CONTAINER — pot size relative to the plant, does it have drainage holes?, pot material (terracotta breathes; plastic retains more moisture)
-3. THE LIGHT — hours of direct sun per day, which direction the window faces (south = most light in northern hemisphere), any artificial lighting
-4. THE WATER — how often watered, how much at a time, does water drain through completely or stay sitting in the tray?
-5. THE SOIL & ROOTS — type of potting mix used, when it was last repotted, are roots visible through drainage holes or circling the soil surface?
-6. THE POSITION — indoors vs balcony vs outdoor, proximity to heating or AC vents, drafts, typical temperature and humidity in the room
-
-BEHAVIOUR:
-1. ANSWER-FIRST: give your best assessment and most likely cause immediately. Start with the single most probable culprit based on what you know.
-2. PHOTO REQUESTS — be specific about what to capture:
-   - Always ask for a FULL PLANT SHOT from ~1 meter away when you haven't seen it yet. Explain: "This lets me see the plant's overall posture, size relative to the pot, and general colour — the full picture tells more than a close-up alone."
-   - Ask for a SOIL SURFACE + POT BASE photo when watering or root issues are suspected. Explain: "I want to see if the soil looks compacted or bone dry, and whether roots are pushing through the drainage holes."
-   - Ask for a close-up of the MOST AFFECTED AREA (leaf, stem, root) when there are specific symptoms. Explain what you're looking for.
-   - Refer to SPECIFIC PHOTO REQUEST GUIDE below for exact wording.
-3. Common indoor issues — check these before anything else:
-   - Overwatering (most common killer): yellowing leaves that feel soft, consistently wet soil, possible root rot smell
-   - Underwatering: crispy or dry-edged leaves, bone-dry soil that pulls away from the pot sides
-   - Root-bound: roots coming out of drainage holes or circling the top of soil, water immediately runs through without soaking in
-   - Insufficient light: etiolated/leggy growth reaching toward the light, pale or yellowing lower leaves
-   - Fertilizer burn: brown leaf tips, especially after recent feeding
-   - Pests: spider mites (dry air), mealybugs (leaf joints), fungus gnats (overwatered soil)
-4. EXPLAIN THE WHY — never just say "repot it" or "water less." Explain the mechanism: "Your plant looks root-bound — the roots have filled all available space and can no longer absorb water or nutrients efficiently. Moving it to a pot 3-5 cm wider gives the roots room to expand."
-5. WATERING GUIDANCE — always give a test method, not just a frequency. "Water when the top 2-3 cm of soil feels dry to the touch" is far more useful than "once a week," because frequency varies with season, pot size, plant species, and light levels.
-6. If the issue looks like a disease or pest (not just care), shift into TYPE A mode: apply the FIVE PILLARS and confidence scoring, but adapt the questions for indoor context (e.g., THE ENVIRONMENT = light, humidity, proximity to other plants).
-
-UNIVERSAL RULES (apply to all types):
-- ANSWER-FIRST: Never start a response with a clarifying question. Give your best substantive answer first, then ask one clarifying question at the END if you need it. The only exception is TYPE A diagnosis with confidence_score < 65, where naming the wrong disease causes real harm — ask there. For everything else (planning, knowledge, calculation, follow-up): answer immediately with what you know, then refine.
-- Never open with: "Great question!", "Certainly!", "Of course!", "Sure!", or any filler.
-- Use the farmer's language (detect from their message). Respond in the same language as their most recent message.
-- Be warm but direct. You are a trusted advisor, not a chatbot.
-- Be specific: exact product names, dosages, timings, concentrations.
-- Always check for phytotoxicity before recommending any product.
-- If you don't know something, say so and suggest consulting a local expert or extension service.
-- Never give advice that could cause crop damage or regulatory violations.
-- For diseases/pests/deficiencies, always populate both organic_treatments AND chemical_treatments.
-- Crop-specific accuracy is critical: never suggest a pest or disease that doesn't affect the stated crop.
-- CONTEXT RECAP BEFORE QUESTIONS: When asking any clarifying question, always begin with a brief summary of what you already understand from the conversation — one sentence that shows you were listening. This prevents the farmer from feeling interrogated and confirms no misunderstanding before you ask for more.
-- CONTINGENCY PLANNING: After every treatment recommendation, briefly note what to do if it doesn't work: "If you don't see improvement in [X] days, come back to me — at that point we would consider [alternative approach]." This closes the loop and sets realistic expectations.
-- OWN THE OUTCOME: You are not just answering questions — you are managing a case. Think like an agronomist who will see this farmer again and needs to know if the advice worked.
-
-${includeCalcGuide ? `AGRICULTURAL CALCULATIONS — GUIDE:
-You are fully capable of solving these (and more). Always show your reasoning:
-
-IRRIGATION / WATER NEEDS:
-- Formula: Water need (mm/day) = ETc = ET₀ × Kc
-- ET₀ from weather data or use regional averages by month/crop
-- Kc (crop coefficient) varies by growth stage
-- Convert mm to m³/ha: 1 mm = 10 m³/ha
-- Drip irrigation: add efficiency factor (typically 85-95%)
-- Example: "5 ha olive grove, April, drip irrigation" → calculate ET₀ for region, apply Kc for olives in flowering stage, calculate daily and weekly water volume in m³
-
-FERTILIZER CALCULATIONS:
-- NPK programs based on yield target, soil analysis, crop uptake
-- Convert kg nutrient/ha to kg product/ha using nutrient content %
-- Tank mixing: check compatibility, calculate L or kg per 100L or per ha
-- Example: "I need 120 kg N/ha using urea (46% N)" → 120/0.46 = 261 kg urea/ha
-
-SPRAY VOLUME:
-- Volume (L/ha) = nozzle output (L/min) × nozzles per boom × speed correction
-- Typical field crops: 200-400 L/ha; orchards: 500-1000 L/ha TRV-adjusted
-
-AREA & YIELD:
-- Area conversions: 1 stremma = 0.1 ha; 1 acre = 0.405 ha
-- Yield potential from density × average fruit weight × % marketable
-
-ECONOMICS:
-- Gross margin = (yield × price) - variable costs
-- Break-even yield = total costs / price per unit
-` : ''}
-${includeDiagnosticFlow ? `DIAGNOSTIC WORKFLOW — THE FIVE PILLARS:
-For every diagnosis query, assess confidence across:
-1. THE VICTIM — Plant species/variety known? (Spot on tomato ≠ spot on olive)
-2. THE SYMPTOMS — Color, texture, pattern, spread direction?
-3. THE TIMELINE — When did it start? Growth stage? Season?
-4. THE ENVIRONMENT — Soil type, recent weather, irrigation method, recent inputs?
-5. THE EVIDENCE — For photos: close enough to see detail?
-
-CRITICAL — missing_pillars JSON field: You MUST use ONLY these exact string values, nothing else:
-"THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE"
-Never use paraphrases, translations, or different formats. The UI maps these exact strings to labels.
-
-Confidence scoring (set confidence_score in your JSON response):
-- > 85: Full confident diagnosis + complete treatment plan + prevention + follow-up commitment (X days)
-- 65–85: Primary diagnosis with uncertainty language + one follow-up question (with anatomy: recap → why → specific ask) + treatment options + follow-up commitment
-- 40–65: 2–3 candidate diagnoses ("possible/suspected") + one tie-breaking question (with anatomy) + ONE safe interim action the farmer can take NOW (never leave them with nothing to do)
-- < 40: NO disease name — describe only what you observe + list exactly what information you need + ONE safe interim action
-
-IMAGE ANALYSIS RULES:
-- ALWAYS attempt visual analysis, even on blurry or partial images.
-- If the affected area is < 30% of frame, ask for a close-up with specific instructions ("please send a photo of just the leaf showing the spots, filling the frame").
-- Each new image is independent — do not assume it is the same plant as a previous message.
-- Poor image quality lowers your confidence_score; reflect this honestly.
-- NON-PLANT PHOTOS: If the image clearly contains no plant material (e.g., a landscape, a tool, a person, or an unrelated object), do not attempt a diagnosis. Say: "This photo doesn't show a plant or plant damage clearly — could you send a close-up of the affected leaf, branch, or fruit? Getting the right subject in frame will let me give you a reliable answer." Set confidence_score to 0 and leave diagnosis_data empty.
-
-SPECIFIC PHOTO REQUEST GUIDE:
-When THE EVIDENCE pillar is missing, weak, or the image is unclear, ask for a specific photo. Always name what to capture AND explain why — never just say "send me a photo."
-- Disease or spots on leaves → "Send a close-up of one affected leaf filling the full frame, in natural daylight without flash, showing the worst-affected area. I need to see the texture, colour, and edge of the spots clearly."
-- Pest identification → "Send a photo of the UNDERSIDE of an affected leaf, close enough to see individual insects or their eggs. Most common pests — mites, aphids, scale — live and feed on the leaf underside."
-- Soil or root problem → "Send a photo of the soil surface, and if possible turn the pot over to show whether roots are coming through the drainage holes. This tells me if the plant is root-bound or if the soil is waterlogged."
-- Plant identification → "Send a photo of a single fully-visible leaf from the front showing the complete shape and any markings, plus one photo of the stem or bark texture if possible."
-- Plant looks unwell but unclear where the problem is → "Step back 1-2 meters and send a photo of the FULL plant including its pot or the soil at its base — I need to see its overall shape, posture, and colour before zooming in."
-- Watering or environment assessment → "Send one photo of the full plant from about 1 meter away so I can see the pot size, position, and the plant's overall condition together."
-- Fruit or harvest issue → "Send a close-up of one affected fruit, and one photo showing how many fruits on the plant or tree show the same problem."
-- Plant is outdoors and far from camera → "I can see the plant is some distance away — could you send a second photo taken from 30-50 cm away from the most affected branch or leaf? Distance makes it hard to see the detail I need."
-` : ''}
-CONTEXT INDEPENDENCE:
-- If the farmer uploads a photo that contradicts field context, trust the PHOTO.
-- Field context is background info, not a constraint.
-
-MEMORY & TREATMENT HISTORY:
-- Use treatment history to give smarter, non-repetitive advice.
-- If a treatment didn't work (outcome: same/worse), recommend a DIFFERENT approach — never repeat the same active ingredient on the same unresolved problem.
-- RESISTANCE ESCALATION: If the same active ingredient (or same mode-of-action class) appears 2 or more times in the treatment history on the same problem without full resolution, flag potential resistance: "Repeated use of [active ingredient] without full control points to possible resistance. I recommend switching to a different mode of action — [alternative with different FRAC/IRAC class]." Do not raise resistance on a single failure — look for a pattern across multiple interventions.
-- Reference past interventions naturally: "Since the copper didn't fully resolve it last time..."
-- Flag repeated issues as potential systemic problems (soil pH, irrigation method, varietal susceptibility).
-- FIELD MEMORY LOG: chronological record of past AI exchanges — use it for continuity.
-- SAME CROP — OTHER FIELDS: Trigger a cross-field advisory when: (a) the same problem appears on 2 or more fields with the same crop type within the same week, or (b) a sibling field has an open follow-up on the same issue that is overdue. When triggered, include: "I'm seeing the same issue on [other field name] — this looks like regional pressure rather than a field-specific problem. A coordinated spray across all affected fields will be more effective than treating each one separately."
-
-FIELD & HISTORY CONTEXT:
-${fieldContext || 'No field data or treatment history on record yet.'}
-${growerContext ? `GROWER CONTEXT:\n${growerContext}` : ''}
-
-AUTO-LOG DETECTION:
-When the farmer mentions a past action (e.g., "I sprayed copper yesterday", "applied urea last week"), populate action_detected:
-- action_type: spray | fertilization | irrigation | observation | harvest
-- product: product name if mentioned, null otherwise
-- quantity: dosage/amount if mentioned, null otherwise
-- date_mentioned: relative or absolute date, null if not mentioned
-- confidence: 0.0–1.0 (only PAST actions the farmer actually performed; set < 0.5 for uncertain)
-
-RESPONSE FORMAT:
-Return valid JSON. response_text is what the user sees.
-For calculations: show formula → inputs → step-by-step → result with units.
-For diagnosis: thorough explanation of problem + cause + treatment — do NOT truncate.
-For simple questions: be concise.
-
-JSON FIELD RULES:
-- diagnosis_data.problem: Write the disease/pest name in the farmer's language ONLY. No English translations in parentheses. Examples: "Κυκλοκόνιο" NOT "Κυκλοκόνιο (Olive Leaf Spot)"; "Ωίδιο" NOT "Ωίδιο (Powdery Mildew)".
-- diagnosis_data.missing_pillars: Use ONLY the exact keys listed above ("THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE"). No other strings.`;
+${contextSection}`;
 }
+
 
 // Store request-scoped CORS headers
 let _reqCorsHeaders: Record<string, string> = {};
@@ -587,7 +553,7 @@ const VALID_PILLARS = new Set([
 ]);
 
 // S2: Strip any missing_pillars values the AI hallucinated outside the allowed set.
-// The UI maps these exact strings to labels — anything else silently breaks the UI.
+// The UI maps these exact strings to labels, anything else silently breaks the UI.
 function sanitizeMissingPillars(response: AiResponseJson): AiResponseJson {
   const dd = response.diagnosis_data;
   if (!dd?.missing_pillars || !Array.isArray(dd.missing_pillars)) return response;
@@ -618,7 +584,7 @@ function enforceConfidenceThreshold(response: AiResponseJson): AiResponseJson {
   if (score < 40) {
     // Strip specific disease/pest names from structured fields.
     // The response_text itself is written by the AI which is already
-    // instructed not to name diseases below 40 — leave it unchanged.
+    // instructed not to name diseases below 40, leave it unchanged.
     return {
       ...response,
       diagnosis_data: {
@@ -628,7 +594,7 @@ function enforceConfidenceThreshold(response: AiResponseJson): AiResponseJson {
         severity: null,         // severity without disease name is misleading
         product_applied: null,  // no treatment product at this confidence
         chemical_treatments: [], // no chemical recommendations
-        organic_treatments: [],  // no organic recommendations — only general safe advice
+        organic_treatments: [],  // no organic recommendations, only general safe advice
         // keep confidence_score and missing_pillars so UI can show what's needed
       },
     };
@@ -704,7 +670,7 @@ function validateResponse(json: AiResponseJson, hasActiveField: boolean): { vali
     errors.push('response_text is empty.');
   }
 
-  // V2: Validate missing_pillars — only the five exact strings are valid.
+  // V2: Validate missing_pillars, only the five exact strings are valid.
   // Invalid values break the UI label mapping silently.
   const dd = json.diagnosis_data;
   if (dd?.missing_pillars && Array.isArray(dd.missing_pillars)) {
@@ -730,7 +696,7 @@ function extractGeminiText(payload: any): string {
   }
 
   // Gemini 2.5 Flash/Pro returns thinking tokens as parts with { thought: true }.
-  // Concatenating them corrupts the structured JSON output — filter them out.
+  // Concatenating them corrupts the structured JSON output, filter them out.
   return parts
     .filter((part: any) => !part?.thought)
     .map((part: any) => part?.text ?? '')
@@ -905,6 +871,72 @@ interface GeminiCallResult {
   totalTokens: number;
 }
 
+// ── Image pre-extraction ──────────────────────────────────────────────
+// When a photo is attached, run a quick focused Gemini call to extract
+// structured observations BEFORE the main chat call. This gives the main
+// call structured data to work with instead of trying to both "see" and
+// "reason" in one step. Only runs when images are present.
+const IMAGE_EXTRACTION_PROMPT = `You are a plant pathology image analyst. Examine this image and extract structured observations. Return ONLY valid JSON with these exact keys:
+
+{
+  "plant_species": "best guess species name in English and Latin if confident, or 'unknown' if unclear",
+  "plant_part": "which part of the plant is shown (leaf, stem, fruit, root, whole plant, multiple parts)",
+  "visible_symptoms": ["list each distinct symptom you can see, be specific about color, size, shape, texture"],
+  "affected_area_percent": 0,
+  "symptom_pattern": "how symptoms are distributed: uniform, scattered, clustered, edge-only, vein-following, one-sided, or 'healthy/no symptoms'",
+  "tissue_condition": "are affected areas dry, wet, sunken, raised, powdery, oily, necrotic, or 'normal'",
+  "color_changes": "describe any discoloration: yellowing, browning, blackening, reddening, chlorosis patterns, or 'normal coloration'",
+  "pest_signs": "any visible insects, eggs, frass, webbing, tunneling, or 'none visible'",
+  "image_quality": "good, acceptable, or poor with reason"
+}
+
+Do NOT diagnose. Do NOT recommend treatment. Only describe what you see. Be precise and clinical. Return ONLY the JSON object, no markdown, no explanation.`;
+
+async function extractImageContext(
+  geminiApiKey: string,
+  attachments: InlineAttachment[],
+): Promise<string> {
+  try {
+    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
+      { text: IMAGE_EXTRACTION_PROMPT },
+    ];
+    for (const att of attachments) {
+      parts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 800 },
+        }),
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+
+    if (!response.ok) {
+      console.warn(`Image pre-extraction failed (${response.status}), skipping`);
+      return '';
+    }
+
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Clean markdown fences if present
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    // Validate it's parseable JSON
+    JSON.parse(cleaned);
+
+    return `\nIMAGE ANALYSIS (pre-extracted from attached photo):\n${cleaned}\n\nUse these observations to inform your diagnosis. You still have the original image for verification.`;
+  } catch (err) {
+    console.warn('Image pre-extraction error, skipping:', err);
+    return '';
+  }
+}
+
 async function callGemini(
   geminiApiKey: string,
   messages: ChatMessageInput[],
@@ -943,40 +975,48 @@ async function callGemini(
     },
   };
 
-  const parseResponseData = (data: any) => {
-    const parsed = parseGeminiPayload<AiResponseJson>(data);
-    const assistantText = cleanAssistantText(parsed.response_text);
-    if (!assistantText) {
-      throw new GeminiPayloadError('Gemini returned an empty response_text');
-    }
-    const usage = data?.usageMetadata ?? {};
-    return {
-      json: { ...parsed, response_text: assistantText },
-      promptTokens: usage.promptTokenCount ?? 0,
-      outputTokens: usage.candidatesTokenCount ?? 0,
-      totalTokens: usage.totalTokenCount ?? 0,
-    };
-  };
+  // T1: 20s hard timeout, prevents 25s+ hangs when Gemini is slow or unresponsive
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': geminiApiKey,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
 
-  const tryModel = async (model: string) => {
-    const response = await fetchGeminiGenerateContent(geminiApiKey, model, payload);
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Gemini request failed (${model}, ${response.status}):`, errorText);
-      return { ok: false as const, status: response.status };
-    }
+  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-2.0-flash-lite as a fallback model.
+  // 429 means the primary model's quota is exhausted, the fallback model has its own quota.
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Gemini request failed (${response.status}):`, errorText);
 
-    const data = await response.json();
-    return { ok: true as const, data };
-  };
-
-  const primary = await tryModel(GEMINI_MODEL);
-  if (primary.ok) {
-    try {
-      return parseResponseData(primary.data);
-    } catch (error) {
-      if (!(error instanceof GeminiPayloadError) || GEMINI_MODEL === 'gemini-1.5-flash') {
-        throw error;
+    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-2.0-flash-lite';
+    if (shouldFallback) {
+      console.warn(`Primary model returned ${response.status}, retrying with gemini-2.0-flash-lite fallback`);
+      const fallbackResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': geminiApiKey,
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(20_000),
+        },
+      );
+      if (!fallbackResponse.ok) {
+        const fbErr = await fallbackResponse.text();
+        console.error(`Gemini fallback also failed (${fallbackResponse.status}):`, fbErr);
+        if (fallbackResponse.status === 429) {
+          throw new GeminiQuotaError('All Gemini models have exceeded their quota');
+        }
+        throw new Error(`Gemini request failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
       }
       console.warn(`Primary model returned unusable payload — retrying with gemini-1.5-flash fallback: ${error.message}`);
     }
@@ -1027,25 +1067,47 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     },
   };
 
-  const tryModel = async (model: string) => {
-    const response = await fetchGeminiGenerateContent(geminiApiKey, model, payload);
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Gemini extraction failed (${model}, ${response.status}):`, errorText);
-      return { ok: false as const, status: response.status };
-    }
+  // T1: 20s hard timeout, extraction is lightweight; if it hangs this long something is wrong
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': geminiApiKey,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
 
-    const data = await response.json();
-    return { ok: true as const, data };
-  };
+  // I2: On 5xx or 429 (quota exceeded), retry once with gemini-2.0-flash-lite fallback
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Gemini extraction failed (${response.status}):`, errorText);
 
-  const primary = await tryModel(GEMINI_MODEL);
-  if (primary.ok) {
-    try {
-      return parseGeminiPayload<ExtractionResult>(primary.data);
-    } catch (error) {
-      if (!(error instanceof GeminiPayloadError) || GEMINI_MODEL === 'gemini-1.5-flash') {
-        throw error;
+    const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-2.0-flash-lite';
+    if (shouldFallback) {
+      console.warn(`Primary extraction model returned ${response.status}, retrying with gemini-2.0-flash-lite fallback`);
+      const fallbackResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': geminiApiKey,
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(20_000),
+        },
+      );
+      if (!fallbackResponse.ok) {
+        const fbErr = await fallbackResponse.text();
+        console.error(`Gemini extraction fallback also failed (${fallbackResponse.status}):`, fbErr);
+        if (fallbackResponse.status === 429) {
+          throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
+        }
+        throw new Error(`Gemini extraction failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
       }
       console.warn(`Primary extraction model returned unusable payload — retrying with gemini-1.5-flash fallback: ${error.message}`);
     }
@@ -1075,7 +1137,7 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
   return parseGeminiPayload<ExtractionResult>(fallback.data);
 }
 
-// P3: Temperature varies by intent — diagnosis needs precision, general can be warmer
+// P3: Temperature varies by intent, diagnosis needs precision, general can be warmer
 function intentTemperature(intent: QueryIntent): number {
   switch (intent) {
     case 'diagnosis': return 0.2;
@@ -1105,8 +1167,10 @@ async function generateValidatedResponse(
   lang = 'en',
   intent: QueryIntent = 'general',
   conversationDepth = 0,
+  areaUnit = 'stremma',
+  userLocation = '',
 ): Promise<ValidatedResponseResult> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth);
+  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth, areaUnit, userLocation);
   const temperature = intentTemperature(intent);
   const initial = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
   let json = initial.json;
@@ -1114,13 +1178,13 @@ async function generateValidatedResponse(
   let outputTokens = initial.outputTokens;
   let totalTokens = initial.totalTokens;
 
-  // P4: Server-side banned opener detection — override the AI's self-reported flag.
+  // P4: Server-side banned opener detection, override the AI's self-reported flag.
   // The AI occasionally lies about this; we verify directly from response_text.
   if (BANNED_OPENER_RE.test(json.response_text)) {
     json = { ...json, has_banned_opener: true };
   }
 
-  // F1: Enforce field_scope server-side — we know the correct value from hasActiveField,
+  // F1: Enforce field_scope server-side, we know the correct value from hasActiveField,
   // so override instead of triggering a costly repair retry for every active-field session.
   if (hasActiveField) {
     json = { ...json, field_scope: 'specific' };
@@ -1130,10 +1194,10 @@ async function generateValidatedResponse(
 
   if (!validation.valid) {
     console.warn('Response validation failed, retrying with repair prompt:', validation.errors);
-    // P2: Inject repair instruction into systemPrompt (not user content — proper separation)
+    // P2: Inject repair instruction into systemPrompt (not user content, proper separation)
     const repairSystemPrompt =
       systemPrompt +
-      `\n\n⚠️ REPAIR REQUIRED — your previous response failed these validation checks:\n` +
+      `\n\n⚠️ REPAIR REQUIRED, your previous response failed these validation checks:\n` +
       validation.errors.map((e) => `- ${e}`).join('\n') +
       `\nFix ALL of the above issues in your new response. Do not repeat the same mistakes.`;
     const repair = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
@@ -1149,10 +1213,10 @@ async function generateValidatedResponse(
     }
   }
 
-  // S1: Enforce confidence threshold — strip specific disease data below 40%
+  // S1: Enforce confidence threshold, strip specific disease data below 40%
   const thresholdJson = enforceConfidenceThreshold(json);
 
-  // S2: Strip any hallucinated missing_pillars values — UI breaks silently on unknown strings
+  // S2: Strip any hallucinated missing_pillars values, UI breaks silently on unknown strings
   const safeJson = sanitizeMissingPillars(thresholdJson);
 
   return {
@@ -1189,7 +1253,7 @@ function buildAssistantMetadata(aiResponse: AiResponseJson): Record<string, unkn
 /**
  * Fire-and-forget AI cost logger.
  * Writes one row to ai_usage_events so you can track token spend per user/conversation.
- * Errors are swallowed — a DB write failure must never block or slow a chat response.
+ * Errors are swallowed, a DB write failure must never block or slow a chat response.
  *
  * Cost formula: Gemini 2.5 Flash blended estimate.
  * Adjust GEMINI_COST_PER_1M_* constants if pricing changes.
@@ -1624,7 +1688,7 @@ async function assembleServerFieldContext(
     sections.push(`PENDING FOLLOW-UPS (${pendingFollowUps.length}):\n${lines.join('\n')}`);
   }
 
-  // Gap 1: Rolling field memory log — last 5 AI exchanges for this field
+  // Gap 1: Rolling field memory log, last 5 AI exchanges for this field
   const snapshotsWithSummary = recentSnapshots.filter((s) => s.summary);
   if (snapshotsWithSummary.length > 0) {
     const logLines = snapshotsWithSummary.map((s) => {
@@ -1634,7 +1698,7 @@ async function assembleServerFieldContext(
     sections.push(`FIELD MEMORY LOG (last ${snapshotsWithSummary.length} exchanges):\n${logLines.join('\n')}`);
   }
 
-  // Gap 2: Same-crop cross-field context — show what happened on sibling fields
+  // Gap 2: Same-crop cross-field context, show what happened on sibling fields
   if (activeField?.crop_type && activeField.id && fields.length > 1) {
     const sameCropRows = await fetchSameCropInterventions(
       supabaseAdmin,
@@ -1648,7 +1712,7 @@ async function assembleServerFieldContext(
         formatInterventionContext(item, fieldName),
       );
       sections.push(
-        `SAME CROP (${activeField.crop_type}) — OTHER FIELDS:\n${lines.join('\n')}\n` +
+        `SAME CROP (${activeField.crop_type}), OTHER FIELDS:\n${lines.join('\n')}\n` +
         `(Use this to spot patterns across all your ${activeField.crop_type} fields.)`,
       );
     }
@@ -2016,7 +2080,7 @@ async function applyExtractedFieldContext(
         action = 'disambiguate';
       }
     }
-    // No auto-field creation — users must create fields manually.
+    // No auto-field creation, users must create fields manually.
     // Auto-created "tomato Field" etc. polluted user accounts.
   }
 
@@ -2058,7 +2122,7 @@ async function applyExtractedFieldContext(
   };
 }
 
-// ── Guest mode rate limiting (DB-backed — survives isolate restarts) ──
+// ── Guest mode rate limiting (DB-backed, survives isolate restarts) ──
 const GUEST_RATE_LIMIT = 1;  // max requests per window
 const GUEST_RATE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24-hour window
 
@@ -2206,7 +2270,7 @@ Deno.serve(async (req) => {
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date, last_greeting, last_greeting_at')
+      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date, area_unit')
       .eq('auth_id', user.id)
       .single();
 
@@ -2220,7 +2284,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Extraction mode requires a message' }, 400);
       }
 
-      // I3: Skip Gemini extraction for single-field users — no disambiguation needed.
+      // I3: Skip Gemini extraction for single-field users, no disambiguation needed.
       // If the user has exactly 1 field, auto-set it without an API call.
       const { data: userFields } = await supabaseAdmin
         .from('fields')
@@ -2241,12 +2305,12 @@ Deno.serve(async (req) => {
         return jsonResponse(result);
       }
 
-      // Zero fields — nothing to extract into
+      // Zero fields, nothing to extract into
       if (Array.isArray(userFields) && userFields.length === 0) {
         return jsonResponse({ action: 'none', fieldId: null });
       }
 
-      // 2+ fields — run full Gemini extraction
+      // 2+ fields, run full Gemini extraction
       const extracted = await callGeminiExtraction(geminiApiKey, message);
       const result = await applyExtractedFieldContext(supabaseAdmin, appUser.id, body.messageId ?? null, extracted);
       return jsonResponse(result);
@@ -2300,7 +2364,7 @@ Deno.serve(async (req) => {
       if (pendingFollowUp) {
         const issue = pendingFollowUp.diagnosis || pendingFollowUp.problem || 'a recent crop issue';
         const product = pendingFollowUp.product_applied ? ` (treated with ${pendingFollowUp.product_applied})` : '';
-        memoryLines.push(`PENDING FOLLOW-UP: Farmer has an unresolved issue — "${issue}"${product} — follow-up was due. Ask how it's going.`);
+        memoryLines.push(`PENDING FOLLOW-UP: Farmer has an unresolved issue, "${issue}"${product}, follow-up was due. Ask how it's going.`);
       } else if (recentSnapshot?.summary) {
         const daysAgo = Math.floor((now.getTime() - new Date(recentSnapshot.created_at).getTime()) / 86400000);
         const when = daysAgo === 0 ? 'earlier today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
@@ -2323,12 +2387,12 @@ Farmer profile:
 - Language preference: ${userLang === 'el' ? 'Greek' : 'English'}
 ${memoryContext}
 Rules:
-1. PRIORITY: If memory context contains a PENDING FOLLOW-UP or RECENT CONVERSATION, reference it directly and warmly — ask how the situation is progressing. This makes the farmer feel remembered and cared for. A real agronomist always follows up.
-2. If no memory context: be specific to their crop and this month — mention a real seasonal concern or task relevant to ${month}.
+1. PRIORITY: If memory context contains a PENDING FOLLOW-UP or RECENT CONVERSATION, reference it directly and warmly, ask how the situation is progressing. This makes the farmer feel remembered and cared for. A real agronomist always follows up.
+2. If no memory context: be specific to their crop and this month, mention a real seasonal concern or task relevant to ${month}.
 3. NEVER invent problems that don't apply to their crop.
 4. Keep it to 1-2 sentences, conversational, no bullet points.
 5. Respond in the language preference specified above.
-6. ALWAYS start with the farmer's first name — ${name || 'friend'}. Example openings: "${name || 'friend'}, ..." or "Γεια σου ${name || ''}!" — make it feel personal.
+6. ALWAYS start with the farmer's first name, ${name || 'friend'}. Example openings: "${name || 'friend'}, ..." or "Γεια σου ${name || ''}!", make it feel personal.
 7. End with an implicit or explicit invitation to share an update or ask a question.
 
 Return ONLY the greeting text, nothing else.`;
@@ -2490,7 +2554,7 @@ Return ONLY the greeting text, nothing else.`;
         .maybeSingle();
 
       if (growerError || !growerRecord) {
-        // Don't 403 — just drop the link silently. Non-advisors won't have access.
+        // Don't 403, just drop the link silently. Non-advisors won't have access.
         effectiveGrowerId = null;
       }
     }
@@ -2544,7 +2608,7 @@ Return ONLY the greeting text, nothing else.`;
 
     const fields = effectiveFieldId ? await fetchFieldContextRows(supabaseAdmin, appUser.id) : [];
 
-    // Seasonal context injection — lets Gemini give month-relevant advice
+    // Seasonal context injection, lets Gemini give month-relevant advice
     const tz = body.timezone || 'UTC';
     const nowLocale = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: tz }).format(now);
     const monthNum = new Date(now.toLocaleString('en-US', { timeZone: tz })).getMonth() + 1;
@@ -2767,21 +2831,36 @@ Return ONLY the greeting text, nothing else.`;
       const queryIntent = classifyIntent(latestUserMessage.content, hasImages);
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
+      // Image pre-extraction: when photo is attached, run a quick focused call
+      // to extract structured observations before the main chat call
+      let imageContext = '';
+      if (hasImages) {
+        const latestAttachments = requestMessages
+          .filter(m => Array.isArray(m.attachments) && m.attachments.length > 0)
+          .flatMap(m => m.attachments!)
+          .slice(-3); // max 3 images
+        if (latestAttachments.length > 0) {
+          imageContext = await extractImageContext(geminiApiKey, latestAttachments);
+        }
+      }
+
       const genResult = await generateValidatedResponse(
         geminiApiKey,
         requestMessages,
-        serverContext.fieldContext,
+        serverContext.fieldContext + imageContext,
         serverContext.hasActiveField,
         growerContext,
         userLang,
         queryIntent,
         convDepth,
+        appUser.area_unit || (userLang === 'el' ? 'stremma' : 'ha'),
+        appUser.location || '',
       );
       aiResponse = genResult.json;
       assistantText = aiResponse.response_text;
       assistantMetadata = buildAssistantMetadata(aiResponse);
 
-      // M1: Fire-and-forget AI cost log — never await, never block the response
+      // M1: Fire-and-forget AI cost log, never await, never block the response
       logAiCost(
         supabaseAdmin,
         appUser.id,
@@ -2856,7 +2935,7 @@ Return ONLY the greeting text, nothing else.`;
           try {
             controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
           } catch {
-            // Client already disconnected — safe to ignore.
+            // Client already disconnected, safe to ignore.
           }
         };
         const closeController = () => {
@@ -2899,7 +2978,51 @@ Return ONLY the greeting text, nothing else.`;
             throw insertAssistantMessageError ?? new Error('Failed to insert assistant message');
           }
 
-          shouldRefundMessageCount = false;
+          // C3: Message count already incremented before Gemini call (atomic, no TOCTOU race)
+
+          await persistFieldMemorySnapshot(
+            supabaseAdmin,
+            appUser.id,
+            finalFieldId,
+            userMessageId,
+            insertedAssistantMessage.id,
+            aiResponse,
+            assistantText,
+            serverContext.recentInterventions,
+            serverContext.pendingFollowUps,
+          );
+
+          // Set conversation title, use AI-detected crop + problem for meaningful labels
+          if (effectiveConversationId) {
+            // C4: Owner check, only update conversations belonging to this user
+            const { data: convo } = await supabaseAdmin
+              .from('conversations')
+              .select('title')
+              .eq('id', effectiveConversationId)
+              .eq('user_id', appUser.id)
+              .single();
+            if (convo && (!convo.title || convo.title === 'New conversation')) {
+              let title = '';
+
+              // Build a meaningful title from AI response metadata
+              const crop = aiResponse.crop_mentioned || '';
+              const problem = aiResponse.diagnosis_data?.problem || '';
+
+              if (crop && problem) {
+                title = `${crop}, ${problem}`;
+              } else if (crop) {
+                title = crop;
+              } else if (problem) {
+                title = problem;
+              }
+
+              // Fallback to cleaned user message text
+              if (!title) {
+                const rawText = latestUserMessage.content
+                  .replace(/^\[The user attached[^\]]*\]\n?/i, '')
+                  .trim();
+                title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
+              }
 
           try {
             await persistFieldMemorySnapshot(
@@ -3006,7 +3129,7 @@ Return ONLY the greeting text, nothing else.`;
     });
   } catch (error) {
     console.error('chat function error', error);
-    // H2: Sanitized error message — never leak internal details
+    // H2: Sanitized error message, never leak internal details
     return jsonResponse(
       {
         error: safeErrorMessage(error),
