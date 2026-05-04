@@ -990,60 +990,42 @@ async function callGemini(
   );
 
   // I2: On 5xx or 429 (quota exceeded), retry once with gemini-2.0-flash-lite as a fallback model.
-  // 429 means the primary model's quota is exhausted, the fallback model has its own quota.
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Gemini request failed (${response.status}):`, errorText);
 
     const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-2.0-flash-lite';
-    if (shouldFallback) {
-      console.warn(`Primary model returned ${response.status}, retrying with gemini-2.0-flash-lite fallback`);
-      const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': geminiApiKey,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(20_000),
-        },
-      );
-      if (!fallbackResponse.ok) {
-        const fbErr = await fallbackResponse.text();
-        console.error(`Gemini fallback also failed (${fallbackResponse.status}):`, fbErr);
-        if (fallbackResponse.status === 429) {
-          throw new GeminiQuotaError('All Gemini models have exceeded their quota');
-        }
-        throw new Error(`Gemini request failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
-      }
-      console.warn(`Primary model returned unusable payload — retrying with gemini-1.5-flash fallback: ${error.message}`);
+    if (!shouldFallback) {
+      if (response.status === 429) throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL}`);
+      throw new Error(`Gemini request failed (${response.status})`);
     }
-  } else if (primary.status === 429 && GEMINI_MODEL === 'gemini-1.5-flash') {
-    throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL}`);
-  } else if (primary.status !== 429 && primary.status < 500) {
-    throw new Error(`Gemini request failed (${primary.status})`);
-  }
 
-  if (GEMINI_MODEL === 'gemini-1.5-flash') {
-    if (!primary.ok && primary.status === 429) {
-      throw new GeminiQuotaError('All Gemini models have exceeded their quota');
-    }
-    throw new Error(primary.ok ? 'Gemini returned unusable payload' : `Gemini request failed (${primary.status})`);
-  }
-
-  const fallback = await tryModel('gemini-1.5-flash');
-  if (!fallback.ok) {
-    if (fallback.status === 429) {
-      throw new GeminiQuotaError('All Gemini models have exceeded their quota');
-    }
-    throw new Error(
-      `Gemini request failed (${primary.ok ? 'payload' : primary.status}), fallback also failed (${fallback.status})`,
+    console.warn(`Primary model returned ${response.status}, retrying with gemini-2.0-flash-lite fallback`);
+    const fallbackResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20_000),
+      },
     );
+    if (!fallbackResponse.ok) {
+      const fbErr = await fallbackResponse.text();
+      console.error(`Gemini fallback also failed (${fallbackResponse.status}):`, fbErr);
+      if (fallbackResponse.status === 429) throw new GeminiQuotaError('All Gemini models have exceeded their quota');
+      throw new Error(`Gemini request failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
+    }
+    const fallbackData = await fallbackResponse.json();
+    const fallbackJson = parseGeminiPayload<AiResponseJson>(fallbackData);
+    const fbUsage = fallbackData.usageMetadata ?? {};
+    return { json: fallbackJson, promptTokens: fbUsage.promptTokenCount ?? 0, outputTokens: fbUsage.candidatesTokenCount ?? 0, totalTokens: fbUsage.totalTokenCount ?? 0 };
   }
 
-  return parseResponseData(fallback.data);
+  const data = await response.json();
+  const json = parseGeminiPayload<AiResponseJson>(data);
+  const usage = data.usageMetadata ?? {};
+  return { json, promptTokens: usage.promptTokenCount ?? 0, outputTokens: usage.candidatesTokenCount ?? 0, totalTokens: usage.totalTokenCount ?? 0 };
 }
 
 async function callGeminiExtraction(geminiApiKey: string, message: string): Promise<ExtractionResult> {
@@ -1087,54 +1069,31 @@ async function callGeminiExtraction(geminiApiKey: string, message: string): Prom
     console.error(`Gemini extraction failed (${response.status}):`, errorText);
 
     const shouldFallback = (response.status >= 500 || response.status === 429) && GEMINI_MODEL !== 'gemini-2.0-flash-lite';
-    if (shouldFallback) {
-      console.warn(`Primary extraction model returned ${response.status}, retrying with gemini-2.0-flash-lite fallback`);
-      const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': geminiApiKey,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(20_000),
-        },
-      );
-      if (!fallbackResponse.ok) {
-        const fbErr = await fallbackResponse.text();
-        console.error(`Gemini extraction fallback also failed (${fallbackResponse.status}):`, fbErr);
-        if (fallbackResponse.status === 429) {
-          throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
-        }
-        throw new Error(`Gemini extraction failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
-      }
-      console.warn(`Primary extraction model returned unusable payload — retrying with gemini-1.5-flash fallback: ${error.message}`);
+    if (!shouldFallback) {
+      if (response.status === 429) throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL} (extraction)`);
+      throw new Error(`Gemini extraction failed (${response.status})`);
     }
-  } else if (primary.status === 429 && GEMINI_MODEL === 'gemini-1.5-flash') {
-    throw new GeminiQuotaError(`Gemini quota exceeded for ${GEMINI_MODEL} (extraction)`);
-  } else if (primary.status !== 429 && primary.status < 500) {
-    throw new Error(`Gemini extraction failed (${primary.status})`);
-  }
 
-  if (GEMINI_MODEL === 'gemini-1.5-flash') {
-    if (!primary.ok && primary.status === 429) {
-      throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
-    }
-    throw new Error(primary.ok ? 'Gemini extraction returned unusable payload' : `Gemini extraction failed (${primary.status})`);
-  }
-
-  const fallback = await tryModel('gemini-1.5-flash');
-  if (!fallback.ok) {
-    if (fallback.status === 429) {
-      throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
-    }
-    throw new Error(
-      `Gemini extraction failed (${primary.ok ? 'payload' : primary.status}), fallback also failed (${fallback.status})`,
+    console.warn(`Primary extraction model returned ${response.status}, retrying with gemini-2.0-flash-lite fallback`);
+    const fallbackResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20_000),
+      },
     );
+    if (!fallbackResponse.ok) {
+      const fbErr = await fallbackResponse.text();
+      console.error(`Gemini extraction fallback also failed (${fallbackResponse.status}):`, fbErr);
+      if (fallbackResponse.status === 429) throw new GeminiQuotaError('All Gemini models have exceeded their quota (extraction)');
+      throw new Error(`Gemini extraction failed (${response.status}), fallback also failed (${fallbackResponse.status})`);
+    }
+    return parseGeminiPayload<ExtractionResult>(await fallbackResponse.json());
   }
 
-  return parseGeminiPayload<ExtractionResult>(fallback.data);
+  return parseGeminiPayload<ExtractionResult>(await response.json());
 }
 
 // P3: Temperature varies by intent, diagnosis needs precision, general can be warmer
@@ -2192,10 +2151,8 @@ async function handleGuestChat(
     return jsonResponse({ assistantText, metadata });
   } catch (err) {
     console.error('Guest chat error:', err);
-    // DEBUG: expose raw error temporarily for diagnosis — revert after fix
-    const debugMsg = err instanceof Error ? err.message : String(err);
     return jsonResponse(
-      { error: 'Oli is having trouble connecting right now. Please try again in a moment.', _debug: debugMsg },
+      { error: 'Oli is having trouble connecting right now. Please try again in a moment.' },
       502,
     );
   }
