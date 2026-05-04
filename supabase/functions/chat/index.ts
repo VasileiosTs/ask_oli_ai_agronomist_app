@@ -2978,52 +2978,6 @@ Return ONLY the greeting text, nothing else.`;
             throw insertAssistantMessageError ?? new Error('Failed to insert assistant message');
           }
 
-          // C3: Message count already incremented before Gemini call (atomic, no TOCTOU race)
-
-          await persistFieldMemorySnapshot(
-            supabaseAdmin,
-            appUser.id,
-            finalFieldId,
-            userMessageId,
-            insertedAssistantMessage.id,
-            aiResponse,
-            assistantText,
-            serverContext.recentInterventions,
-            serverContext.pendingFollowUps,
-          );
-
-          // Set conversation title, use AI-detected crop + problem for meaningful labels
-          if (effectiveConversationId) {
-            // C4: Owner check, only update conversations belonging to this user
-            const { data: convo } = await supabaseAdmin
-              .from('conversations')
-              .select('title')
-              .eq('id', effectiveConversationId)
-              .eq('user_id', appUser.id)
-              .single();
-            if (convo && (!convo.title || convo.title === 'New conversation')) {
-              let title = '';
-
-              // Build a meaningful title from AI response metadata
-              const crop = aiResponse.crop_mentioned || '';
-              const problem = aiResponse.diagnosis_data?.problem || '';
-
-              if (crop && problem) {
-                title = `${crop}, ${problem}`;
-              } else if (crop) {
-                title = crop;
-              } else if (problem) {
-                title = problem;
-              }
-
-              // Fallback to cleaned user message text
-              if (!title) {
-                const rawText = latestUserMessage.content
-                  .replace(/^\[The user attached[^\]]*\]\n?/i, '')
-                  .trim();
-                title = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
-              }
-
           try {
             await persistFieldMemorySnapshot(
               supabaseAdmin,
