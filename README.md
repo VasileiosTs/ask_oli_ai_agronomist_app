@@ -1,503 +1,341 @@
-# Oli — AI Agronomist
+# Oli — AI Agronomist for the World's Smallholder Farmers
 
-Oli is a chat-first AI agronomist app for smallholder farmers and growers. Think ChatGPT but for farming — one conversation screen where a grower can diagnose crop disease, log interventions, get weekly advice, and build a memory of their fields over time.
+> **"Every grower who uses Oli builds the dataset that makes every future grower's advice better."**
 
-**Live app:** https://codex-ask-oli-app.vercel.app  
-**Stack:** React + TypeScript + Vite + Tailwind · Supabase (Postgres + Edge Functions + Storage) · Gemini AI  
-**Deployed:** Vercel (frontend) + Supabase EU Frankfurt (backend, GDPR compliant)
-
----
-
-## Table of Contents
-
-1. [Product Vision](#1-product-vision)
-2. [Architecture Overview](#2-architecture-overview)
-3. [Repository Structure](#3-repository-structure)
-4. [Frontend — Key Files Explained](#4-frontend--key-files-explained)
-5. [Backend — Database Schema](#5-backend--database-schema)
-6. [Backend — Edge Function](#6-backend--edge-function)
-7. [AI Response Structure](#7-ai-response-structure)
-8. [Auth Flow](#8-auth-flow)
-9. [Internationalisation](#9-internationalisation)
-10. [Local Development Setup](#10-local-development-setup)
-11. [Environment Variables](#11-environment-variables)
-12. [Deployment](#12-deployment)
-13. [Feature Roadmap](#13-feature-roadmap)
-14. [Key Design Decisions](#14-key-design-decisions)
+**App:** https://codex-ask-oli-app.vercel.app  
+**Stage:** Pre-launch · Beachhead: Greece (all crops) · Vision: Global  
+**Stack:** React + TypeScript · Supabase (Postgres + Edge Functions) · Google Gemini · Vercel
 
 ---
 
-## 1. Product Vision
+## The Problem
 
-**Core thesis:** Every grower who uses Oli builds the dataset that makes every future grower's advice better. The consumer app is the acquisition engine. The data is the asset.
+There are **500 million smallholder farmers** worldwide. They grow 70% of the world's food. They have no access to affordable agronomic expertise.
 
-**UX model:** Chat-only, like ChatGPT. No multi-tab navigation competing with chat. Everything — diagnosis, logging, field questions, weekly planning — flows through one conversation. On desktop, a permanent sidebar shows conversation history. On mobile, full-screen chat with a slide-over sidebar.
+A certified agronomist costs €50–150/visit in Southern Europe. In sub-Saharan Africa, India, and Latin America there may be one agronomist per 1,000 farmers. A crop disease left undiagnosed for 48 hours can destroy an entire season's income.
 
-**Target user:** Mediterranean smallholder farmers (primary: Greece/Cyprus). Language auto-detected by IP — Greek for GR/CY, English otherwise. User can override in Profile.
+Today's "solution": WhatsApp a photo to a friend. Wait two days for an agronomist visit. Google symptoms and guess. These are not solutions — they are a gap in the market worth billions of dollars.
 
-**Free tier:** 20 messages/month. Pro: €4.99/month or €49/year.
+Enterprise agtech (Trimble, John Deere Ops Center, Climate Corp) costs $10,000+/year and requires farm machinery integration. It is built for the 1% of large commercial farms. The other 500 million farmers are invisible to Silicon Valley.
 
----
-
-## 2. Architecture Overview
-
-```
-┌─────────────────────────────────────────────┐
-│  Browser / Mobile (Vercel)                  │
-│  React + Vite + Tailwind                    │
-│                                             │
-│  Chat.tsx ──── chatFunction.ts              │
-│       │              │                      │
-│       │        SSE streaming                │
-│       ▼              ▼                      │
-│  Supabase JS   Edge Function (chat)         │
-│  (auth, DB,    ── Gemini API                │
-│   storage)     ── DB writes                 │
-└─────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────┐
-│  Supabase (EU Frankfurt)                    │
-│  ├── PostgreSQL (all data)                  │
-│  ├── Auth (magic link, OAuth)               │
-│  ├── Storage (chat_uploads bucket)          │
-│  └── Edge Functions (Deno runtime)          │
-└─────────────────────────────────────────────┘
-```
-
-**Critical rule:** The Gemini API key never touches the browser. All AI calls go through the Supabase Edge Function (`supabase/functions/chat/index.ts`), which reads the key from a server-side secret. The frontend only holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, which are safe to expose.
+**No one has built ChatGPT for farming. Until now.**
 
 ---
 
-## 3. Repository Structure
+## What Oli Does
 
-```
-oli/
-├── src/
-│   ├── App.tsx                    # Routing, auth guards, QueryClientProvider, LanguageProvider
-│   ├── main.tsx                   # React entry point
-│   ├── index.css                  # Design tokens (CSS variables), Tailwind base, animations
-│   │
-│   ├── pages/
-│   │   ├── Chat.tsx               # ⭐ Main screen — 1000+ lines, the entire app experience
-│   │   ├── Auth.tsx               # Login: Google, Facebook, Magic Link
-│   │   ├── Onboarding.tsx         # 3-step first-run: name, location (+ geocoding), crop
-│   │   ├── Profile.tsx            # Settings, subscription, export, delete account
-│   │   ├── Fields.tsx             # Field management (hidden from nav, data layer)
-│   │   └── SharedDiagnosis.tsx    # Public /d/:shareId page — no auth required
-│   │
-│   ├── components/
-│   │   ├── ConversationSidebar.tsx  # Desktop: permanent column. Mobile: slide-over
-│   │   ├── LogInterventionModal.tsx # Bottom sheet to log a treatment after diagnosis
-│   │   ├── PaywallModal.tsx         # Free tier limit — upgrade prompt
-│   │   ├── SignInModal.tsx          # Guest user prompt to sign in
-│   │   ├── AppLayout.tsx            # Outlet wrapper (no nav bar — chat is full screen)
-│   │   ├── BottomNav.tsx            # Unused — kept for potential future use
-│   │   └── LoadingSpinner.tsx       # Green spinner
-│   │
-│   ├── hooks/
-│   │   └── useAuth.tsx            # Session, user, profile, appUserId, isGuest, logout
-│   │
-│   └── lib/
-│       ├── supabase.ts            # Supabase client + getCurrentUserId helper
-│       ├── chatFunction.ts        # SSE streaming client for the edge function
-│       ├── fieldContext.ts        # Assembles field context string for AI system prompt
-│       ├── extractAndApply.ts     # Silently extracts crop/field mentions from messages
-│       ├── validateAi.ts          # Client-side validation types (no Gemini calls here)
-│       ├── memoryContext.ts       # Builds the AI system prompt string
-│       ├── imageCache.ts          # IndexedDB photo cache + image compression (max 1000px, JPEG 80%)
-│       ├── i18n.ts                # All UI strings in Greek + English, IP-based auto-detection
-│       └── LanguageContext.tsx    # React context for current language + t() accessor
-│
-├── supabase/
-│   ├── functions/
-│   │   └── chat/
-│   │       └── index.ts          # ⭐ Edge function — auth, rate limiting, Gemini, SSE, DB writes
-│   └── migrations/
-│       ├── 20260320130100_core_schema.sql        # Users, fields, conversations, chat_messages, interventions
-│       ├── 20260320130200_reviews_and_storage.sql # photo_reviews table
-│       ├── 20260320130300_views_rpc_and_compat.sql # field_context_view, messages view, resolve_field()
-│       ├── 20260320130400_multi_grower.sql        # growers + grower_links (advisor accounts)
-│       ├── 20260320130500_shared_view_lockdown.sql
-│       ├── 20260320130600_build_pack_alignment.sql # notification prefs, fields.source column
-│       ├── 20260320130700_safe_shared_view_definer.sql # safe_shared_diagnoses view (public share)
-│       └── 20260321000000_outcome_and_followup.sql # outcome recording columns + index
-│
-├── vercel.json                    # SPA rewrite rules (all routes → index.html)
-├── vite.config.ts                 # Vite config (no GEMINI_API_KEY — server-side only)
-└── tailwind.config.ts             # Extends Tailwind with Oli design tokens
-```
+Oli is a **chat-first AI agronomist** — instant, expert-level crop guidance through a simple conversation, in the farmer's language, on any crop, on any device.
+
+**Core loop:** Photo of a sick plant → diagnosis in 10 seconds → specific treatment protocol with exact dosages → follow-up in 7 days to record whether it worked.
+
+### What a farmer can do today
+
+| Task | How |
+|------|-----|
+| Diagnose crop disease from a photo | Attach photo, describe symptoms — Oli identifies the problem and cause |
+| Get treatment plans | Organic and chemical options, exact product names, dosages, application method |
+| Log what they applied | One-tap intervention logging after a diagnosis |
+| Track field history | Fields, crops, seasons, past problems — remembered across every conversation |
+| Get follow-up care | Oli checks back in 7 days: "How did the treatment work?" |
+| Share a diagnosis | Public shareable link with OG card — for cooperatives, agronomists, forums |
+| Talk in any language | Greek, English, Italian, Spanish, French, Arabic — auto-detected from device |
+| Send voice or audio | Audio files processed as messages |
+| Upload any file type | Photos, PDFs, audio — same interface, no separate app |
+
+### What makes this different from every other agtech tool
+
+**It remembers.** Every field, crop, past problem, and treatment outcome is stored and injected into every future conversation as context. The AI knows your farm.
+
+**It follows up.** Oli records whether treatments worked. This is the data no one else has.
+
+**It works on a €40 phone.** No app install, no subscription required to try. One free guest question, then sign up free.
 
 ---
 
-## 4. Frontend — Key Files Explained
+## The Business Model
 
-### `Chat.tsx` — The entire product
+**Free:** 20 messages/month — enough for a farmer with one or two active problems.  
+**Pro:** €4.99/month or €49/year — unlimited messages, priority AI model, full field history export.  
+**Future — B2B API:** Sell agricultural AI inference to cooperatives, input distributors (ADAMA, Yara, Bayer), and agtech platforms. This is the high-margin, high-scale business.
 
-This is the most important file. Everything flows through here. Key sections:
-
-**State:**
-- `messages` — local array of chat messages (role, content, metadata, starred, attachments)
-- `input` — current textarea value
-- `attachments` — files pending send (File objects + preview URLs)
-- `activeConversationId` — current conversation UUID
-- `activeFieldId` — which field is selected for context injection
-- `showSignIn / showPaywall` — modal visibility
-
-**On mount:**
-1. Loads user's fields from `field_context_view`
-2. Checks for pending follow-ups (`follow_up_at <= now AND outcome IS NULL`) — if found, injects a follow-up message as the first chat message
-
-**`handleSend()`:**
-1. Check auth / guest / message limit
-2. Compress images via `compressImage()` (max 1000×1000, JPEG 80%)
-3. Upload to Supabase Storage → cache in IndexedDB
-4. Save user message to `chat_messages` table
-5. Run `extractAndApply()` — silently resolve/create field from message text
-6. Call `streamChatCompletion()` → streams SSE tokens back
-7. Update message count in local state
-
-**Message rendering:**
-- User bubbles: right-aligned green
-- AI bubbles: left-aligned dark card
-- After AI diagnosis: treatment cards (organic 🌿 / chemical ⚗️ side by side)
-- After AI follow-up: outcome chips (Better / Same / Worse)
-- Action pills: Star, Log Intervention, Share
-
-**Dual textarea refs:**  
-`textareaRef` → InputBar (mobile + desktop chat active)  
-`desktopTextareaRef` → welcome screen centered input  
-These must stay separate — attaching one ref to two elements breaks React's input routing.
-
-### `chatFunction.ts` — SSE streaming client
-
-Calls `supabase.functions.invoke('chat', { body: request })` and reads the response as a Server-Sent Events stream. Named events:
-- `meta` — returns `conversationId`, `userMessageId` before streaming starts
-- `token` — each chunk of AI text
-- `done` — final payload with `assistantMessageId`, `messageCountMonth`, `metadata`
-- `error` — streaming error
-
-### `fieldContext.ts` — Context assembly
-
-Queries `field_context_view` and returns a formatted string injected into the AI system prompt:
-```
-Field: North Grove | Crop: Olives | Size: 4.2ha | Soil: clay | Last issue: Cycloconium
-```
-
-### `extractAndApply.ts` — Silent field extraction
-
-After every user message, calls the edge function with `mode: 'extract'`. Gemini returns `{ crop_type, field_mention, confidence }`. Based on confidence:
-- `> 0.7` → auto-set `field_id` on the message
-- `0.4–0.7` → show disambiguation chips
-- No match + crop type → create new field silently
-
-### `imageCache.ts` — Photo compression + IndexedDB
-
-Two responsibilities:
-1. `compressImage(file)` — canvas-based resize to max 1000×1000, JPEG 80%. Reduces a 4MB iPhone photo to ~200KB. Critical for farmers on slow rural 4G.
-2. `cacheImage/getCachedImage` — stores compressed blobs in IndexedDB so photos reload instantly without network requests.
-
-### `i18n.ts` — Internationalisation
-
-All visible strings in Greek (`el`) and English (`en`). `detectLang()` calls `ipapi.co` to get the user's country — GR/CY → Greek, everything else → English. Result cached in `localStorage`. User can override in Profile.
+Unit economics: Gemini API cost per conversation is ~€0.001–0.005. A Pro subscriber at €4.99/month covers 1,000–5,000 conversations. Gross margin at scale exceeds 85%.
 
 ---
 
-## 5. Backend — Database Schema
+## The Data Moat — VIO (Verified Intervention Outcomes)
 
-### Core tables
+This is the core thesis and the long-term defensibility.
 
-**`users`** — extends Supabase auth  
-`id, auth_id, name, location, location_lat, location_lon, primary_crop, language, tier (free/pro), message_count_month, message_reset_date, onboarding_complete, stripe_customer_id`
+Every time Oli recommends a treatment and a farmer follows up with the result (better / same / worse), we record a **Verified Intervention Outcome**: crop × disease × product × dosage × region × climate × outcome.
 
-**`conversations`**  
-`id, user_id, field_id, title`
+No one in agriculture has this data at scale. Extension services have fragments. Agrochemical companies pay millions for field trials to get approximations of this. We will have it across every crop, every country, indexed by GPS region and season — contributed for free by the farmers themselves.
 
-**`chat_messages`** ← canonical table name (NOT `messages`)  
-`id, conversation_id, user_id, field_id, role (user/assistant), content, metadata (JSONB), starred, image_urls[], embedding (vector 768)`
+**What VIO unlocks:**
 
-**`interventions`** — logged agronomic actions  
-`id, user_id, field_id, crop_type, diagnosis, product_applied, dosage, application_method, organic_treatments[], chemical_treatments[], severity, share_id (UUID), is_shared, follow_up_at, followed_up_at, outcome (better/same/worse), outcome_recorded_at`
+- *"This product works for 87% of olive growers in Peloponnese with this disease"* — no one can say this today with real data
+- Training a proprietary agricultural AI model that outperforms generic LLMs on crop problems
+- Selling efficacy analytics back to input manufacturers (they spend €50M+ per year on field trials globally)
+- Powering agronomist recommendations with outcome evidence instead of manufacturer marketing claims
 
-**`fields`**  
-`id, user_id, name, crop_type, location, size_ha, soil_type, irrigation_type, growing_medium, is_active, source (manual/auto_detected)`
-
-**`crops`**  
-`id, user_id, field_id, name, variety, planted_at, status (healthy/warning/critical)`
-
-**`photo_reviews`** — admin moderation queue  
-`id, message_id, user_id, storage_path, ai_description, review_status`
-
-### Views
-
-**`field_context_view`** — joins fields with their latest intervention and crop count. Read by `fieldContext.ts`.
-
-**`messages`** — view over `chat_messages` for backend compatibility.
-
-**`safe_shared_diagnoses`** — read-only view for `/d/:shareId` public pages. Exposes only safe columns (no user_id, no personal data).
-
-### Key RPC
-
-**`resolve_field(p_user_id, p_mention)`** — fuzzy-matches field names using `pg_trgm`. Returns up to 3 candidates with confidence scores. Used by `extractAndApply.ts`.
-
-### RLS
-
-All tables use Row Level Security. Every policy checks `auth.uid()` against `users.auth_id`. `safe_shared_diagnoses` view is granted to `anon` role — the only public read in the system.
+The consumer app is the acquisition engine. The VIO data is the durable asset.
 
 ---
 
-## 6. Backend — Edge Function
+## Market Opportunity
 
-**Location:** `supabase/functions/chat/index.ts`  
-**Runtime:** Deno  
-**Deploy:** `supabase functions deploy chat`
+| Segment | Size |
+|---------|------|
+| Global agricultural market | $5T/year |
+| Crop protection (pesticides, fungicides, biocontrol) | $84B/year |
+| Precision agriculture software | $12B → $25B by 2030 |
+| Addressable: 500M smallholder farms worldwide | ~$50B/year in inputs + advisory spend |
 
-### Request flow
+**Beachhead:** Greece — 700,000 registered farm holdings, high smartphone penetration, 6 languages supported from day one. Greece is the test lab, not the destination.
+
+**Expansion path:** Mediterranean (Italy, Spain, Morocco, Egypt) → India → sub-Saharan Africa → Latin America. All regions with high crop disease pressure, low agronomist density, and underserved smallholder farmers.
+
+---
+
+## Founder
+
+**Vasileios Tsipas** — Solo founder, Xylokastro, Corinthia, Greece.
+
+18+ years in agri-business, international BD, and supply chain. Not a tourist in this market — an agronomist who built software, not a software person who discovered farming.
+
+- **Bravo Stimaga Grapes S.A.** (2021–present), BD & Operations Manager — €1.5M+ ARR through NL/BE distributor partnerships. 5 long-term multi-country contracts (UK, NL, Poland, Belgium, Germany, Sweden) at €250K–500K each. 35% YoY revenue growth. 45% harvesting efficiency improvement. Managed 80–110 person seasonal workforce. Digitalized all certifications (GlobalG.A.P., BRC, IFS, Sedex) to 100% compliance.
+- **Freelance Agronomist Consultant** (2019+) — phytosanitary assessments, plant health diagnosis, growth cycle planning across Greek farms.
+- **Founded an award-winning plant nursery** — pre-packaged trees with extended shelf life, exported to USA and China. EU entrepreneurship recognition, Brussels 2017.
+- Clients have included Samsung, Deloitte, H&M, STIHL, OECD.
+- Direct relationships with senior contacts at **ADAMA** (global crop protection, top 5 worldwide) and **Yara** (world's largest fertilizer company), Greek Ministry of Agriculture, University of Athens, EFG Bank, US Embassy Athens.
+- Operated across **27 countries**. The global expansion plan is not theoretical — the relationships exist.
+
+---
+
+## Product Status
+
+**Built and working (pre-launch):**
+
+- ✅ Full chat experience — diagnosis, treatment plans, field memory, streaming
+- ✅ Multi-language — Greek, English, Italian, Spanish, French, Arabic
+- ✅ Photo + audio + PDF upload and AI analysis
+- ✅ VIO follow-up loop — scheduled follow-up messages, outcome recording (better/same/worse)
+- ✅ Field management — named fields, crop type, soil, historical context injected into every AI call
+- ✅ Intervention logging with public shareable links + OG card generation
+- ✅ Guest mode — 1 free question with no account required
+- ✅ Auth — magic link + Google OAuth
+- ✅ Freemium paywall — 20 messages/month free, Pro tier gated
+- ✅ SSE streaming — AI tokens appear as they're generated, not after 10 seconds
+- ✅ GDPR-compliant hosting (EU Frankfurt, no PII in analytics)
+- ✅ Daily KPI snapshot pipeline (automated Supabase cron)
+- ✅ Onboarding — name, location with geocoding, primary crop
+- ✅ Push notification infrastructure (VAPID keys, service worker)
+- ✅ Multi-grower accounts — agronomist can manage multiple farmer profiles
+- ✅ AI image pre-extraction — separate focused Gemini call for photos before main diagnosis
+- ✅ Automatic Gemini fallback — primary → gemini-2.0-flash-lite on quota or 5xx
+
+**Not live yet:**
+- 🔲 Stripe payment integration (paywall UI exists, checkout not wired)
+- 🔲 Production domain
+- 🔲 App Store / Play Store listing (PWA in the interim)
+- 🔲 Public B2B API
+
+---
+
+## Architecture
 
 ```
-Client → POST /functions/v1/chat
-         Authorization: Bearer {session.access_token}
-         Body: { messages[], fieldContext, hasActiveField, fieldId, conversationId,
-                 userMessageId, attachmentPaths, mode? }
+┌──────────────────────────────────────────────────────────┐
+│  Browser / Mobile PWA (Vercel CDN, global edge)          │
+│  React 18 + TypeScript + Vite + Tailwind CSS             │
+│                                                          │
+│  Chat.tsx → chatFunction.ts → SSE stream                 │
+│                                                          │
+│  Key client modules:                                     │
+│  ├── fieldContext.ts      AI system prompt assembly      │
+│  ├── extractAndApply.ts   silent field extraction        │
+│  ├── imageCache.ts        IndexedDB + compression        │
+│  └── i18n.ts              6-language typed string dict   │
+└────────────────────┬─────────────────────────────────────┘
+                     │ HTTPS / SSE
+┌────────────────────▼─────────────────────────────────────┐
+│  Supabase (EU Frankfurt — GDPR compliant)                │
+│  ├── PostgreSQL   users, fields, conversations,          │
+│  │                chat_messages, interventions, VIOs     │
+│  ├── Auth         magic link, Google OAuth               │
+│  ├── Storage      chat_uploads (photos, audio, PDFs)     │
+│  ├── RLS          row-level security on all tables       │
+│  └── Edge Functions (Deno runtime)                       │
+│      ├── chat/index.ts   ← core AI function (~110KB)     │
+│      │   auth → rate limit → Gemini → SSE → DB write     │
+│      ├── og-image        OG card generation              │
+│      ├── send-email      drip emails (Resend)            │
+│      ├── send-push       web push notifications          │
+│      ├── kpi-snapshot    daily analytics pipeline        │
+│      └── api-v1          future public API surface       │
+└────────────────────┬─────────────────────────────────────┘
+                     │ HTTPS
+┌────────────────────▼─────────────────────────────────────┐
+│  Google Gemini                                           │
+│  ├── gemini-2.5-flash (primary)                          │
+│  │   — structured JSON output via responseSchema         │
+│  │   — native multimodal photo analysis                  │
+│  ├── gemini-2.0-flash (image pre-extraction)             │
+│  └── gemini-2.0-flash-lite (automatic fallback)          │
+└──────────────────────────────────────────────────────────┘
 ```
 
-1. **Auth verification** — validates JWT, gets `auth.uid()`, looks up `users` row
-2. **Monthly reset** — if `message_reset_date` is a previous month, resets `message_count_month = 0`
-3. **Rate limit** — if `tier = 'free'` and `message_count_month >= 20` → 429
-4. **Extract mode** — if `body.mode === 'extract'`, calls Gemini with extraction schema, returns field candidates (no DB writes, no token charge)
-5. **Save user message** — upserts to `chat_messages` (update if `userMessageId` provided, else insert)
-6. **Gemini call** — uses `systemInstruction` field (not injected as user message). Response schema enforces structured JSON output.
-7. **Validation + repair** — if response fails validation, calls Gemini once more with error context
-8. **SSE streaming** — splits response into word chunks, streams via named events
-9. **Save assistant message** — inserts to `chat_messages` with `metadata` (diagnosis_data, intent, etc.)
-10. **Increment counter** — updates `users.message_count_month` and `last_active_at`
+**Key security design:** The Gemini API key never touches the browser. All AI calls flow through the Supabase Edge Function, which reads the key from a server-side secret. The browser holds only the Supabase anon key, which is designed to be public.
 
-### Gemini response schema
+---
 
-```typescript
-{
-  response_text: string           // shown to user
-  intent: 'diagnosis' | 'advice' | 'followup' | 'general' | 'unclear'
-  crop_mentioned: string | null
-  field_scope: 'specific' | 'general'
-  question_count: number          // Gemini self-reports — max 1 allowed
-  has_banned_opener: boolean
-  diagnosis_data: {
-    problem: string | null
-    cause: string | null
-    severity: 'low' | 'medium' | 'high' | null
-    product_applied: string | null
-    product_category: string | null
-    dosage: string | null
-    application_method: string | null
-    organic_treatments: string[] | null   // e.g. ["Neem oil", "Copper spray"]
-    chemical_treatments: string[] | null  // e.g. ["Mancozeb 80WP", "Chlorpyrifos"]
-  } | null
-}
+## How the AI Function Works
+
+`supabase/functions/chat/index.ts` is the product's core (~3,100 lines). Every message flows through it.
+
+### Authenticated request pipeline
+
+```
+1.  JWT verification → Supabase user
+2.  Monthly message count check vs FREE_LIMIT
+3.  Attachment resolution: storage paths → signed URLs → base64 inline
+4.  Field context assembly: field name, crop, soil, last problem, past interventions
+5.  Image pre-extraction (if photo): dedicated Gemini call extracts structured
+    observations (symptoms, affected area %, pest signs) before the main call
+6.  Intent classification: diagnosis / advice / followup / general / unclear
+7.  System prompt construction: language + field context + grower profile +
+    conversation memory snapshot + VIO history
+8.  Gemini call with JSON responseSchema — structured output enforced at API level
+9.  Response validation: banned opener check, JSON repair on malformed output
+10. SSE streaming: meta event → token chunks → done event
+11. DB writes: save assistant message, update message count, schedule follow-up
+    if a diagnosis with intervention was made (follow_up_at = now + 7 days)
+12. Async post-save: field memory snapshot update, conversation title generation
+```
+
+### Guest pipeline
+
+```
+1. IP-based rate limit: 1 question/IP/24h (DB-backed, survives cold starts)
+2. Message and attachment validation
+3. Simplified Gemini call (no field context, no DB writes)
+4. JSON response (no streaming for unauthenticated users)
 ```
 
 ---
 
-## 7. AI Response Structure
+## Database Schema (core tables)
 
-When Gemini returns `diagnosis_data`, the frontend:
-
-1. **Renders treatment cards** inline in the chat bubble — green card for organic, blue for chemical
-2. **Shows action pills** below the bubble: Star · Log Intervention · Share
-3. **Log Intervention** pre-fills `LogInterventionModal` from `diagnosis_data` fields
-4. **Share** creates a row in `interventions` with `is_shared=true`, generates `/d/{share_id}` URL
-5. **Sets `follow_up_at`** to NOW + 13 days when intervention is logged
-
-**VIO (Verified Intervention Outcome) loop:**  
-On app open, `Chat.tsx` queries for interventions where `follow_up_at <= now AND outcome IS NULL`. If found, Oli sends a follow-up message with three outcome chips. Tapping one writes to `interventions.outcome` and updates `crops.status`.
-
----
-
-## 8. Auth Flow
-
-```
-/auth → Google OAuth  → Supabase callback → useAuth detects profile → /chat
-     → Facebook OAuth → (same)
-     → Magic Link     → email → click link → Supabase callback → /chat
-     → Guest mode     → localStorage 'oli_guest' = 'true' → /chat (no DB writes)
+```sql
+users             — profile, tier, message_count_month, language, reset_date
+fields            — name, crop_type, size_ha, soil_type, GPS location
+conversations     — user + field link, title, last_message_at
+chat_messages     — role, content, metadata (JSON: intent, diagnosis_data,
+                    action_detected, crop_mentioned), starred, image_urls[]
+interventions     — field, crop, diagnosis, product_applied, dosage,
+                    organic_treatments[], chemical_treatments[], severity,
+                    follow_up_at, outcome (better/same/worse),
+                    share_id UUID (public share links)
+growers           — multi-grower support (advisor manages multiple farmers)
+guest_rate_limits — ip, request_count, window_start (DB-backed rate limiting)
 ```
 
-**`useAuth.tsx`** exports: `user` (Supabase auth user), `profile` (users table row), `appUserId` (internal UUID), `isGuest`, `logout`.
-
-**Important:** Guest mode lets users explore the chat UI but hitting send shows `SignInModal`. No messages are saved. No API calls are made. This is intentional — it's a preview, not a demo mode.
-
-**Supabase Auth settings required:**  
-`Authentication → URL Configuration → Site URL` must be set to your deployment URL. Redirect URLs must include `https://yourdomain.com/**`.
+Row-level security is enforced at the database level — not just in application code. A compromised JWT cannot read another user's data.
 
 ---
 
-## 9. Internationalisation
+## Repository Structure
 
-**File:** `src/lib/i18n.ts`  
-**Context:** `src/lib/LanguageContext.tsx`
+```
+src/
+├── pages/
+│   ├── Chat.tsx               ⭐ core product — entire conversation experience
+│   ├── Landing.tsx            public marketing page (Greek + English)
+│   ├── Auth.tsx               magic link + Google OAuth
+│   ├── Onboarding.tsx         3-step first-run (name, location, crop)
+│   ├── Profile.tsx            settings, subscription, data export
+│   ├── Fields.tsx             field management
+│   └── SharedDiagnosis.tsx    public /d/:id share page
+├── components/
+│   ├── ConversationSidebar.tsx
+│   ├── MessageBubble.tsx      renders treatment cards, outcome chips
+│   ├── LogInterventionModal.tsx
+│   ├── ShareModal.tsx         WhatsApp, Telegram, Facebook, X, email, copy
+│   ├── PaywallModal.tsx
+│   └── SignInModal.tsx
+├── hooks/useAuth.tsx           session, profile, appUserId
+└── lib/
+    ├── chatFunction.ts         SSE streaming client
+    ├── fieldContext.ts         system prompt assembly
+    ├── extractAndApply.ts      silent field extraction from messages
+    ├── imageCache.ts           IndexedDB + canvas compression
+    └── i18n.ts                 typed 6-language string dictionary
 
-Every visible UI string is defined in both `el` (Greek) and `en` (English). No hardcoded strings anywhere in components — everything goes through `const { t } = useLanguage()`.
-
-**Auto-detection flow:**
-1. Check `localStorage['oli_lang']` — if set, use it
-2. Call `ipapi.co/json/` — if `country_code` is GR or CY → Greek
-3. Fallback: `navigator.language` startsWith 'el' → Greek
-4. Default: English
-
-User can switch language in Profile → Settings → Language toggle.
-
-**Adding a new string:**
-1. Add the key to the `T` interface in `i18n.ts`
-2. Add values to both `el` and `en` objects
-3. Use `t.yourKey` in the component
+supabase/functions/
+├── chat/index.ts              ⭐ core AI function
+├── og-image/index.ts
+├── send-email/index.ts
+├── send-push/index.ts
+├── kpi-snapshot/index.ts
+└── api-v1/index.ts
+```
 
 ---
 
-## 10. Local Development Setup
-
-### Prerequisites
-- Node.js 18+
-- Supabase CLI (`brew install supabase/tap/supabase`)
-- A Supabase project (EU Frankfurt recommended)
-
-### Steps
+## Local Development
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/VasileiosTs/codex_ask_oli_app.git
 cd codex_ask_oli_app
 npm install
-
-# 2. Set environment variables
-cp .env.example .env.local
-# Edit .env.local:
-# VITE_SUPABASE_URL=https://xxxxx.supabase.co
-# VITE_SUPABASE_ANON_KEY=eyJ...
-
-# 3. Link to Supabase project
-supabase login
-supabase link
-
-# 4. Run migrations
-supabase db push
-
-# 5. Set edge function secrets (NEVER put these in .env)
-supabase secrets set GEMINI_API_KEY=AIza...
-supabase secrets set SUPABASE_URL=https://xxxxx.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...
-supabase secrets set SUPABASE_ANON_KEY=eyJ...
-
-# 6. Deploy edge function
-supabase functions deploy chat
-
-# 7. Run frontend
-npm run dev
-
-# 8. Run tests
-npm test
+cp .env.example .env.local   # fill in Supabase + Gemini credentials
+npm run dev                  # http://localhost:5173
+npx tsc --noEmit             # type check
+npm test                     # unit tests
 ```
 
-App runs at `http://localhost:3000`.
-
-If local Vitest runs break because a platform-specific Rollup binary is missing, use:
-
-```bash
-npm run test:fix
+**Environment variables (frontend):**
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+VITE_SUPABASE_ANON_KEY        (legacy alias for the above)
+VITE_SENTRY_DSN               (optional)
+VITE_VAPID_PUBLIC_KEY         (optional, for push notifications)
 ```
 
-That reinstalls dependencies from scratch and reruns the test suite.
-
----
-
-## 11. Environment Variables
-
-### Frontend (Vercel / `.env.local`)
-
-| Variable | Description | Safe to expose? |
-|----------|-------------|-----------------|
-| `VITE_SUPABASE_URL` | Supabase project URL | ✅ Yes |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon key | ✅ Yes |
-
-**Never add `VITE_GEMINI_API_KEY`** — the VITE_ prefix bundles it into browser JS. All Gemini calls go through the edge function.
-
-### Edge Function (Supabase Secrets)
-
-| Secret | Description |
-|--------|-------------|
-| `GEMINI_API_KEY` | Gemini API key — server-side only |
-| `SUPABASE_URL` | Project URL (for admin DB writes) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (bypasses RLS for DB writes) |
-| `SUPABASE_ANON_KEY` | For user JWT verification |
-
-Set via: `supabase secrets set KEY=value` or Supabase Dashboard → Settings → Edge Functions.
-
----
-
-## 12. Deployment
-
-### Frontend — Vercel
-
-1. Connect GitHub repo to Vercel
-2. Framework: Vite (auto-detected)
-3. Add environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-4. Deploy — `vercel.json` handles SPA routing (all routes → `index.html`)
-
-### Backend — Supabase
-
-1. Run migrations: `supabase db push` (or paste SQL files into Supabase SQL Editor in order)
-2. Set secrets (see above)
-3. Deploy edge function: `supabase functions deploy chat`
-4. Set Auth redirect URLs in Supabase Dashboard → Authentication → URL Configuration
-
-### Storage
-
-Create a `chat_uploads` bucket in Supabase Storage → set to Private → add RLS policy:
-```sql
--- Allow authenticated users to upload to their own folder
-CREATE POLICY "user_uploads" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'chat_uploads' AND (storage.foldername(name))[1] = auth.uid()::text);
+**Supabase Edge Function secrets:**
+```
+GEMINI_API_KEY
+SUPABASE_SERVICE_ROLE_KEY
+RESEND_API_KEY
+VAPID_PRIVATE_KEY
+CRON_SECRET
 ```
 
 ---
 
-## 13. Feature Roadmap
+## Deployment
 
-### Wave 2 — Monetisation (next)
-- [ ] Stripe integration (PaywallModal → real Stripe Checkout)
-- [ ] Weekly plan delivery (Monday morning AI message, no new screen)
-- [ ] Proactive greeting on app open (seasonal tip based on crop + location)
-- [ ] Server-rendered OG tags for `/d/:shareId` share pages (social previews)
-- [ ] Push notifications for follow-up reminders
-
-### Wave 3 — Data Moat
-- [ ] Collective intelligence: "Works for 43 growers like you" (after 1,000 VIOs)
-- [ ] VIO analytics dashboard (admin: efficacy by product/crop/region)
-- [ ] B2B embed widget ("Powered by Oli" for cooperative portals)
-- [ ] PWA + offline message queue
-- [ ] SEO landing page (Next.js, Greek + English)
-- [ ] API / Agronomist Kit (wrap validator + field context as SDK)
+**Frontend:** Vercel — auto-deploy on push to `main`.  
+**Edge Functions:** GitHub Actions deploys on any change to `supabase/functions/**`.  
+**Database:** Supabase managed Postgres, EU Frankfurt region.
 
 ---
 
-## 14. Key Design Decisions
+## Why This Wins
 
-**Why chat-only?**  
-Multi-tab apps with a Diagnose tab, a Week tab, and a Chat tab split attention and add cognitive load. Farmers don't think in tabs — they have a problem and want an answer. Every feature flows through conversation. The sidebar is history, not navigation.
+**Founder-market fit.** 18 years agri-business, certified agronomist, direct relationships with ADAMA and Yara, operated across 27 countries. The founder is the product's first user.
 
-**Why Supabase over Firebase?**  
-EU Frankfurt hosting for GDPR compliance. Postgres with pgvector for future semantic search. RLS policies enforce data isolation at the database level — not just in application code.
+**Timing.** Gemini 2.5's multimodal capability makes photo-based crop diagnosis reliable at scale. This wasn't possible 18 months ago.
 
-**Why Gemini?**  
-`responseSchema` (native JSON mode with schema enforcement) produces more reliable structured output than prompt-based JSON extraction. Gemini's multimodal capability handles plant photos natively.
+**The flywheel.** Every VIO recorded makes the next recommendation more accurate. Every farmer who joins makes the dataset denser. Competitors cannot fast-follow — they need years of outcome data that only comes from real farmers using the product.
 
-**Why SSE streaming instead of waiting for full response?**  
-Farming advice can be detailed — 200+ words for a treatment protocol. Waiting 8–10 seconds for a full response before showing anything destroys perceived performance. SSE shows tokens as they arrive.
+**Bottom-up distribution.** Farmers share diagnoses. Cooperatives forward treatment plans. Agronomists recommend the tool. WhatsApp and Telegram sharing is built into every diagnosis. The organic growth loop is in the product.
 
-**Why IndexedDB for photo cache?**  
-localStorage is limited to ~5MB and is synchronous. A single compressed farming photo is ~200KB. IndexedDB handles arbitrary blob sizes asynchronously, survives page reloads, and doesn't block the main thread.
+**No incumbent owns this space.** Enterprise agtech ignores smallholders. Consumer agtech is mostly photo-ID apps with no memory, no follow-up, no data loop. Oli is the first to close the full cycle: diagnosis → treatment → outcome → learning → better diagnosis.
 
-**`chat_messages` not `messages`**  
-The canonical schema uses `messages`. The original codebase used `chat_messages`. A compatibility view (`messages`) was added so the edge function and any future tooling can use the canonical name, while the frontend continues using `chat_messages`. The trigger `sync_intervention_legacy_columns` keeps `product`↔`product_applied` and `diagnosis`↔`problem` in sync for backward compatibility.
+---
 
-**Dual textarea refs**  
-`Chat.tsx` renders two `<textarea>` elements: one in the desktop welcome screen, one in the `InputBar` component. A React ref can only point to one DOM element. Using the same ref for both caused the focused textarea to lose its ref on every re-render, breaking input. They use separate refs: `textareaRef` (InputBar) and `desktopTextareaRef` (welcome screen).
+## Contact
+
+Vasileios Tsipas — founder@askoli.ai  
+Location: Xylokastro, Corinthia, Greece
