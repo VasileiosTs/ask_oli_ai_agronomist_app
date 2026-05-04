@@ -113,6 +113,7 @@ export default function Chat() {
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showPaywallWarning, setShowPaywallWarning] = useState(false);
+  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
 
   // Initialise message count from profile so the paywall check is accurate on page load
   // (without this, messageCount starts at 0 and the client-side gate never fires even
@@ -184,7 +185,6 @@ export default function Chat() {
   const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
   const [guestMessageSent, setGuestMessageSent] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
   useEffect(() => {
     greetingFetchedRef.current = false;
   }, [user?.id, lang, isGuestMode]);
