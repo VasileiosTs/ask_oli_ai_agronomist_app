@@ -2192,9 +2192,10 @@ async function handleGuestChat(
     return jsonResponse({ assistantText, metadata });
   } catch (err) {
     console.error('Guest chat error:', err);
-    // Return a clean 502 so the client surfaces a message rather than retrying and timing out
+    // DEBUG: expose raw error temporarily for diagnosis — revert after fix
+    const debugMsg = err instanceof Error ? err.message : String(err);
     return jsonResponse(
-      { error: 'Oli is having trouble connecting right now. Please try again in a moment.' },
+      { error: 'Oli is having trouble connecting right now. Please try again in a moment.', _debug: debugMsg },
       502,
     );
   }
