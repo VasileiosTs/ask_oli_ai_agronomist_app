@@ -1641,6 +1641,7 @@ export default function Chat() {
         navigate('/fields');
       }
     },
+    onRequestPhoto: () => setShowAttachmentSheet(true),
   };
 
   const inputBarProps = {

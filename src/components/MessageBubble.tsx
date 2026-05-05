@@ -77,6 +77,7 @@ interface Props {
   userLat?: number | null;
   userLon?: number | null;
   onGenerateReport?: (fieldId: string | null) => void;
+  onRequestPhoto?: () => void;
 }
 
 function formatTime(iso: string) {
@@ -153,7 +154,7 @@ function normalisePillarKey(raw: string): string {
   return raw; // already canonical or unknown — pass through for PILLAR_LABELS fallback
 }
 
-function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string }) {
+function MissingPillarsCard({ pillars, lang, onRequestPhoto }: { pillars: string[]; lang: string; onRequestPhoto?: () => void }) {
   if (!pillars || pillars.length === 0) return null;
   const isEl = lang === 'el';
 
@@ -168,11 +169,22 @@ function MissingPillarsCard({ pillars, lang }: { pillars: string[]; lang: string
       {pillars.map(p => {
         const canonical = normalisePillarKey(p);
         const label = PILLAR_LABELS[canonical]?.[isEl ? 'el' : 'en'];
-        if (!label) return null; // skip unknown pillars
+        if (!label) return null;
+        const isEvidence = canonical === 'THE EVIDENCE' || canonical === 'THE_EVIDENCE';
         return (
-          <p key={p} className="text-[12px] text-foreground/80 leading-snug">
-            &bull; {label}
-          </p>
+          <div key={p} className="flex items-center justify-between gap-2">
+            <p className="text-[12px] text-foreground/80 leading-snug">
+              &bull; {label}
+            </p>
+            {isEvidence && onRequestPhoto && (
+              <button
+                onClick={onRequestPhoto}
+                className="flex-shrink-0 flex items-center gap-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 px-2.5 py-1 text-[11px] font-semibold text-amber-400 transition-colors"
+              >
+                📷 {isEl ? 'Προσθήκη φωτό' : 'Add photo'}
+              </button>
+            )}
+          </div>
         );
       })}
     </div>
@@ -320,7 +332,7 @@ export default function MessageBubble({
   onStar, onFeedback, onLogIntervention, onShare,
   onVioApplyConfirm, onOutcome, onRetry,
   showInlineLogForm, onInlineLogClose, onInlineLogSuccess,
-  userId, activeFieldId, userLat, userLon, onGenerateReport,
+  userId, activeFieldId, userLat, userLon, onGenerateReport, onRequestPhoto,
 }: Props) {
   const isUser = msg.role === 'user';
   const dd = msg.metadata?.diagnosis_data;
@@ -435,7 +447,7 @@ export default function MessageBubble({
 
               {/* ── Missing pillars card ── */}
               {dd?.missing_pillars && dd.missing_pillars.length > 0 && (
-                <MissingPillarsCard pillars={dd.missing_pillars} lang={lang} />
+                <MissingPillarsCard pillars={dd.missing_pillars} lang={lang} onRequestPhoto={onRequestPhoto} />
               )}
 
               {/* ── VIO Step 1: "Did you apply?" ── */}

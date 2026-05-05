@@ -34,6 +34,7 @@ export interface MessageListProps {
   userLat?: number | null;
   userLon?: number | null;
   onGenerateReport?: (fieldId: string | null) => void;
+  onRequestPhoto?: () => void;
 }
 
 export default function MessageList({
@@ -57,6 +58,7 @@ export default function MessageList({
   userLat,
   userLon,
   onGenerateReport,
+  onRequestPhoto,
 }: MessageListProps) {
   return (
     <div className="space-y-6">
@@ -82,6 +84,7 @@ export default function MessageList({
           userLat={userLat}
           userLon={userLon}
           onGenerateReport={onGenerateReport}
+          onRequestPhoto={onRequestPhoto}
         />
       ))}
       {isTyping && (
