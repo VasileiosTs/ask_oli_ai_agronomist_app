@@ -2767,7 +2767,7 @@ Return ONLY the greeting text, nothing else.`;
     let serverContext: Awaited<ReturnType<typeof assembleServerFieldContext>>;
     let aiResponse: AiResponseJson;
     let assistantText = '';
-    let assistantMetadata: Record<string, unknown> = {};
+    let assistantMetadata: Record<string, unknown> | null = {};
     let nextMessageCount: number;
     let shouldRefundMessageCount = false;
 
