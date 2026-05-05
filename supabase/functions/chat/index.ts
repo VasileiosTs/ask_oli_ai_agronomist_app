@@ -1253,6 +1253,27 @@ function intentTemperature(intent: QueryIntent): number {
 
 const BANNED_OPENER_RE = /^\s*(great question|certainly|of course|sure|absolutely|happy to help)[!,.\-:\s]/i;
 
+const MAX_REPAIR_ATTEMPTS = 2;
+
+// V3: Schema-valid fallback when Gemini repeatedly returns malformed output.
+// Surfaces a short clarifier in the user's language, never names a disease,
+// flags itself in metadata so we can grep '[chat:repair_exhausted]' in logs.
+function buildSafeFallbackResponse(lang: string, hasActiveField: boolean): AiResponseJson {
+  const text = lang === 'el'
+    ? 'Θέλω να σε βοηθήσω σωστά. Μπορείς να μου πεις ποια καλλιέργεια και τι παρατηρείς; Αν μπορείς, στείλε και μια φωτογραφία.'
+    : "I want to make sure I help you well. Can you tell me which crop and what you're seeing? A photo helps too.";
+  return {
+    response_text: text,
+    intent: 'unclear',
+    crop_mentioned: null,
+    field_scope: hasActiveField ? 'specific' : 'general',
+    question_count: 1,
+    has_banned_opener: false,
+    diagnosis_data: null,
+    action_detected: null,
+  } as AiResponseJson;
+}
+
 interface ValidatedResponseResult {
   json: AiResponseJson;
   promptTokens: number;
@@ -1292,27 +1313,44 @@ async function generateValidatedResponse(
     json = { ...json, field_scope: 'specific' };
   }
 
-  const validation = validateResponse(json, hasActiveField);
+  let validation = validateResponse(json, hasActiveField);
+  let repairAttempts = 0;
+  let repairExhausted = false;
 
-  if (!validation.valid) {
-    console.warn('Response validation failed, retrying with repair prompt:', validation.errors);
+  // V3: Up to MAX_REPAIR_ATTEMPTS repair calls. Each iteration re-runs
+  // server-side overrides (banned opener, field_scope) before re-validating
+  // so we don't keep retrying for issues already fixed locally.
+  while (!validation.valid && repairAttempts < MAX_REPAIR_ATTEMPTS) {
+    repairAttempts++;
+    console.warn(`[chat:repair] attempt ${repairAttempts}/${MAX_REPAIR_ATTEMPTS} — errors:`, validation.errors);
     // P2: Inject repair instruction into systemPrompt (not user content, proper separation)
     const repairSystemPrompt =
       systemPrompt +
-      `\n\n⚠️ REPAIR REQUIRED, your previous response failed these validation checks:\n` +
+      `\n\n⚠️ REPAIR REQUIRED (attempt ${repairAttempts}/${MAX_REPAIR_ATTEMPTS}). Your previous response failed:\n` +
       validation.errors.map((e) => `- ${e}`).join('\n') +
-      `\nFix ALL of the above issues in your new response. Do not repeat the same mistakes.`;
+      `\nFix ALL of the above. Do not repeat the same mistakes.`;
     const repair = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
     json = repair.json;
-    // Accumulate tokens across both calls so the usage log reflects total spend
     promptTokens += repair.promptTokens;
     outputTokens += repair.outputTokens;
     totalTokens += repair.totalTokens;
 
-    // Re-check banned opener after repair
     if (BANNED_OPENER_RE.test(json.response_text)) {
       json = { ...json, has_banned_opener: true };
     }
+    if (hasActiveField) {
+      json = { ...json, field_scope: 'specific' };
+    }
+    validation = validateResponse(json, hasActiveField);
+  }
+
+  // V3: If still invalid after the retry budget, fall back to a safe
+  // schema-valid clarifier instead of letting bad output reach the user.
+  // Logged separately so we can monitor frequency in production.
+  if (!validation.valid) {
+    repairExhausted = true;
+    console.error('[chat:repair_exhausted] returning safe fallback. Final errors:', validation.errors);
+    json = buildSafeFallbackResponse(lang, hasActiveField);
   }
 
   // S1: Enforce confidence threshold, strip specific disease data below 40%
@@ -1323,9 +1361,8 @@ async function generateValidatedResponse(
 
   // M2: Per-request token telemetry. Greppable from Supabase logs to spot
   // prompt-bloat regressions (e.g. fieldContext growing unbounded as a user
-  // adds fields/interventions). The repaired flag tells us how often the
-  // 1-shot validation retry fires in production.
-  const repaired = !validation.valid;
+  // adds fields/interventions). repairAttempts tells us how often the
+  // validation retry fires; repairExhausted flags safe-fallback events.
   console.info('[chat:tokens]', JSON.stringify({
     intent,
     promptTokens,
@@ -1333,7 +1370,8 @@ async function generateValidatedResponse(
     totalTokens,
     systemPromptChars: systemPrompt.length,
     fieldContextChars: fieldContext.length,
-    repaired,
+    repairAttempts,
+    repairExhausted,
   }));
 
   return {
