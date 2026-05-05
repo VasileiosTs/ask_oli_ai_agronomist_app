@@ -301,7 +301,7 @@ async function classifyIntentLlm(
   lang: string,
 ): Promise<QueryIntent | null> {
   try {
-    const langName = lang === 'el' ? 'Greek' : 'English';
+    const langName = ({ el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic', pt: 'Portuguese' } as Record<string, string>)[lang] ?? 'English';
     const payload = {
       contents: [{
         role: 'user',
