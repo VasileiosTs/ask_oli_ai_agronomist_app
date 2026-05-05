@@ -169,18 +169,34 @@ const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
 // ── Weather fetch (Open-Meteo, free, no API key required) ──────────────────
 // Same API used by WeatherWidget.tsx on the frontend.
 // Called only when user has lat/lon stored; times out silently after 3s.
+interface WeatherForecastDay {
+  date: string;          // YYYY-MM-DD
+  temp_min_c: number;
+  temp_max_c: number;
+  precipitation_mm: number;
+  wind_max_kmh: number;
+}
+
 interface WeatherSnapshot {
   temperature_c: number;
   humidity_pct: number;
   precipitation_mm: number;
   wind_kmh: number;
+  forecast?: WeatherForecastDay[]; // F1: only populated for planning-style queries
 }
 
-async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSnapshot | null> {
+// F1: Single Open-Meteo call returns current conditions plus an optional
+// 3-day daily forecast. Forecast doubles the response size, so we only
+// request it when intent === 'planning' ("when should I spray?", "is
+// Thursday a good day for fertilizing?"). Current-only path is unchanged.
+async function fetchWeather(lat: number, lon: number, includeForecast: boolean): Promise<WeatherSnapshot | null> {
   try {
+    const dailyParam = includeForecast
+      ? '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&forecast_days=3'
+      : '';
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&timezone=auto`;
+      `&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m${dailyParam}&timezone=auto`;
     const res = await Promise.race([
       fetch(url),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
@@ -189,12 +205,24 @@ async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSna
     const json = await (res as Response).json();
     const c = json?.current;
     if (!c) return null;
-    return {
+    const snapshot: WeatherSnapshot = {
       temperature_c: c.temperature_2m,
       humidity_pct: c.relative_humidity_2m,
       precipitation_mm: c.precipitation,
       wind_kmh: c.wind_speed_10m,
     };
+    if (includeForecast && json?.daily?.time && Array.isArray(json.daily.time)) {
+      const d = json.daily;
+      snapshot.forecast = d.time.map((date: string, i: number) => ({
+        date,
+        temp_min_c: d.temperature_2m_min?.[i],
+        temp_max_c: d.temperature_2m_max?.[i],
+        precipitation_mm: d.precipitation_sum?.[i] ?? 0,
+        wind_max_kmh: d.wind_speed_10m_max?.[i] ?? 0,
+      })).filter((day: WeatherForecastDay) =>
+        Number.isFinite(day.temp_min_c) && Number.isFinite(day.temp_max_c));
+    }
+    return snapshot;
   } catch {
     return null;
   }
@@ -202,7 +230,15 @@ async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSna
 
 function formatWeatherContext(w: WeatherSnapshot): string {
   const precip = w.precipitation_mm > 0 ? `, ${w.precipitation_mm}mm rain` : '';
-  return `Current weather: ${w.temperature_c}°C, ${w.humidity_pct}% humidity${precip}, ${w.wind_kmh}km/h wind`;
+  const current = `Current weather: ${w.temperature_c}°C, ${w.humidity_pct}% humidity${precip}, ${w.wind_kmh}km/h wind`;
+  if (!w.forecast || w.forecast.length === 0) return current;
+  // F1: Compact forecast format kept under ~200 chars to limit prompt growth.
+  // Format: "Forecast: 2026-05-06 18-26°C, 0mm | 2026-05-07 17-25°C, 4mm | ..."
+  const forecastLine = w.forecast.map((d) => {
+    const rain = d.precipitation_mm > 0 ? `${d.precipitation_mm.toFixed(1)}mm` : '0mm';
+    return `${d.date} ${Math.round(d.temp_min_c)}-${Math.round(d.temp_max_c)}°C, ${rain}, wind ${Math.round(d.wind_max_kmh)}km/h`;
+  }).join(' | ');
+  return `${current}\n3-day forecast: ${forecastLine}`;
 }
 
 // ── Intent Classifier ────────────────────────────────────────────────────────
@@ -2809,10 +2845,12 @@ Return ONLY the greeting text, nothing else.`;
     );
 
     // Fetch real-time weather only when the intent benefits from it.
+    // F1: Add a 3-day forecast for planning intents ("when should I spray?")
+    // — same Open-Meteo call, just opts into the daily fields.
     const userLat = typeof appUser.location_lat === 'number' ? appUser.location_lat : null;
     const userLon = typeof appUser.location_lon === 'number' ? appUser.location_lon : null;
     const weatherSnapshot = (userLat !== null && userLon !== null && intentNeedsWeather(queryIntent))
-      ? await fetchCurrentWeather(userLat, userLon)
+      ? await fetchWeather(userLat, userLon, queryIntent === 'planning')
       : null;
 
     const growerContext = [
