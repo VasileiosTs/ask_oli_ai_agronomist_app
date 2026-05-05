@@ -2008,11 +2008,12 @@ async function updateConversationFieldLink(
 async function mergeMessageMetadata(
   supabaseAdmin: any,
   appUserId: string,
-  messageId: string,
+  messageId: string | null,
   patch: Record<string, unknown>,
   fieldId?: string | null,
   conversationId?: string | null,
 ) {
+  if (!messageId) return;
   const { data: existing } = await supabaseAdmin
     .from('chat_messages')
     .select('metadata')
