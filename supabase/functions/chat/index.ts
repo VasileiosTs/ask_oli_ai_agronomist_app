@@ -245,6 +245,87 @@ function classifyIntent(message: string, hasActualImages: boolean): QueryIntent 
   return 'general';
 }
 
+const QUERY_INTENT_VALUES: readonly QueryIntent[] = [
+  'diagnosis', 'calculation', 'followup', 'indoor', 'planning', 'general',
+];
+
+// I4: When the regex falls through to 'general' on a substantive message,
+// consult gemini-2.0-flash-lite (cheapest model) to verify. Catches
+// phrasing the regex doesn't (e.g. Greek code-mixed text, novel symptom
+// wording). Skipped for short messages (likely greetings/acks) and on
+// any failure path falls back to the regex result.
+async function classifyIntentLlm(
+  geminiApiKey: string,
+  message: string,
+  lang: string,
+): Promise<QueryIntent | null> {
+  try {
+    const langName = lang === 'el' ? 'Greek' : 'English';
+    const payload = {
+      contents: [{
+        role: 'user',
+        parts: [{
+          text:
+            `Classify this farmer's message (${langName}) as ONE intent. Return JSON {"intent":"..."}.\n` +
+            `- diagnosis: symptoms, visual problems, "what's wrong with my plant"\n` +
+            `- calculation: dose, rate, dilution, units (l/ha, kg/ha)\n` +
+            `- followup: reporting back on a past treatment / progress\n` +
+            `- indoor: houseplant or container care\n` +
+            `- planning: when/what to do, schedules, spray programs\n` +
+            `- general: definitions, general knowledge, greetings\n\n` +
+            `Message: ${message}`,
+        }],
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: { intent: { type: 'STRING', enum: [...QUERY_INTENT_VALUES] } },
+          required: ['intent'],
+        },
+        temperature: 0,
+        maxOutputTokens: 32,
+      },
+    };
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    const text = extractGeminiText(data);
+    const parsed = JSON.parse(text);
+    const intent = parsed?.intent;
+    return QUERY_INTENT_VALUES.includes(intent) ? intent : null;
+  } catch (err) {
+    console.warn('[chat:intentLlm] failed, falling back to regex:', safeErrorMessage(err));
+    return null;
+  }
+}
+
+// I4: Hybrid intent. Regex first (free, instant). If regex says 'general'
+// AND the message is substantive (>30 chars, not a likely ack/greeting),
+// verify with the LLM classifier. On any LLM failure or short message,
+// keep the regex result.
+async function classifyIntentHybrid(
+  geminiApiKey: string,
+  message: string,
+  hasActualImages: boolean,
+  lang: string,
+): Promise<QueryIntent> {
+  const regexIntent = classifyIntent(message, hasActualImages);
+  if (regexIntent !== 'general') return regexIntent;
+  const trimmed = message.trim();
+  if (trimmed.length < 30) return regexIntent;
+  const llmIntent = await classifyIntentLlm(geminiApiKey, trimmed.slice(0, 500), lang);
+  return llmIntent ?? regexIntent;
+}
+
 function buildSystemPrompt(
   fieldContext: string,
   growerContext = '',
@@ -2677,10 +2758,17 @@ Return ONLY the greeting text, nothing else.`;
     // W1: Classify intent up-front so we can skip weather for queries that
     // don't need it. hasActualImages excludes PDFs/audio (image/* MIME only)
     // because PDFs/audio shouldn't force diagnosis intent.
+    // I4: Hybrid classifier — regex first, LLM fallback only when regex
+    // can't decide AND the message is substantive enough to be worth ~300ms.
     const hasActualImages = requestMessages.some(m =>
       Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType.startsWith('image/'))
     );
-    const queryIntent = classifyIntent(latestUserMessage.content, hasActualImages);
+    const queryIntent = await classifyIntentHybrid(
+      geminiApiKey,
+      latestUserMessage.content,
+      hasActualImages,
+      userLang,
+    );
 
     // Fetch real-time weather only when the intent benefits from it.
     const userLat = typeof appUser.location_lat === 'number' ? appUser.location_lat : null;
