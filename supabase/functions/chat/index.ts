@@ -251,7 +251,12 @@ type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'indo
 // ("what is mealybug"), dose calculations, and indoor/houseplant care don't —
 // fetching weather for those wastes ~150-300ms and an Open-Meteo call.
 function intentNeedsWeather(intent: QueryIntent): boolean {
-  return intent === 'diagnosis' || intent === 'planning' || intent === 'followup';
+  // Exclude only queries where outdoor weather is truly irrelevant:
+  // - calculation: dose/rate math is weather-independent
+  // - indoor: houseplant in a pot is not affected by outdoor conditions
+  // Everything else (diagnosis, planning, followup, general) gets weather so
+  // responses feel contextually aware, not just generic keyword answers.
+  return intent !== 'calculation' && intent !== 'indoor';
 }
 
 function classifyIntent(message: string, hasActualImages: boolean): QueryIntent {
