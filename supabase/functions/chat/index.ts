@@ -211,15 +211,15 @@ function formatWeatherContext(w: WeatherSnapshot): string {
 // so Gemini spends zero tokens deciding what type of question it is.
 type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'indoor' | 'general';
 
-function classifyIntent(message: string, hasImages: boolean): QueryIntent {
-  if (hasImages) return 'diagnosis'; // photo = always diagnostic intent
+function classifyIntent(message: string, hasActualImages: boolean): QueryIntent {
+  if (hasActualImages) return 'diagnosis'; // image attachment = always diagnostic intent
   const m = message.toLowerCase();
   // Calculation: numerical, dosage, rate, or unit questions
   if (/\b(how much|calculate|dose|dosage|rate|l\/ha|kg\/ha|ml\/|ratio|concentration|how many litre|πόσο|δόση|υπολόγισε|αραίωσ|ποσότητα|λίτρα|κιλά ανά)\b/.test(m)) return 'calculation';
   // Follow-up: reporting back on a past treatment or asking about progress
-  if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε)\b/.test(m)) return 'followup';
-  // Diagnosis: symptoms, visual problems, disease/pest mentions
-  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη)\b/.test(m)) return 'diagnosis';
+  if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|no change|no improvement|any better|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε|δεν βελτιώθηκε|συνεχίζει|τα ίδια|επανήλθε|αποτέλεσμα|πώς πήγε|δεν έγινε καλύτερα)\b/.test(m)) return 'followup';
+  // Diagnosis: symptoms, visual problems, disease/pest mentions, and diagnostic questions
+  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|what.?s wrong|something wrong|doesn.?t look|look sick|attacked|infested|what is this|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη|χτυπήθηκε|προσβολή|αρρωστ|τι έχει|τι μπορεί να έχει|δεν φαίνεται καλά|κάτι δεν πάει)\b/.test(m)) return 'diagnosis';
   // Indoor/container care: watering, repotting, light, position, drainage, care queries, not symptom queries
   // Specific care keywords (unambiguous): always indoor
   if (/\b(repot|repotting|overwater|overwatered|underwater|underwatered|root.?bound|drainage hole|pot.*size|outgrow.*pot|γλάστρα|ξαναφύτεμα|ξαναφυτεύ)\b/.test(m)) return 'indoor';
@@ -316,10 +316,9 @@ Determine crop growth stage from date + hemisphere + crop. Factor into all advic
    - 40-65: "possible/suspected" only. 2-3 candidates. ONE tie-breaking question. ONE safe interim action.
    - 65-85: Primary diagnosis with uncertainty. ONE follow-up if it changes treatment. Treatment options.
    - > 85: Full diagnosis + treatment + prevention.
-5. PHOTO REQUEST: When the user describes visual symptoms (spots, colour change, wilting, lesions, powder, mould, pest signs) AND has NOT sent a photo, you MUST ask for one explicitly in your main_response text — not only in missing_pillars. Say exactly what to photograph (use PHOTO REQUEST GUIDE below). Make it the final sentence of your response. Example: "Can you send me a close-up photo of one affected leaf in natural daylight? That will let me confirm the diagnosis." Do NOT skip this even if you have a suspected diagnosis.
-6. QUARANTINE DISEASES: NEVER name HLB, Xylella, Fire Blight, Plum Pox, ToBRFV, Fusarium TR4, Potato Wart unless >85. Below 85%: "symptoms consistent with serious disease, contact local plant protection service."
-7. QUESTION ANATOMY: (a) recap what you understand, (b) explain WHY you need this info, (c) ask the specific question.
-8. FOLLOW-UP COMMITMENT: Close with "I'll want to hear from you in [X] days." 3-5 days severe, 5-7 fungal, 10-14 nutritional.
+5. QUARANTINE DISEASES: NEVER name HLB, Xylella, Fire Blight, Plum Pox, ToBRFV, Fusarium TR4, Potato Wart unless >85. Below 85%: "symptoms consistent with serious disease, contact local plant protection service."
+6. QUESTION ANATOMY: (a) recap what you understand, (b) explain WHY you need this info, (c) ask the specific question.
+7. FOLLOW-UP COMMITMENT: Close with "I'll want to hear from you in [X] days." 3-5 days severe, 5-7 fungal, 10-14 nutritional.
 
 THE FIVE PILLARS:
 1. THE VICTIM: species/variety known?
@@ -338,18 +337,10 @@ Confidence scoring (confidence_score in JSON):
 
 IMAGE ANALYSIS:
 - Always attempt analysis, even blurry images.
-- Affected area < 30% of frame: ask for close-up.
+- Affected area < 30% of frame: use your photo ask (from UNIVERSAL) to request a close-up.
 - Each new image is independent.
 - Poor quality lowers confidence.
-- Non-plant photos: ask for plant close-up. Set confidence_score 0.
-
-PHOTO REQUEST GUIDE:
-- Spots on leaves → "Close-up of one affected leaf, full frame, natural daylight."
-- Pest ID → "Photo of leaf UNDERSIDE, close enough for individual insects."
-- Soil/root → "Photo of soil surface + pot drainage holes."
-- Plant ID → "Single fully-visible leaf front + stem texture."
-- Unclear problem → "Step back 1-2m, full plant including pot/soil base."
-- Fruit issue → "Close-up of one affected fruit + how many show same problem."`;
+- Non-plant photos: ask for plant close-up. Set confidence_score 0.`;
 
   const TYPE_B_CALCULATION = `BEHAVIOUR FOR CALCULATION (TYPE B):
 1. If ALL numbers available, calculate immediately with step-by-step work.
@@ -374,7 +365,8 @@ ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total 
 1. Answer directly and completely.
 2. Active ingredient first, then brand examples. Format: "Azoxystrobin (e.g., Amistar), 0.75-1.5 L/ha."
 3. Flag regional availability issues.
-4. Flag restricted/banned substances and redirect to alternatives.`;
+4. Flag restricted/banned substances and redirect to alternatives.
+5. DIAGNOSTIC AWARENESS: If the question is about disease symptoms, pest appearance, or a visible problem on a specific plant — give the factual answer first, then apply the UNIVERSAL PHOTO REQUEST RULE from UNIVERSAL RULES.`;
 
   const TYPE_E_FOLLOWUP = `BEHAVIOUR FOR FOLLOW-UP (TYPE E):
 1. EMOTIONAL ACKNOWLEDGMENT FIRST:
@@ -414,12 +406,30 @@ SIX PILLARS: 1) THE PLANT (species, age) 2) THE CONTAINER (size, drainage, mater
 
 RESPONSE FORMAT (MANDATORY):
 1. ANSWER (2-4 sentences): actionable answer immediately. Imperatives: "Ψέκασε...", "Πότισε...", "Έλεγξε..."
-2. SPECIFICS REQUEST (only if needed): "Για ακριβέστερη συμβουλή, στείλε μου:" + 2-3 items.
-Exception: TYPE A with confidence < 65 may ask before committing.
+2. ONE QUESTION if needed, at the END only, as the final sentence:
+   • Photo ask → natural sentence: "Can you send me a close-up photo of one affected leaf in natural daylight?"
+   • Info ask → list: "Για ακριβέστερη συμβουλή, στείλε μου: [2-3 items]"
+   Exception: TYPE A with confidence < 65 may ask before committing to a diagnosis.
+
+UNIVERSAL PHOTO REQUEST RULE (applies to ALL query types, except TYPE F which has its own protocol):
+When the user describes visual symptoms (spots, discolouration, wilting, lesions, powder, mould, pest signs, visible damage) on a specific plant AND has NOT sent a photo with this message:
+— End your response with a photo request as the FINAL SENTENCE. This IS your one allowed question.
+— Specify exactly what to photograph using the PHOTO REQUEST GUIDE below.
+— Also include "THE EVIDENCE" in missing_pillars.
+— Do NOT skip this even if you already have a working diagnosis — a photo confirms or overturns it.
+— Example: "Can you send me a close-up photo of one affected leaf in natural daylight? That will let me confirm the diagnosis."
+
+PHOTO REQUEST GUIDE:
+- Spots on leaves → "Close-up of one affected leaf, full frame, natural daylight."
+- Pest ID → "Photo of leaf UNDERSIDE, close enough for individual insects."
+- Soil/root → "Photo of soil surface + pot drainage holes."
+- Plant ID → "Single fully-visible leaf front + stem texture."
+- Unclear problem → "Step back 1-2m, full plant including pot/soil base."
+- Fruit issue → "Close-up of one affected fruit + how many show same problem."
 
 HARD LIMITS:
-- Max ONE question mark per response.
-- Under 150 words for care/calendar, 200 for diagnosis.
+- Max ONE question mark per response. The photo ask counts as that question — never ask a second question in the same response.
+- Under 150 words for care/planning. Under 200 for diagnosis. Be clinical and direct.
 - No "it depends on many factors". Commit to most likely scenario.
 - Max 3 treatments. Pick best, mention 1 alternative.
 - No explaining WHY unless asked.
@@ -427,9 +437,10 @@ HARD LIMITS:
 - Confidence in words only: Χαμηλή (<40), Μέτρια (40-65), Υψηλή (65-85), Πολύ υψηλή (>85).
 
 QUESTION DISCIPLINE:
-- Questions ONLY in "Για ακριβέστερη συμβουλή" line at end.
-- NEVER inside answer body. NEVER more than one.
-- Priority: photo > symptom > field conditions.
+- ONE question per response, at the END only, as the final sentence.
+- PRIORITY ORDER: (1) photo request when visual symptoms described without image — takes the slot; (2) single most critical diagnostic tie-breaker. Never both.
+- NEVER put questions inside the answer body.
+- NEVER ask more than one question in any form.
 
 PROFESSIONAL TONE:
 - Senior agronomist to colleague.
@@ -552,25 +563,67 @@ const VALID_PILLARS = new Set([
   'THE EVIDENCE',
 ]);
 
-// S2: Strip any missing_pillars values the AI hallucinated outside the allowed set.
-// The UI maps these exact strings to labels, anything else silently breaks the UI.
+// Keyword → canonical pillar. Checked after basic normalization fails.
+const PILLAR_KEYWORD_MAP: Array<[string, string]> = [
+  ['VICTIM', 'THE VICTIM'],
+  ['SPECIES', 'THE VICTIM'],
+  ['VARIETY', 'THE VICTIM'],
+  ['SYMPTOM', 'THE SYMPTOMS'],
+  ['COLOR', 'THE SYMPTOMS'],
+  ['COLOUR', 'THE SYMPTOMS'],
+  ['TIMELINE', 'THE TIMELINE'],
+  ['TIMING', 'THE TIMELINE'],
+  ['WHEN', 'THE TIMELINE'],
+  ['ENVIRONMENT', 'THE ENVIRONMENT'],
+  ['SOIL', 'THE ENVIRONMENT'],
+  ['WEATHER', 'THE ENVIRONMENT'],
+  ['IRRIGATION', 'THE ENVIRONMENT'],
+  ['EVIDENCE', 'THE EVIDENCE'],
+  ['PHOTO', 'THE EVIDENCE'],
+  ['IMAGE', 'THE EVIDENCE'],
+  ['PICTURE', 'THE EVIDENCE'],
+];
+
+function normalizePillar(raw: string): string | null {
+  // Uppercase, trim, collapse separators to spaces
+  const upper = raw.trim().toUpperCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+  if (VALID_PILLARS.has(upper)) return upper;
+  // Try prepending "THE " if missing
+  const withThe = upper.startsWith('THE ') ? upper : `THE ${upper}`;
+  if (VALID_PILLARS.has(withThe)) return withThe;
+  // Keyword scan
+  for (const [keyword, canonical] of PILLAR_KEYWORD_MAP) {
+    if (upper.includes(keyword)) return canonical;
+  }
+  return null;
+}
+
+// S2: Normalize and strip missing_pillars values the AI returned in wrong form.
+// The UI maps these exact canonical strings; anything else silently breaks the card.
 function sanitizeMissingPillars(response: AiResponseJson): AiResponseJson {
   const dd = response.diagnosis_data;
   if (!dd?.missing_pillars || !Array.isArray(dd.missing_pillars)) return response;
 
-  const sanitized = dd.missing_pillars.filter((p) => VALID_PILLARS.has(p));
-  if (sanitized.length === dd.missing_pillars.length) return response;
+  const normalized = dd.missing_pillars.map(normalizePillar);
+  const invalid = dd.missing_pillars.filter((_, i) => normalized[i] === null);
+  if (invalid.length > 0) {
+    console.warn('sanitizeMissingPillars: stripped invalid values:', invalid);
+  }
 
-  console.warn(
-    'sanitizeMissingPillars: stripped invalid values:',
-    dd.missing_pillars.filter((p) => !VALID_PILLARS.has(p)),
-  );
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  const unique = normalized.filter((p): p is string => p !== null && !seen.has(p) && (seen.add(p), true));
+
+  const unchanged =
+    unique.length === dd.missing_pillars.length &&
+    dd.missing_pillars.every((p, i) => p === unique[i]);
+  if (unchanged) return response;
 
   return {
     ...response,
     diagnosis_data: {
       ...dd,
-      missing_pillars: sanitized.length > 0 ? sanitized : null,
+      missing_pillars: unique.length > 0 ? unique : null,
     },
   };
 }
@@ -904,8 +957,10 @@ async function extractImageContext(
       parts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
     }
 
+    // flash-lite has no multimodal support; fall back to 2.0-flash for image extraction
+    const imageExtractionModel = GEMINI_MODEL === 'gemini-2.0-flash-lite' ? 'gemini-2.0-flash' : GEMINI_MODEL;
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(imageExtractionModel)}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
@@ -2135,8 +2190,8 @@ async function handleGuestChat(
     .slice(0, 1); // guest: max 1 image
 
   const guestLang = body.lang || 'en';
-  const guestHasImages = validAttachments.length > 0;
-  const guestIntent = classifyIntent(sanitized, guestHasImages);
+  const guestHasActualImages = validAttachments.some(a => a.mimeType.startsWith('image/'));
+  const guestIntent = classifyIntent(sanitized, guestHasActualImages);
   const systemPrompt = buildSystemPrompt('No field data or treatment history on record yet.', '', guestLang, guestIntent, 0);
   const guestMessages: ChatMessageInput[] = [{
     role: 'user',
@@ -2785,20 +2840,24 @@ Return ONLY the greeting text, nothing else.`;
         );
       }
 
-      const hasImages = requestMessages.some(m => Array.isArray(m.attachments) && m.attachments.length > 0);
-      const queryIntent = classifyIntent(latestUserMessage.content, hasImages);
+      // hasActualImages: only true for image/* mime types, not PDFs or audio.
+      // PDFs/audio force diagnosis intent and would misdirect the five-pillar framework.
+      const hasActualImages = requestMessages.some(m =>
+        Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType.startsWith('image/'))
+      );
+      const queryIntent = classifyIntent(latestUserMessage.content, hasActualImages);
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
-      // Image pre-extraction: when photo is attached, run a quick focused call
-      // to extract structured observations before the main chat call
+      // Image pre-extraction: run a focused Gemini call on actual image attachments only.
+      // PDFs are already processed as text; audio has no visual to extract from.
       let imageContext = '';
-      if (hasImages) {
-        const latestAttachments = requestMessages
-          .filter(m => Array.isArray(m.attachments) && m.attachments.length > 0)
-          .flatMap(m => m.attachments!)
+      if (hasActualImages) {
+        const imageAttachments = requestMessages
+          .flatMap(m => Array.isArray(m.attachments) ? m.attachments : [])
+          .filter(a => a.mimeType.startsWith('image/'))
           .slice(-3); // max 3 images
-        if (latestAttachments.length > 0) {
-          imageContext = await extractImageContext(geminiApiKey, latestAttachments);
+        if (imageAttachments.length > 0) {
+          imageContext = await extractImageContext(geminiApiKey, imageAttachments);
         }
       }
 
