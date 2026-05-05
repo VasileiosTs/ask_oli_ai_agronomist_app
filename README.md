@@ -14,7 +14,7 @@ There are **500 million smallholder farmers** worldwide. They grow 70% of the wo
 
 A certified agronomist costs €50–150/visit in Southern Europe. In sub-Saharan Africa, India, and Latin America there may be one agronomist per 1,000 farmers. A crop disease left undiagnosed for 48 hours can destroy an entire season's income.
 
-Today's "solution": WhatsApp a photo to a friend. Wait two days for an agronomist visit. Google symptoms and guess. These are not solutions — they are a gap in the market worth billions of dollars.
+Today's "solution": show a sick leaf to a neighbor and hope they've seen it before. Post a photo on a Facebook farming group and wait for conflicting opinions. Google the symptoms and land on a generic gardening blog. Wait two days for an agronomist who charges €80 for the visit. These are not solutions — they are a gap in the market worth billions of dollars.
 
 Enterprise agtech (Trimble, John Deere Ops Center, Climate Corp) costs $10,000+/year and requires farm machinery integration. It is built for the 1% of large commercial farms. The other 500 million farmers are invisible to Silicon Valley.
 
@@ -54,8 +54,15 @@ Oli is a **chat-first AI agronomist** — instant, expert-level crop guidance th
 
 ## The Business Model
 
-**Free:** 20 messages/month — enough for a farmer with one or two active problems.  
-**Pro:** €4.99/month or €49/year — unlimited messages, priority AI model, full field history export.  
+| Tier | Price | Who it's for |
+|------|-------|--------------|
+| **Free** | €0 — 20 messages/month | Farmers with one or two active problems trying the product |
+| **Pro** | €4.99/month · €49/year | Individual farmers who want unlimited advice year-round |
+| **Agronomist** | €49/month · €490/year | Certified agronomists managing multiple farmer clients under one account |
+| **Enterprise** | Custom | Cooperatives, agri-input distributors, extension services |
+
+The Agronomist tier is a deliberate wedge into the professional channel — the same agronomists who recommend products to hundreds of farmers become Oli's distribution network.
+
 **Future — B2B API:** Sell agricultural AI inference to cooperatives, input distributors (ADAMA, Yara, Bayer), and agtech platforms. This is the high-margin, high-scale business.
 
 Unit economics: Gemini API cost per conversation is ~€0.001–0.005. A Pro subscriber at €4.99/month covers 1,000–5,000 conversations. Gross margin at scale exceeds 85%.
@@ -329,7 +336,7 @@ CRON_SECRET
 
 **The flywheel.** Every VIO recorded makes the next recommendation more accurate. Every farmer who joins makes the dataset denser. Competitors cannot fast-follow — they need years of outcome data that only comes from real farmers using the product.
 
-**Bottom-up distribution.** Farmers share diagnoses. Cooperatives forward treatment plans. Agronomists recommend the tool. WhatsApp and Telegram sharing is built into every diagnosis. The organic growth loop is in the product.
+**Bottom-up distribution.** Farmers show diagnoses to neighbors in the field. They post results in Facebook farming groups. Agronomists share treatment plans with their clients. Every diagnosis has a public shareable link with an OG card — built for the way farmers actually communicate, not the way Silicon Valley imagines they do.
 
 **No incumbent owns this space.** Enterprise agtech ignores smallholders. Consumer agtech is mostly photo-ID apps with no memory, no follow-up, no data loop. Oli is the first to close the full cycle: diagnosis → treatment → outcome → learning → better diagnosis.
 
