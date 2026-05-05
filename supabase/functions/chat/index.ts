@@ -339,8 +339,7 @@ async function classifyIntentLlm(
     );
     if (!response.ok) return null;
     const data = await response.json();
-    const text = extractGeminiText(data);
-    const parsed = JSON.parse(text);
+    const parsed = parseGeminiPayload<{ intent: QueryIntent }>(data);
     const intent = parsed?.intent;
     return QUERY_INTENT_VALUES.includes(intent) ? intent : null;
   } catch (err) {
