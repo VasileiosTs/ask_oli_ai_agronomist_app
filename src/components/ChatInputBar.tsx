@@ -142,7 +142,7 @@ export default function ChatInputBar({
         <div className="relative flex-1">
           <textarea ref={textareaRef} value={input} onChange={onInput} onKeyDown={onKeyDown}
             aria-label={t.inputPlaceholder}
-            placeholder={isListening ? t.listening : t.inputPlaceholder}
+            placeholder={isListening ? t.listening : attachments.some(a => a.file.type.startsWith('image/')) ? t.photoPlaceholder : t.inputPlaceholder}
             className="max-h-[120px] min-h-[40px] w-full resize-none rounded-[22px] border border-border/50 bg-background px-4 py-2.5 text-[15px] text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             rows={1} />
         </div>

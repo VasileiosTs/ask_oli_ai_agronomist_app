@@ -22,7 +22,7 @@ export interface T {
   feature3Title: string; feature3Desc: string;
   welcomeTitle: string; welcomeSubtitle: string; welcomeStart: string;
   // Chat - input
-  inputPlaceholder: string; listening: string;
+  inputPlaceholder: string; photoPlaceholder: string; listening: string;
   aiDisclaimer: string;
   // Chat - field selector
   allFields: string;
