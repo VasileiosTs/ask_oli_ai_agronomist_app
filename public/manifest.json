@@ -39,6 +39,13 @@
       "type": "image/png",
       "form_factor": "wide",
       "label": "Oli AI Agronomist — Crop diagnosis dashboard"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Oli AI Agronomist — Chat interface on mobile"
     }
   ],
   "categories": ["agriculture", "productivity", "utilities"],

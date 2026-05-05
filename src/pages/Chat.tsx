@@ -13,12 +13,12 @@ import ConversationSidebar from '../components/ConversationSidebar';
 import type { Field } from '../lib/fieldContext';
 import { InlineAttachment, streamChatCompletion, guestChatCompletion } from '../lib/chatFunction';
 import { useLanguage } from '../lib/LanguageContext';
-import { compressImage, cacheImage, getCachedImage, getCachedImages, deleteCachedImage } from '../lib/imageCache';
+import { getCachedImage, getCachedImages } from '../lib/imageCache';
 import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 import { isUnlimitedTier } from '../../shared/subscription';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, SIGNED_URL_EXPIRY, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, VIO_STEP2_DAYS, PAYWALL_WARNING_MESSAGES_REMAINING } from "../lib/constants";
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, SIGNED_URL_EXPIRY, VIO_STEP2_DAYS, PAYWALL_WARNING_MESSAGES_REMAINING } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
@@ -28,39 +28,8 @@ import FieldSelector from '../components/FieldSelector';
 import type { HistoryDiagnosis } from '../components/HistoryCard';
 import ShareModal from '../components/ShareModal';
 import { enqueueMessage, drainQueue, type QueuedMessage } from '../lib/offlineQueue';
-// ── Message reducer ────────────────────────────────────────────────
-type MsgAction =
-  | { type: 'set'; messages: Message[] }
-  | { type: 'clear' }
-  | { type: 'append'; message: Message }
-  | { type: 'set_if_empty'; message: Message }
-  | { type: 'update'; id: string; patch: Partial<Message> }
-  | { type: 'replace'; id: string; message: Message }
-  | { type: 'update_by'; predicate: (m: Message) => boolean; patch: Partial<Message> }
-  | { type: 'filter'; predicate: (m: Message) => boolean }
-  | { type: 'batch_update'; updates: Array<{ id: string; patch: Partial<Message> }> };
-
-function messagesReducer(state: Message[], action: MsgAction): Message[] {
-  switch (action.type) {
-    case 'set': return action.messages;
-    case 'clear': return [];
-    case 'append': return [...state, action.message];
-    case 'set_if_empty': return state.length === 0 ? [action.message] : state;
-    case 'update': return state.map(m => m.id === action.id ? { ...m, ...action.patch } : m);
-    case 'replace': return state.map(m => m.id === action.id ? action.message : m);
-    case 'update_by': return state.map(m => action.predicate(m) ? { ...m, ...action.patch } : m);
-    case 'filter': return state.filter(action.predicate);
-    case 'batch_update': {
-      const patchMap = new Map(action.updates.map(u => [u.id, u.patch]));
-      return state.map(m => {
-        const patch = patchMap.get(m.id);
-        return patch ? { ...m, ...patch } : m;
-      });
-    }
-    default: return state;
-  }
-}
-
+import { messagesReducer, type MsgAction } from './chat/messagesReducer';
+import { useChatAttachments, cleanupUploadedAssets, prepareAttachmentsForSend } from './chat/useChatAttachments';
 // ── Guest session storage keys ──
 const GUEST_SESSION_KEY = 'oli_guest_messages';
 const GREETING_SESSION_TTL_MS = 10 * 60 * 1000;
@@ -218,10 +187,8 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const [attachments, setAttachments] = useState<{ file: File; previewUrl: string }[]>([]);
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
@@ -236,14 +203,23 @@ export default function Chat() {
     vioStepType: 'apply_check' | 'outcome_check';
   } | null>(null);
 
+  const {
+    attachments,
+    attachmentsRef,
+    cameraInputRef,
+    fileInputRef,
+    showAttachmentSheet,
+    setAttachments,
+    setShowAttachmentSheet,
+    handleFileSelect: handleFileSelectFromHook,
+    removeAttachment,
+  } = useChatAttachments({ t });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const attachmentsRef = useRef(attachments);
   const messagesRef = useRef(messages);
   /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
   const loadGenerationRef = useRef(0);
@@ -274,21 +250,8 @@ export default function Chat() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const cleanupUploadedAssets = async (paths: string[]) => {
-    if (paths.length === 0) {
-      return;
-    }
-
-    await Promise.all(paths.map((path) => deleteCachedImage(path)));
-
-    const { error } = await supabase.storage
-      .from('chat_uploads')
-      .remove(paths);
-
-    if (error) {
-      console.error('Failed to clean up uploaded files:', error);
-    }
-  };
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) =>
+    handleFileSelectFromHook(e, showToast);
 
   const buildConversationTitle = (rawText: string) => {
     const cleaned = rawText
@@ -683,10 +646,6 @@ export default function Chat() {
   }, [messages.length, isTyping]);
 
   useEffect(() => {
-    attachmentsRef.current = attachments;
-  }, [attachments]);
-
-  useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
@@ -748,50 +707,6 @@ export default function Chat() {
       setIsListening(true);
       trackEvent(Events.VOICE_INPUT);
     }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      const validFiles = newFiles.filter(f => {
-        const isValidType = (ALLOWED_FILE_TYPES as readonly string[]).includes(f.type);
-        const isValidSize = f.size <= MAX_FILE_SIZE;
-        return isValidType && isValidSize;
-      });
-
-      if (validFiles.length !== newFiles.length) {
-        showToast(t.fileRejected);
-      }
-
-      const availableSlots = Math.max(MAX_ATTACHMENTS - attachments.length, 0);
-      const filesToAdd = validFiles.slice(0, availableSlots);
-
-      if (filesToAdd.length < validFiles.length) {
-        showToast(t.tooManyFiles);
-      }
-
-      setAttachments(prev => [
-        ...prev,
-        ...filesToAdd.map(f => ({
-          file: f,
-          previewUrl: URL.createObjectURL(f)
-        }))
-      ]);
-    }
-    e.target.value = '';
-    setShowAttachmentSheet(false);
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => {
-      const newAtt = [...prev];
-      if (!newAtt[index]) {
-        return prev;
-      }
-      safeRevokeObjectUrl(newAtt[index].previewUrl);
-      newAtt.splice(index, 1);
-      return newAtt;
-    });
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1364,66 +1279,22 @@ export default function Chat() {
     }
     lastSendAttemptRef.current = now;
 
+    let finalMessageText = messageText;
     let uploadedPaths: string[] = [];
     let base64Images: { mimeType: string; data: string }[] = [];
-    let finalMessageText = messageText;
+    let messageAttachments: Array<{ url: string; mimeType: string; name: string }> = [];
 
     if (attachments.length > 0) {
-      const imageCount = attachments.filter((attachment) => attachment.file.type.startsWith('image/')).length;
-      const documentCount = attachments.length - imageCount;
-      const attachmentSummary: string[] = [];
-
-      if (imageCount > 0) {
-        attachmentSummary.push(`${imageCount} image${imageCount === 1 ? '' : 's'}`);
-      }
-      if (documentCount > 0) {
-        attachmentSummary.push(`${documentCount} document${documentCount === 1 ? '' : 's'}`);
-      }
-
-      finalMessageText = `[The user attached ${attachmentSummary.join(' and ')}. Analyze every attachment carefully for crop disease, pest damage, physiological issues, or any relevant document details.]\n${finalMessageText}`;
-      
-      for (const att of attachments) {
-        try {
-          let base64: string;
-          let mimeType: string;
-          let uploadBlob: Blob;
-
-          if (att.file.type.startsWith('image/')) {
-            // Compress images before sending (max 1000×1000, JPEG 80%)
-            const compressed = await compressImage(att.file);
-            base64 = compressed.base64;
-            mimeType = compressed.mimeType;
-            uploadBlob = compressed.blob;
-          } else {
-            // PDFs: send as-is
-            const buffer = await att.file.arrayBuffer();
-            base64 = btoa(new Uint8Array(buffer).reduce((d, b) => d + String.fromCharCode(b), ''));
-            mimeType = att.file.type;
-            uploadBlob = att.file;
-          }
-
-          base64Images.push({ mimeType, data: base64 });
-
-          if (user) {
-            const fileExt = mimeType === 'image/jpeg' ? 'jpg' : att.file.name.split('.').pop();
-            const fileName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
-            const filePath = `${user.id}/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-              .from('chat_uploads')
-              .upload(filePath, uploadBlob);
-
-            if (!uploadError) {
-              uploadedPaths.push(filePath);
-              // Cache compressed image locally for instant re-display
-              if (mimeType.startsWith('image/')) {
-                await cacheImage(filePath, uploadBlob);
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Error processing attachment', e);
-        }
+      const prepared = await prepareAttachmentsForSend({
+        attachments,
+        userId: user?.id,
+        showToast,
+      });
+      uploadedPaths = prepared.uploadedPaths;
+      base64Images = prepared.inlineAttachments;
+      messageAttachments = prepared.messageAttachments;
+      if (prepared.attachmentSummary) {
+        finalMessageText = `[The user attached ${prepared.attachmentSummary}. Analyze every attachment carefully for crop disease, pest damage, physiological issues, or any relevant document details.]\n${finalMessageText}`;
       }
     }
 
@@ -1434,11 +1305,7 @@ export default function Chat() {
       created_at: new Date().toISOString(),
       inlineAttachments: base64Images,
       attachmentPaths: uploadedPaths,
-      attachments: attachments.map((attachment) => ({
-        url: attachment.previewUrl,
-        mimeType: attachment.file.type,
-        name: attachment.file.name,
-      }))
+      attachments: messageAttachments,
     };
 
     dispatch({ type: 'append', message: newUserMsg });
