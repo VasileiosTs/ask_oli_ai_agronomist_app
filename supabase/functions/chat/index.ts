@@ -211,6 +211,13 @@ function formatWeatherContext(w: WeatherSnapshot): string {
 // so Gemini spends zero tokens deciding what type of question it is.
 type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'indoor' | 'general';
 
+// W1: intents that benefit from real-time weather. General-knowledge questions
+// ("what is mealybug"), dose calculations, and indoor/houseplant care don't —
+// fetching weather for those wastes ~150-300ms and an Open-Meteo call.
+function intentNeedsWeather(intent: QueryIntent): boolean {
+  return intent === 'diagnosis' || intent === 'planning' || intent === 'followup';
+}
+
 function classifyIntent(message: string, hasActualImages: boolean): QueryIntent {
   if (hasActualImages) return 'diagnosis'; // image attachment = always diagnostic intent
   const m = message.toLowerCase();
@@ -2667,10 +2674,18 @@ Return ONLY the greeting text, nothing else.`;
 
     const userLang = appUser.language || body.lang || 'en';
 
-    // Fetch real-time weather if user has GPS coordinates stored
+    // W1: Classify intent up-front so we can skip weather for queries that
+    // don't need it. hasActualImages excludes PDFs/audio (image/* MIME only)
+    // because PDFs/audio shouldn't force diagnosis intent.
+    const hasActualImages = requestMessages.some(m =>
+      Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType.startsWith('image/'))
+    );
+    const queryIntent = classifyIntent(latestUserMessage.content, hasActualImages);
+
+    // Fetch real-time weather only when the intent benefits from it.
     const userLat = typeof appUser.location_lat === 'number' ? appUser.location_lat : null;
     const userLon = typeof appUser.location_lon === 'number' ? appUser.location_lon : null;
-    const weatherSnapshot = (userLat !== null && userLon !== null)
+    const weatherSnapshot = (userLat !== null && userLon !== null && intentNeedsWeather(queryIntent))
       ? await fetchCurrentWeather(userLat, userLon)
       : null;
 
@@ -2855,12 +2870,9 @@ Return ONLY the greeting text, nothing else.`;
         );
       }
 
-      // hasActualImages: only true for image/* mime types, not PDFs or audio.
-      // PDFs/audio force diagnosis intent and would misdirect the five-pillar framework.
-      const hasActualImages = requestMessages.some(m =>
-        Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType.startsWith('image/'))
-      );
-      const queryIntent = classifyIntent(latestUserMessage.content, hasActualImages);
+      // W1: hasActualImages and queryIntent are computed up-front in the
+      // outer scope (before the weather fetch). Reused here to avoid
+      // re-classifying the same message twice per request.
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
       // Image pre-extraction: run a focused Gemini call on actual image attachments only.
