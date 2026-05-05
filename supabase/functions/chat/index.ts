@@ -343,7 +343,7 @@ async function classifyIntentLlm(
     const intent = parsed?.intent;
     return QUERY_INTENT_VALUES.includes(intent) ? intent : null;
   } catch (err) {
-    console.warn('[chat:intentLlm] failed, falling back to regex:', safeErrorMessage(err));
+    console.warn('[chat:intentLlm] failed, falling back to regex:', err);
     return null;
   }
 }
