@@ -1233,6 +1233,21 @@ async function generateValidatedResponse(
   // S2: Strip any hallucinated missing_pillars values, UI breaks silently on unknown strings
   const safeJson = sanitizeMissingPillars(thresholdJson);
 
+  // M2: Per-request token telemetry. Greppable from Supabase logs to spot
+  // prompt-bloat regressions (e.g. fieldContext growing unbounded as a user
+  // adds fields/interventions). The repaired flag tells us how often the
+  // 1-shot validation retry fires in production.
+  const repaired = !validation.valid;
+  console.info('[chat:tokens]', JSON.stringify({
+    intent,
+    promptTokens,
+    outputTokens,
+    totalTokens,
+    systemPromptChars: systemPrompt.length,
+    fieldContextChars: fieldContext.length,
+    repaired,
+  }));
+
   return {
     json: { ...safeJson, response_text: cleanAssistantText(safeJson.response_text) },
     promptTokens,
