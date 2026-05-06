@@ -598,6 +598,7 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
       <div className="flex flex-wrap justify-center gap-2 mb-8">
         {roles.map(r => (
           <button
+            type="button"
             key={r.id}
             onClick={() => setActiveId(r.id)}
             className={[

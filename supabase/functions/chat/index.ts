@@ -255,8 +255,9 @@ function buildSystemPrompt(
   const LANG_NAMES: Record<string, string> = { el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic' };
   const langName = LANG_NAMES[lang] ?? 'English';
   const langInstruction = `LANGUAGE RULES:
-- Default response language: ${langName}.
-- Detect the language of the user's most recent message and respond in THAT language, even if it differs from the default.
+- Respond in the language of the user's most recent message. This is the primary rule — non-negotiable.
+- If the message is too short or ambiguous to determine language (under 4 words), use the default: ${langName}.
+- Never respond in a different language than the one you detected in the user's message.
 - Use local agricultural terminology for the detected language.`;
 
   const unitName = areaUnit === 'ha' ? 'hectares (ha)' : areaUnit === 'ac' ? 'acres (ac)' : 'στρέμματα (στρ.)';

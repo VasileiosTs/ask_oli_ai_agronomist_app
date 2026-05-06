@@ -136,7 +136,7 @@ export default function ClientDashboard() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <main className="flex h-full flex-col">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border/50 bg-surface px-4 py-4">
         <button
@@ -304,6 +304,6 @@ export default function ClientDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

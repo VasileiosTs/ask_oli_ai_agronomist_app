@@ -167,6 +167,7 @@ const el: T = {
   // Tier limits
   fieldLimitReached: 'Όριο χωραφιών', fieldLimitBody: 'Αναβάθμισε σε Pro για απεριόριστα χωράφια.',
   messagesPerMonth: 'μηνύματα/μήνα',
+  attachFile: 'Επισύναψη αρχείου', voiceInput: 'Φωνητική εισαγωγή',
 };
 
 const en: T = {
@@ -336,6 +337,7 @@ const en: T = {
   // Tier limits
   fieldLimitReached: 'Field limit reached', fieldLimitBody: 'Upgrade to Pro for unlimited fields.',
   messagesPerMonth: 'messages/month',
+  attachFile: 'Attach file', voiceInput: 'Voice input',
 };
 
 // ── Italian ───────────────────────────────────────────────────────────────────
@@ -462,6 +464,7 @@ const it: T = {
   stageDay: 'Giorno',
   fieldLimitReached: 'Limite campi raggiunto', fieldLimitBody: 'Passa a Pro per campi illimitati.',
   messagesPerMonth: 'messaggi/mese',
+  attachFile: 'Allega file', voiceInput: 'Input vocale',
 };
 
 // ── Spanish ───────────────────────────────────────────────────────────────────
@@ -588,6 +591,7 @@ const es: T = {
   stageDay: 'Día',
   fieldLimitReached: 'Límite de campos', fieldLimitBody: 'Pasa a Pro para campos ilimitados.',
   messagesPerMonth: 'mensajes/mes',
+  attachFile: 'Adjuntar archivo', voiceInput: 'Entrada de voz',
 };
 
 // ── French ────────────────────────────────────────────────────────────────────
@@ -714,6 +718,7 @@ const fr: T = {
   stageDay: 'Jour',
   fieldLimitReached: 'Limite de champs', fieldLimitBody: 'Passez à Pro pour des champs illimités.',
   messagesPerMonth: 'messages/mois',
+  attachFile: 'Joindre un fichier', voiceInput: 'Entrée vocale',
 };
 
 // ── Arabic ────────────────────────────────────────────────────────────────────
@@ -840,6 +845,7 @@ const ar: T = {
   stageDay: 'يوم',
   fieldLimitReached: 'تم بلوغ حد الحقول', fieldLimitBody: 'انتقل إلى Pro لحقول غير محدودة.',
   messagesPerMonth: 'رسائل/شهر',
+  attachFile: 'إرفاق ملف', voiceInput: 'إدخال صوتي',
 };
 
 export const dict: Record<Lang, T> = { el, en, it, es, fr, ar };

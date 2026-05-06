@@ -176,7 +176,7 @@ export default function ClientDetail() {
   const unlinkedFields = allFields.filter(f => !linkedIds.has(f.id));
 
   return (
-    <div className="flex h-full flex-col">
+    <main className="flex h-full flex-col">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border/50 bg-surface px-4 py-3">
         <div className="flex items-center gap-3 mb-3">
@@ -441,6 +441,6 @@ export default function ClientDetail() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

@@ -137,6 +137,8 @@ export interface T {
   fieldLimitReached: string; fieldLimitBody: string;
   // RL1: Renamed from messagesPerWeek — backend enforces monthly, not weekly
   messagesPerMonth: string;
+  // Chat input accessibility
+  attachFile: string; voiceInput: string;
 }
 
 export { dict } from './i18n-dict';

@@ -178,7 +178,7 @@ export default function Fields() {
   const closeSheet = () => { setSheetOpen(false); setEditingField(null); };
 
   return (
-    <div className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
+    <main className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       <div className="border-b border-border/50 px-4 py-4">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="mr-1 rounded-full p-1.5 text-muted hover:bg-surface hover:text-foreground transition-colors" aria-label="Back">
@@ -347,6 +347,6 @@ export default function Fields() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

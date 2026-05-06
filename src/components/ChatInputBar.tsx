@@ -130,11 +130,11 @@ export default function ChatInputBar({
         )}
         <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={onFileSelect} />
         <input type="file" ref={fileInputRef} className="hidden" accept={ALLOWED_FILE_ACCEPT} multiple onChange={onFileSelect} />
-        <button onClick={() => onToggleAttachmentSheet(!showAttachmentSheet)} aria-label="Attach file"
+        <button onClick={() => onToggleAttachmentSheet(!showAttachmentSheet)} aria-label={t.attachFile}
           className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground transition-colors">
           <Paperclip className="h-5 w-5" />
         </button>
-        <button onClick={onToggleListening} aria-label="Voice input"
+        <button onClick={onToggleListening} aria-label={t.voiceInput}
           className={clsx("flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full transition-colors",
             isListening ? "text-red-500 animate-pulse bg-red-500/10" : "text-muted hover:text-foreground")}>
           <Mic className="h-5 w-5" />

@@ -794,6 +794,9 @@ export default function Chat() {
     }
   }, [input]);
 
+  // Clear draft on unmount so stale drafts don't bleed into new chat sessions.
+  useEffect(() => () => { sessionStorage.removeItem('oli_draft_input'); }, []);
+
   // Auto-send guest query from ?q= param, or show login if quota already used
   useEffect(() => {
     if (!guestQuery || !user) {

@@ -359,7 +359,7 @@ export default function AdminMetrics() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-[100dvh] bg-background pb-16">
+    <main className="min-h-[100dvh] bg-background pb-16">
 
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/30 px-4 py-3">
@@ -865,6 +865,6 @@ export default function AdminMetrics() {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }

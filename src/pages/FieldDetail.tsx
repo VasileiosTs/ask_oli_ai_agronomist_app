@@ -187,7 +187,7 @@ export default function FieldDetail() {
   const growthStage = getGrowthStage(field.crop_type, fieldCrops[0]?.planted_at);
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background pt-safe">
+    <main className="flex h-[100dvh] flex-col bg-background pt-safe">
       {/* ── Header ── */}
       <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
         <button onClick={() => navigate('/fields')} className="rounded-full p-1.5 text-muted hover:text-foreground transition-colors">
@@ -510,6 +510,6 @@ export default function FieldDetail() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

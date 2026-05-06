@@ -101,12 +101,12 @@ Phase 2 prep work that CAN be done now:
 GEMINI_API_KEY
 VAPID_PUBLIC_KEY
 VAPID_PRIVATE_KEY
-VAPID_SUBJECT=mailto:hello@askoli.ai
+VAPID_SUBJECT=mailto:hello@ask-oli.com
 RESEND_API_KEY
-FROM_EMAIL=Oli <noreply@askoli.ai>
+FROM_EMAIL=Oli <noreply@ask-oli.com>
 APP_URL=https://codex-ask-oli-app.vercel.app
 ALLOWED_ORIGIN=https://codex-ask-oli-app.vercel.app
-SUPPORT_EMAIL=hello@askoli.ai
+SUPPORT_EMAIL=hello@ask-oli.com
 SUPABASE_URL          (auto-set)
 SUPABASE_SERVICE_ROLE_KEY  (auto-set)
 SUPABASE_ANON_KEY     (auto-set)

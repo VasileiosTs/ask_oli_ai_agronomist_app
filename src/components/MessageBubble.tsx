@@ -554,7 +554,7 @@ export default function MessageBubble({
                 )}
               >
                 <Star className={clsx('h-3.5 w-3.5', msg.starred && 'fill-current')} />
-                {t.savedMessage}
+                {msg.starred ? t.savedMessage : t.save}
               </button>
               <button
                 onClick={() => onLogIntervention(msg)}
