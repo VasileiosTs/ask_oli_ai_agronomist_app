@@ -33,13 +33,9 @@ export default function Onboarding() {
 
   // ── Pre-fill name from OAuth provider metadata ──────────────────────────────
   const oauthName = extractOAuthName(user as any);
-  // Step 1 = role (always), Step 2 = name (skipped if OAuth), Step 3 = location,
-  // Step 4 = age, Step 5 = crops
-  const [step, setStep] = useState(1);
+  // Step 2 = name (skipped if OAuth), Step 3 = location, Step 4 = age, Step 5 = crops
+  const [step, setStep] = useState(oauthName ? 3 : 2);
   const [name, setName] = useState(oauthName);
-
-  // Role state (step 1)
-  const [role, setRole] = useState('');
 
   // Location state
   const [location, setLocation] = useState('');
@@ -59,14 +55,13 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Total steps: role + (name if no OAuth) + location + age + crops
-  const TOTAL_STEPS = oauthName ? 4 : 5;
-  const progressStep = oauthName && step >= 2 ? step - 1 : step; // collapse name step in progress bar when skipped
+  // Total steps: (name if no OAuth) + location + age + crops
+  const TOTAL_STEPS = oauthName ? 3 : 4;
+  const progressStep = oauthName && step >= 3 ? step - 2 : step - 1;
 
   // ── Location autocomplete ──────────────────────────────────────────────────
   useEffect(() => {
-    const locationStep = oauthName ? 3 : 3;
-    if (step !== locationStep) return;
+    if (step !== 3) return;
     const query = location.trim();
     if (query.length < 2) { setSuggestions([]); return; }
 
@@ -82,7 +77,7 @@ export default function Onboarding() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [location, step, lang, oauthName]);
+  }, [location, step, lang]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -113,10 +108,7 @@ export default function Onboarding() {
 
   // ── Navigation ─────────────────────────────────────────────────────────────
   const handleNext = () => {
-    if (step === 1 && role) {
-      // Skip name step if OAuth name already known
-      setStep(oauthName ? 3 : 2);
-    } else if (step === 2 && name.trim()) {
+    if (step === 2 && name.trim()) {
       setStep(3);
     } else if (step === 3) {
       if (!location.trim()) return;
@@ -209,7 +201,6 @@ export default function Onboarding() {
     };
     if (ageRange) payload.age_range = ageRange;
     if (referral) { payload.referred_by_share_id = referral; localStorage.removeItem('oli_referral'); }
-    if (role) payload.role = role;
 
     try {
       const { error: upsertError } = await supabase
@@ -226,7 +217,7 @@ export default function Onboarding() {
       }
 
       // Identify with coarse aggregate properties only — no name, no precise location (GDPR)
-      identifyUser(user.id, { primary_crop: finalCrops[0] ?? null, age_range: ageRange ?? null, role });
+      identifyUser(user.id, { primary_crop: finalCrops[0] ?? null, age_range: ageRange ?? null });
       trackEvent(Events.SIGNUP, { crop_count: finalCrops.length, age_range: ageRange ?? null });
       if (referral) trackEvent(Events.SIGNUP_FROM_SHARE, { shareId: referral });
 
@@ -280,43 +271,6 @@ export default function Onboarding() {
 
         {/* Scrollable step content */}
         <div className="flex-1 overflow-y-auto animate-fade-in pb-4">
-
-          {/* Step 1 — Role selection */}
-          {step === 1 && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">
-                  {lang === 'el' ? 'Πώς θα χρησιμοποιείς τον Oli;' : 'How will you use Oli?'}
-                </h2>
-                <p className="mt-1 text-sm text-muted">
-                  {lang === 'el' ? 'Βοηθάει τον Oli να σε εξυπηρετήσει καλύτερα.' : 'Helps Oli personalise the experience for you.'}
-                </p>
-              </div>
-              <div className="space-y-2.5">
-                {([
-                  { id: 'farmer',       el: 'Αγρότης / Παραγωγός',              en: 'Farmer / Grower',                  hint_el: 'Προσωπικές καλλιέργειες και χωράφια',             hint_en: 'Personal crops and fields' },
-                  { id: 'agronomist',   el: 'Γεωπόνος',                         en: 'Agronomist',                       hint_el: 'Διαχείριση χωραφιών πελατών',                    hint_en: 'Managing client farms' },
-                  { id: 'cooperative',  el: 'Αγροτικός Σύλλογος / Συνεταιρισμός', en: 'Cooperative / Association',      hint_el: 'Υποστήριξη μελών',                               hint_en: 'Supporting members' },
-                  { id: 'enterprise',   el: 'Εταιρεία αγροεφοδίων / Επιχείρηση', en: 'Agri company / Business',          hint_el: 'Εμπορική ή επιχειρηματική χρήση',                hint_en: 'Commercial or business use' },
-                  { id: 'hobbyist',     el: 'Κηπουρός / Οικιακός κήπος',        en: 'Home gardener',                    hint_el: 'Κήπος, μπαλκόνι, αυτάρκεια',                    hint_en: 'Garden, balcony, self-sufficiency' },
-                ] as const).map(opt => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => { setRole(opt.id); setTimeout(() => handleNext(), 150); }}
-                    className={`w-full rounded-[22px] border px-4 py-3 text-left transition-colors ${
-                      role === opt.id
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-surface text-foreground hover:border-primary/50'
-                    }`}
-                  >
-                    <p className="text-sm font-medium">{lang === 'el' ? opt.el : opt.en}</p>
-                    <p className="text-xs text-muted mt-0.5">{lang === 'el' ? opt.hint_el : opt.hint_en}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Step 2 — Name (skipped if OAuth name known) */}
           {step === 2 && (
@@ -485,8 +439,8 @@ export default function Onboarding() {
             </p>
           )}
 
-          {/* Step 1 (role) and Step 4 (age) auto-advance on selection — no Next button */}
-          {step !== 1 && step !== 4 && (
+          {/* Step 4 (age) auto-advances on selection — no Next button */}
+          {step !== 4 && (
             step < 5 ? (
               <button
                 type="button"
