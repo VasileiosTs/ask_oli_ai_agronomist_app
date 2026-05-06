@@ -12,7 +12,9 @@ interface Props { isOpen: boolean; onClose: () => void; }
 // Each tier is honest about what it includes right now.
 // No "coming soon" items — every feature listed is shipped.
 
-const TIERS = (lang: string, currentTier?: string | null) => {
+type Period = 'month' | 'year';
+
+const TIERS = (lang: string, currentTier?: string | null, period: Period = 'year') => {
   const l = lang === 'el' ? 'el' : 'en';
   const isCurrent = (key: string) =>
     (currentTier ?? 'free') === key || (!currentTier && key === 'free');
@@ -53,7 +55,9 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       icon: Crown,
       iconColor: 'text-[#194121]',
       name: { en: 'Pro', el: 'Pro' },
-      price: { en: '€49 / year', el: '€49 / χρόνο' },
+      price: period === 'month'
+        ? { en: '€4.99 / month', el: '€4,99 / μήνα' }
+        : { en: '€49 / year', el: '€49 / χρόνο' },
       note: { en: 'For farmers, plant growers and everyone working with plants everyday', el: 'Για αγρότες, παραγωγούς και όσους δουλεύουν καθημερινά με φυτά' },
       features: {
         en: [
@@ -85,7 +89,9 @@ const TIERS = (lang: string, currentTier?: string | null) => {
       icon: Briefcase,
       iconColor: 'text-amber-600',
       name: { en: 'Master', el: 'Master' },
-      price: { en: '€490 / year', el: '€490 / χρόνο' },
+      price: period === 'month'
+        ? { en: '€49 / month', el: '€49 / μήνα' }
+        : { en: '€490 / year', el: '€490 / χρόνο' },
       note: { en: 'For agronomists advising multiple clients', el: 'Για γεωπόνους που συμβουλεύουν πελάτες' },
       features: {
         en: [
@@ -142,6 +148,7 @@ const TIERS = (lang: string, currentTier?: string | null) => {
 export default function PaywallModal({ isOpen, onClose }: Props) {
   const { user, profile } = useAuth();
   const { lang } = useLanguage();
+  const [period, setPeriod] = useState<Period>('year');
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
@@ -152,7 +159,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
   const l = lang === 'el' ? 'el' : 'en';
   const currentTier = typeof profile?.tier === 'string' ? profile.tier : 'free';
   const userRole = typeof profile?.role === 'string' ? profile.role : '';
-  const tiers = TIERS(lang, currentTier);
+  const tiers = TIERS(lang, currentTier, period);
   const displayedTiers = tiers;
   const selectedTier = displayedTiers.find(t => t.key === selected);
 
@@ -182,7 +189,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
 
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { tier: tierKey },
+        body: { tier: tierKey, period },
       });
 
       if (error || !data?.url) {
@@ -227,6 +234,35 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
               ? 'Επέλεξε το πλάνο που ταιριάζει στις ανάγκες σου.'
               : 'Choose the plan that fits your needs.'}
           </p>
+          {/* Billing period toggle */}
+          <div className="flex items-center gap-1 mt-3 rounded-full bg-background border border-border/50 p-0.5 w-fit">
+            <button
+              type="button"
+              onClick={() => { setPeriod('month'); setSelected(null); }}
+              className={[
+                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                period === 'month' ? 'bg-primary text-white' : 'text-muted hover:text-foreground',
+              ].join(' ')}
+            >
+              {l === 'el' ? 'Μηνιαία' : 'Monthly'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPeriod('year'); setSelected(null); }}
+              className={[
+                'rounded-full px-3 py-1 text-xs font-medium transition-colors flex items-center gap-1.5',
+                period === 'year' ? 'bg-primary text-white' : 'text-muted hover:text-foreground',
+              ].join(' ')}
+            >
+              {l === 'el' ? 'Ετήσια' : 'Yearly'}
+              <span className={[
+                'rounded-full px-1.5 py-0.5 text-[9px] font-bold',
+                period === 'year' ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary',
+              ].join(' ')}>
+                {l === 'el' ? '-17%' : '-17%'}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="px-5 py-4 space-y-3">

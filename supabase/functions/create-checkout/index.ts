@@ -8,15 +8,16 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Map tier keys to Stripe price IDs (set via env vars so they work for test + live)
-const PRICE_IDS: Record<string, string> = {
-  pro:        Deno.env.get('STRIPE_PRICE_PRO') ?? '',
-  agronomist: Deno.env.get('STRIPE_PRICE_MASTER') ?? '',
-};
-
-const TIER_LABELS: Record<string, string> = {
-  pro:        'Oli Pro',
-  agronomist: 'Oli Master',
+// price lookup: PRICE_IDS[tier][period]
+const PRICE_IDS: Record<string, Record<string, string>> = {
+  pro: {
+    month: Deno.env.get('STRIPE_PRICE_PRO_MONTHLY') ?? '',
+    year:  Deno.env.get('STRIPE_PRICE_PRO') ?? '',
+  },
+  agronomist: {
+    month: Deno.env.get('STRIPE_PRICE_MASTER_MONTHLY') ?? '',
+    year:  Deno.env.get('STRIPE_PRICE_MASTER') ?? '',
+  },
 };
 
 Deno.serve(async (req) => {
@@ -35,15 +36,16 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return new Response('Unauthorized', { status: 401, headers: CORS });
 
-    const { tier, success_url, cancel_url } = await req.json() as {
+    const { tier, period = 'year', success_url, cancel_url } = await req.json() as {
       tier: string;
+      period?: 'month' | 'year';
       success_url?: string;
       cancel_url?: string;
     };
 
-    const priceId = PRICE_IDS[tier];
+    const priceId = PRICE_IDS[tier]?.[period];
     if (!priceId) {
-      return new Response(JSON.stringify({ error: `No price configured for tier: ${tier}` }), {
+      return new Response(JSON.stringify({ error: `No price configured for ${tier}/${period}` }), {
         status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
       });
     }
@@ -85,9 +87,9 @@ Deno.serve(async (req) => {
       success_url: success_url ?? `${appUrl}/profile?upgraded=1`,
       cancel_url: cancel_url ?? `${appUrl}/profile`,
       subscription_data: {
-        metadata: { supabase_user_id: user.id, tier },
+        metadata: { supabase_user_id: user.id, tier, period },
       },
-      metadata: { supabase_user_id: user.id, tier },
+      metadata: { supabase_user_id: user.id, tier, period },
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       customer_update: { address: 'auto' },
