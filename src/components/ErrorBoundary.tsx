@@ -51,6 +51,9 @@ export default class ErrorBoundary extends Component<Props, State> {
         {this.state.error && (
           <p className="text-[11px] text-muted/50 max-w-sm">{this.state.error.message}</p>
         )}
+        <a href="mailto:hello@ask-oli.com" className="text-xs text-muted/60 hover:text-primary transition-colors">
+          hello@ask-oli.com
+        </a>
       </div>
     );
   }

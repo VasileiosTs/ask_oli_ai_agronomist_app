@@ -80,6 +80,7 @@ const Privacy = () => {
         <p>{t.privacyCookies}</p>
         <h2 className={h2}>7. {t.privacyAge}</h2>
         <h2 className={h2}>8. {t.privacyContact}</h2>
+        <p><a href="mailto:hello@ask-oli.com" className="text-primary hover:underline">hello@ask-oli.com</a></p>
       </div>
     </div>
   );
@@ -101,6 +102,8 @@ const Terms = () => {
         <h2 className={h2}>5. {t.termsIp}</h2><p>{t.termsIpBody}</p>
         <h2 className={h2}>6. {t.termsTermination}</h2><p>{t.termsTerminationBody}</p>
         <h2 className={h2}>7. {t.termsLaw}</h2><p>{t.termsLawBody}</p>
+        <h2 className={h2}>8. {t.privacyContact}</h2>
+        <p><a href="mailto:hello@ask-oli.com" className="text-primary hover:underline">hello@ask-oli.com</a></p>
       </div>
     </div>
   );

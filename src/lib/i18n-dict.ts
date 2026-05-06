@@ -137,7 +137,7 @@ const el: T = {
   privacyGdprPortability: 'Φορητότητα: τα δεδομένα εξάγονται σε JSON format.',
   privacyCookies: 'Κανένα advertising ή tracking cookie. Μόνο essential session cookies για authentication.',
   privacyAge: 'Η υπηρεσία προορίζεται για χρήστες άνω των 18 ετών.',
-  privacyContact: 'Για θέματα προστασίας δεδομένων: privacy@ask-oli.com',
+  privacyContact: 'Για ερωτήσεις και υποστήριξη:',
   termsNature: 'Φύση της υπηρεσίας',
   termsNatureBody: 'Το Oli παρέχει AI συμβουλές για ενημέρωση μόνο. Δεν αντικαθιστά τον επιστημονικό αγρονομικό σύμβουλο. Πάντα συμβουλευτείτε έναν πιστοποιημένο αγρονόμο πριν την εφαρμογή χημικών σκευασμάτων.',
   termsLiability: 'Περιορισμός ευθύνης',
@@ -307,7 +307,7 @@ const en: T = {
   privacyGdprPortability: 'Portability: data is exported in JSON format.',
   privacyCookies: 'No advertising or tracking cookies. Only essential session cookies for authentication.',
   privacyAge: 'The service is intended for users aged 18 and over.',
-  privacyContact: 'For data protection inquiries: privacy@ask-oli.com',
+  privacyContact: 'For questions and support:',
   termsNature: 'Nature of the service',
   termsNatureBody: 'Oli provides AI advice for informational purposes only. It does not replace a certified agronomist. Always consult a professional before applying chemical treatments.',
   termsLiability: 'Limitation of liability',
@@ -463,6 +463,7 @@ const it: T = {
   stageFruiting: 'Fruttificazione', stageMaturity: 'Maturità', stageDormant: 'Dormiente',
   stageDay: 'Giorno',
   fieldLimitReached: 'Limite campi raggiunto', fieldLimitBody: 'Passa a Pro per campi illimitati.',
+  privacyContact: 'Per domande e supporto:',
   messagesPerMonth: 'messaggi/mese',
   attachFile: 'Allega file', voiceInput: 'Input vocale',
 };
@@ -590,6 +591,7 @@ const es: T = {
   stageFruiting: 'Fructificación', stageMaturity: 'Madurez', stageDormant: 'Latente',
   stageDay: 'Día',
   fieldLimitReached: 'Límite de campos', fieldLimitBody: 'Pasa a Pro para campos ilimitados.',
+  privacyContact: 'Para preguntas y soporte:',
   messagesPerMonth: 'mensajes/mes',
   attachFile: 'Adjuntar archivo', voiceInput: 'Entrada de voz',
 };
@@ -717,6 +719,7 @@ const fr: T = {
   stageFruiting: 'Fructification', stageMaturity: 'Maturité', stageDormant: 'Dormant',
   stageDay: 'Jour',
   fieldLimitReached: 'Limite de champs', fieldLimitBody: 'Passez à Pro pour des champs illimités.',
+  privacyContact: 'Pour toute question et support :',
   messagesPerMonth: 'messages/mois',
   attachFile: 'Joindre un fichier', voiceInput: 'Entrée vocale',
 };
@@ -844,6 +847,7 @@ const ar: T = {
   stageFruiting: 'الإثمار', stageMaturity: 'النضج', stageDormant: 'السكون',
   stageDay: 'يوم',
   fieldLimitReached: 'تم بلوغ حد الحقول', fieldLimitBody: 'انتقل إلى Pro لحقول غير محدودة.',
+  privacyContact: 'للأسئلة والدعم:',
   messagesPerMonth: 'رسائل/شهر',
   attachFile: 'إرفاق ملف', voiceInput: 'إدخال صوتي',
 };

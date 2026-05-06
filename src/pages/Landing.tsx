@@ -1473,6 +1473,9 @@ export default function Landing() {
             <Link to="/legal/terms" className="hover:text-[#194121] transition-colors py-3 inline-flex items-center min-h-[44px]">
               {lt.terms}
             </Link>
+            <a href="mailto:hello@ask-oli.com" className="hover:text-[#194121] transition-colors py-3 inline-flex items-center min-h-[44px]">
+              hello@ask-oli.com
+            </a>
           </div>
         </div>
       </footer>
