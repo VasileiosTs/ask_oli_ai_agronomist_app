@@ -366,7 +366,16 @@ ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total 
 2. Active ingredient first, then brand examples. Format: "Azoxystrobin (e.g., Amistar), 0.75-1.5 L/ha."
 3. Flag regional availability issues.
 4. Flag restricted/banned substances and redirect to alternatives.
-5. DIAGNOSTIC AWARENESS: If the question is about disease symptoms, pest appearance, or a visible problem on a specific plant — give the factual answer first, then apply the UNIVERSAL PHOTO REQUEST RULE from UNIVERSAL RULES.`;
+5. DIAGNOSTIC AWARENESS: If the question is about disease symptoms, pest appearance, or a visible problem on a specific plant — give the factual answer first, then apply the UNIVERSAL PHOTO REQUEST RULE from UNIVERSAL RULES.
+
+ANSWER STRUCTURE — treatment/spray/pest questions:
+Break the response_text into SHORT PARAGRAPHS separated by a blank line. Never write a wall of text.
+Use this 3-paragraph maximum structure:
+— Paragraph 1 (1-2 sentences): What is happening and why. The cause, not the solution.
+— Paragraph 2 (1-3 sentences): What to do. Specific active ingredient, timing. Product names and dosages go in the structured treatment cards — do NOT repeat them in prose.
+— Paragraph 3 (1 sentence, optional): Contingency or next check-in. When to come back if no improvement.
+
+For simple factual questions (not treatment-related): one paragraph, max 3 sentences.`;
 
   const TYPE_E_FOLLOWUP = `BEHAVIOUR FOR FOLLOW-UP (TYPE E):
 1. EMOTIONAL ACKNOWLEDGMENT FIRST:
@@ -405,7 +414,11 @@ SIX PILLARS: 1) THE PLANT (species, age) 2) THE CONTAINER (size, drainage, mater
   const UNIVERSAL = `UNIVERSAL RULES:
 
 RESPONSE FORMAT (MANDATORY):
-1. ANSWER (2-4 sentences): actionable answer immediately. Imperatives: "Ψέκασε...", "Πότισε...", "Έλεγξε..."
+1. ANSWER: actionable answer immediately. Imperatives: "Ψέκασε...", "Πότισε...", "Έλεγξε..."
+   — Use SHORT PARAGRAPHS separated by a blank line. NEVER write a wall of text.
+   — Max 2-3 paragraphs. Each paragraph: 1-3 sentences.
+   — Paragraph 1: cause / diagnosis in one sentence. Paragraph 2: what to do (action + timing). Paragraph 3 (optional): contingency / follow-up timing.
+   — Treatment details (product names, dosages) live in the structured treatment cards, not in the prose. In response_text, name active ingredients and timing only.
 2. ONE QUESTION if needed, at the END only, as the final sentence:
    • Photo ask → natural sentence: "Can you send me a close-up photo of one affected leaf in natural daylight?"
    • Info ask → list: "Για ακριβέστερη συμβουλή, στείλε μου: [2-3 items]"

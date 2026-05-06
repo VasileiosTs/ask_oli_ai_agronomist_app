@@ -220,7 +220,7 @@ export default function AdminMetrics() {
     // "Active now" = sent a message in the last 15 minutes
     const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const { count } = await supabase
-      .from('messages')
+      .from('chat_messages')
       .select('user_id', { count: 'exact', head: true })
       .eq('role', 'user')
       .gte('created_at', cutoff);
@@ -602,7 +602,6 @@ export default function AdminMetrics() {
                       >
                         <option value="pro">PRO</option>
                         <option value="agronomist">AGRONOMIST</option>
-                        <option value="expert">EXPERT</option>
                       </select>
                     </div>
                     <div>
