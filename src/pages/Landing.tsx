@@ -1131,6 +1131,9 @@ export default function Landing() {
               )}
             </div>
           </div>
+          <p className="mt-4 text-center text-xs text-[#194121] font-medium opacity-75">
+            {lt.trialBadge}
+          </p>
         </div>
       </section>
 
@@ -1323,6 +1326,9 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
+              <div className="mb-3 rounded-xl bg-[#f0f7f0] border border-[#c8e0c8] px-3 py-2.5 text-center">
+                <p className="text-xs font-semibold text-[#194121]">{lt.trialBadge}</p>
+              </div>
               <Link to="/auth" className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
                 {lt.getStartedFree}
               </Link>
