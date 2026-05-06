@@ -673,6 +673,19 @@ export default function Landing() {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('annual');
   const imperial = useMemo(() => detectImperial(), []);
 
+  // Exit-intent: show a sticky bottom banner once user scrolls past 75% of page
+  const [showExitBanner, setShowExitBanner] = useState(false);
+  const exitDismissed = typeof window !== 'undefined' && !!sessionStorage.getItem('oli_exit_banner_dismissed');
+  useEffect(() => {
+    if (exitDismissed) return;
+    const onScroll = () => {
+      const scrolled = window.scrollY / Math.max(1, document.body.scrollHeight - window.innerHeight);
+      if (scrolled > 0.75) setShowExitBanner(true);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [exitDismissed]);
+
   // Fix mobile overscroll background, the app is dark-themed (#0D1117) but the
   // landing page is light-themed. Without this, iOS overscroll shows the dark body.
   useEffect(() => {
@@ -1493,6 +1506,29 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* ── EXIT-INTENT BANNER ── */}
+      {showExitBanner && !exitDismissed && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 border-t border-[#e8e8e3] bg-white px-4 py-3 shadow-[0_-4px_24px_rgba(25,65,33,0.10)] sm:px-6">
+          <p className="text-sm font-medium text-[#194121] min-w-0 truncate">{lt.trialBadge}</p>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <Link
+              to="/auth"
+              className="rounded-full bg-[#194121] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2d5535] transition-colors whitespace-nowrap"
+            >
+              {lt.tryFree}
+            </Link>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => { sessionStorage.setItem('oli_exit_banner_dismissed', '1'); setShowExitBanner(false); }}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[#9a9b93] hover:bg-[#f0efea] hover:text-[#1b1c19] transition-colors text-lg"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

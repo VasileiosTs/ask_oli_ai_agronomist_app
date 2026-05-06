@@ -257,7 +257,7 @@ function TrialExpiryBanner() {
 }
 
 function AppRoutes() {
-  const { user, profile, loading, appUserId } = useAuth();
+  const { user, profile, loading, appUserId, isAdmin } = useAuth();
   const { lang } = useLanguage();
   const push = usePushSubscription(appUserId ?? null);
 
@@ -296,10 +296,14 @@ function AppRoutes() {
         <Route path="/legal/privacy" element={<Privacy />} />
         <Route path="/legal/terms" element={<Terms />} />
 
-        {/* Admin */}
+        {/* Admin — requires authenticated admin_users membership */}
         <Route
           path="/admin/metrics"
-          element={user ? <AdminMetrics /> : <Navigate to="/auth?next=/admin/metrics" replace />}
+          element={
+            !user ? <Navigate to="/auth?next=/admin/metrics" replace />
+            : isAdmin ? <AdminMetrics />
+            : <Navigate to="/chat" replace />
+          }
         />
 
         {/* Auth */}

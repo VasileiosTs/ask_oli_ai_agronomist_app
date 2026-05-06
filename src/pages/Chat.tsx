@@ -47,8 +47,14 @@ export default function Chat() {
   const [messages, dispatch] = useReducer(messagesReducer, []);
   // Restore any unsent draft from sessionStorage (survives navigation away → login → back)
   const [input, setInput] = useState(() => {
-    const draft = sessionStorage.getItem('oli_draft_input');
-    return draft || '';
+    try {
+      const raw = sessionStorage.getItem('oli_draft_input');
+      if (!raw) return '';
+      const { text, expires } = JSON.parse(raw) as { text: string; expires: number };
+      if (Date.now() < expires) return text;
+      sessionStorage.removeItem('oli_draft_input');
+    } catch { sessionStorage.removeItem('oli_draft_input'); }
+    return '';
   });
   const [isTyping, setIsTyping] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
@@ -784,18 +790,16 @@ export default function Chat() {
     }
   };
 
-  // Persist unsent draft to sessionStorage so it survives navigation → login → return
-  // Cleared when the message is successfully sent (see handleSend).
+  // Persist unsent draft to sessionStorage so it survives navigation → login → return.
+  // Uses a 30-min TTL so stale drafts from old sessions never bleed in.
+  // NOT cleared on unmount — intentional, so OAuth redirect → return restores the draft.
   useEffect(() => {
     if (input) {
-      sessionStorage.setItem('oli_draft_input', input);
+      sessionStorage.setItem('oli_draft_input', JSON.stringify({ text: input, expires: Date.now() + 30 * 60 * 1000 }));
     } else {
       sessionStorage.removeItem('oli_draft_input');
     }
   }, [input]);
-
-  // Clear draft on unmount so stale drafts don't bleed into new chat sessions.
-  useEffect(() => () => { sessionStorage.removeItem('oli_draft_input'); }, []);
 
   // Auto-send guest query from ?q= param, or show login if quota already used
   useEffect(() => {

@@ -1198,7 +1198,14 @@ async function generateValidatedResponse(
   areaUnit = 'stremma',
   userLocation = '',
 ): Promise<ValidatedResponseResult> {
-  const systemPrompt = buildSystemPrompt(fieldContext, growerContext, lang, intent, conversationDepth, areaUnit, userLocation);
+  // Detect PDF attachments so the system prompt can guide Gemini on document handling
+  const hasPdf = messages.some(m =>
+    Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType === 'application/pdf')
+  );
+  const pdfContext = hasPdf
+    ? '\n\nPDF DOCUMENT ATTACHED: The user has attached a PDF (e.g. product label, agrochemical datasheet, regulatory document, or treatment schedule). Read it fully before responding. Extract: active ingredient(s), registered crops, dosage rates, PHI (pre-harvest interval), safety warnings. Reference specific values from the document in your answer. If it is a product label, confirm whether it is registered for the user\'s crop and flag any relevant restrictions.'
+    : '';
+  const systemPrompt = buildSystemPrompt(fieldContext + pdfContext, growerContext, lang, intent, conversationDepth, areaUnit, userLocation);
   const temperature = intentTemperature(intent);
   const initial = await callGemini(geminiApiKey, messages, systemPrompt, temperature);
   let json = initial.json;

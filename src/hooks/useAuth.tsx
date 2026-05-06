@@ -28,13 +28,14 @@ interface AuthContextValue {
   profile: UserProfile | null;
   appUserId: string | null;
   loading: boolean;
+  isAdmin: boolean;
   logout: () => Promise<void>;
   refreshProfile: (options?: RefreshProfileOptions) => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   session: null, user: null, profile: null,
-  appUserId: null, loading: true,
+  appUserId: null, loading: true, isAdmin: false,
   logout: async () => {},
   refreshProfile: async () => null,
 });
@@ -103,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchProfile = async (
     authUserId: string,
@@ -134,6 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const sanitizedProfile = data as UserProfile;
           setProfile(sanitizedProfile);
           persistProfile(sanitizedProfile);
+          // Fire-and-forget admin check — non-blocking, fails silently
+          supabase.rpc('is_admin').then(({ data: adminResult }) => {
+            setIsAdmin(!!adminResult);
+          }).catch(() => { /* not an admin or RPC unavailable */ });
           return sanitizedProfile;
         }
       } catch (error) {
@@ -175,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setUser(null);
     setSession(null);
+    setIsAdmin(false);
     persistProfile(null);
     // Clear all cached query data so a subsequent login never sees the
     // previous user's fields, messages, or other cached responses.
@@ -334,7 +341,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      session, user, profile, loading,
+      session, user, profile, loading, isAdmin,
       appUserId: profile?.id ?? null,
       logout,
       refreshProfile,

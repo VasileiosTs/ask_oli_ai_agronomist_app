@@ -852,8 +852,59 @@ serve(async (req) => {
       return new Response(JSON.stringify({ sent, total: allTargets.length }), { headers });
     }
 
+    // Mode: weekly_plan_cron — Monday motivational plan for opted-in users
+    if (body.mode === "weekly_plan_cron") {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, name, auth_id, lang, primary_crop, location")
+        .eq("notification_weekly_plan", true);
+
+      if (!users || users.length === 0) {
+        return new Response(JSON.stringify({ sent: 0 }), { headers });
+      }
+
+      const authUsers = await listAllAuthUsers(supabase);
+      let sent = 0;
+
+      for (const u of users) {
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
+        if (!authUser?.email) continue;
+
+        const isEl = (u.lang ?? "en") === "el";
+        const name = u.name || (isEl ? "Αγρότη" : "Farmer");
+        const crop = u.primary_crop ?? "";
+        const cropLine = crop ? (isEl ? ` για <b>${crop}</b>` : ` for <b>${crop}</b>`) : "";
+
+        const subject = isEl
+          ? `Oli: Καλή εβδομάδα, ${name}! Ξεκίνα τον εβδομαδιαίο σου πρόγραμμα`
+          : `Oli: Good week, ${name}! Start your weekly agronomy plan`;
+
+        const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:24px">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="#194121"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-13 6 0 0 .93-.98 2-2z"/></svg>
+<span style="font-size:18px;font-weight:700;color:#194121">Oli</span>
+</div>
+<p style="font-size:15px;margin-bottom:12px">${isEl ? "Γεια σου" : "Hi"} <b>${name}</b>,</p>
+<p style="font-size:14px;color:#333;line-height:1.6;margin-bottom:24px">
+${isEl
+  ? `Καλή εβδομάδα! Ρώτα τον Oli${cropLine} για το εβδομαδιαίο σου αγρονομικό πρόγραμμα — τι να ελέγξεις, τι να ψεκάσεις, τι να ετοιμάσεις.`
+  : `Happy Monday! Ask Oli${cropLine} for your weekly agronomy plan — what to inspect, spray, or prepare this week.`}
+</p>
+<a href="https://ask-oli.com" style="display:inline-block;background:#194121;color:#fff;text-decoration:none;padding:12px 28px;border-radius:24px;font-size:14px;font-weight:600">${isEl ? "Άνοιξε το Oli →" : "Open Oli →"}</a>
+<p style="margin-top:32px;font-size:11px;color:#999">${isEl ? "Για να σταματήσεις αυτά τα μηνύματα, άνοιξε Προφίλ → Ειδοποιήσεις." : "To stop these messages, open Profile → Notifications."}</p>
+</div>`;
+
+        const ok = await sendEmail(authUser.email, subject, html);
+        if (ok) sent++;
+      }
+
+      return new Response(JSON.stringify({ sent, total: users.length }), { headers });
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron, expiry_warning_cron" }),
+      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron, expiry_warning_cron, weekly_plan_cron" }),
       { status: 400, headers }
     );
   } catch (e) {
