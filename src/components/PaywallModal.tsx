@@ -181,19 +181,12 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          mode: 'upgrade_interest',
-          email: user?.email || '',
-          name: typeof profile?.name === 'string' ? profile.name : '',
-          currentTier,
-          requestedTier: tierKey,
-          requestedPlan: tierKey,
-          lang,
-        },
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { tier: tierKey },
       });
 
-      if (error || !data?.sent) {
+      if (error || !data?.url) {
+        // Stripe not configured or network error — fall back to email
         openEmailFallback(tierKey);
         setNotice(
           l === 'el'
@@ -201,7 +194,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
             : 'Your email app has been opened to complete the request.',
         );
       } else {
-        setSent(tierKey);
+        window.location.href = data.url as string;
       }
     } catch {
       openEmailFallback(tierKey);
@@ -312,7 +305,7 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
                           disabled={submitting}
                           className="w-full py-2.5 rounded-full text-sm font-semibold bg-primary text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
                         >
-                          {submitting ? (l === 'el' ? 'Αποστολή...' : 'Sending...') : tier.cta[l]}
+                          {submitting ? (l === 'el' ? 'Ανακατεύθυνση...' : 'Redirecting...') : tier.cta[l]}
                         </button>
                       )}
                     </div>
