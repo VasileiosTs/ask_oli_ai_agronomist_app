@@ -168,6 +168,7 @@ const el: T = {
   fieldLimitReached: 'Όριο χωραφιών', fieldLimitBody: 'Αναβάθμισε σε Pro για απεριόριστα χωράφια.',
   messagesPerMonth: 'μηνύματα/μήνα',
   attachFile: 'Επισύναψη αρχείου', voiceInput: 'Φωνητική εισαγωγή',
+  trialNote: '🎁 Οι νέοι χρήστες έχουν 1 μήνα Pro δωρεάν — χωρίς πιστωτική κάρτα',
 };
 
 const en: T = {
@@ -338,6 +339,7 @@ const en: T = {
   fieldLimitReached: 'Field limit reached', fieldLimitBody: 'Upgrade to Pro for unlimited fields.',
   messagesPerMonth: 'messages/month',
   attachFile: 'Attach file', voiceInput: 'Voice input',
+  trialNote: '🎁 New users get 1 month of Pro free — no card needed',
 };
 
 // ── Italian ───────────────────────────────────────────────────────────────────
@@ -466,6 +468,7 @@ const it: T = {
   privacyContact: 'Per domande e supporto:',
   messagesPerMonth: 'messaggi/mese',
   attachFile: 'Allega file', voiceInput: 'Input vocale',
+  trialNote: '🎁 I nuovi utenti ricevono 1 mese di Pro gratis — senza carta',
 };
 
 // ── Spanish ───────────────────────────────────────────────────────────────────
@@ -594,6 +597,7 @@ const es: T = {
   privacyContact: 'Para preguntas y soporte:',
   messagesPerMonth: 'mensajes/mes',
   attachFile: 'Adjuntar archivo', voiceInput: 'Entrada de voz',
+  trialNote: '🎁 Los nuevos usuarios tienen 1 mes de Pro gratis — sin tarjeta',
 };
 
 // ── French ────────────────────────────────────────────────────────────────────
@@ -722,6 +726,7 @@ const fr: T = {
   privacyContact: 'Pour toute question et support :',
   messagesPerMonth: 'messages/mois',
   attachFile: 'Joindre un fichier', voiceInput: 'Entrée vocale',
+  trialNote: '🎁 Les nouveaux utilisateurs ont 1 mois de Pro offert — sans carte',
 };
 
 // ── Arabic ────────────────────────────────────────────────────────────────────
@@ -850,6 +855,7 @@ const ar: T = {
   privacyContact: 'للأسئلة والدعم:',
   messagesPerMonth: 'رسائل/شهر',
   attachFile: 'إرفاق ملف', voiceInput: 'إدخال صوتي',
+  trialNote: '🎁 المستخدمون الجدد يحصلون على شهر Pro مجاني — بدون بطاقة',
 };
 
 export const dict: Record<Lang, T> = { el, en, it, es, fr, ar };

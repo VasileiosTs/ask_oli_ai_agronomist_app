@@ -413,8 +413,13 @@ export default function Auth() {
 
         </div>
 
+        {/* Trial note */}
+        <p className="mt-6 text-center text-xs rounded-full px-4 py-2" style={{ background: '#f0f7f0', color: '#194121' }}>
+          {t.trialNote}
+        </p>
+
         {/* Footer links */}
-        <div className="mt-8 flex justify-center gap-4 text-xs" style={{ color: '#606659' }}>
+        <div className="mt-4 flex justify-center gap-4 text-xs" style={{ color: '#606659' }}>
           <Link to="/legal/terms"
             className="transition-colors hover:underline py-3 inline-flex items-center min-h-[44px]"
             style={{ color: '#606659' }}

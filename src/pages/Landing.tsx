@@ -1011,9 +1011,14 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          <p className="mt-5 text-center text-xs text-[#9a9b93]">
-            {lt.statsFree}
-          </p>
+          <div className="mt-5 flex flex-col items-center gap-2">
+            <span className="inline-block rounded-full bg-[#194121]/10 px-4 py-1.5 text-xs font-medium text-[#194121]">
+              {lt.trialBadge}
+            </span>
+            <p className="text-center text-xs text-[#9a9b93]">
+              {lt.statsFree}
+            </p>
+          </div>
         </div>
       </section>
 
@@ -1450,7 +1455,10 @@ export default function Landing() {
             style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
             {lt.ctaButton}
           </Link>
-          <p className="text-xs text-white/40 mt-4 relative">
+          <span className="inline-block mt-4 rounded-full bg-white/15 px-4 py-1.5 text-xs font-medium text-white relative">
+            {lt.trialBadge}
+          </span>
+          <p className="text-xs text-white/40 mt-2 relative">
             {lt.ctaFine}
           </p>
         </div>

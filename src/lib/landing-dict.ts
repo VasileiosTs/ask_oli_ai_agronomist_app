@@ -25,6 +25,7 @@ export interface LandingT {
   agronomistFeatures: string[]; startAgronomist: string;
   enterpriseBadge: string; enterpriseContact: string;
   enterpriseSubtitle: string; enterpriseFeatures: string[]; getInTouch: string;
+  trialBadge: string;
   ctaHeadline: string; ctaBody: string; ctaButton: string; ctaFine: string;
   privacy: string; terms: string;
   docTitle: string; metaDesc: string; ogTitle: string; ogLocale: string;
@@ -79,6 +80,7 @@ const el: LandingT = {
   enterpriseFeatures: ['Όλα του Master', 'Πολλαπλοί χρήστες / ομάδα', 'White-label ή co-branded αναφορές', 'Προτεραιότητα υποστήριξης', 'Προσαρμοσμένες ενσωματώσεις κατόπιν αιτήματος'],
   getInTouch: 'Επικοινωνήστε μαζί μας',
   ctaHeadline: 'Σταμάτα να μαντεύεις.', ctaBody: 'Ο Oli είναι δωρεάν για να ξεκινήσεις. Χωρίς εγγραφή, χωρίς πιστωτική κάρτα.',
+  trialBadge: '🎁 1 μήνας Pro δωρεάν για νέους χρήστες — χωρίς κάρτα',
   ctaButton: 'Δοκίμασε τον Oli τώρα', ctaFine: 'Δωρεάν · Χωρίς πιστωτική κάρτα · Πάντα διαθέσιμος',
   privacy: 'Απόρρητο', terms: 'Όροι',
   docTitle: 'Oli — Ο AI Γεωπόνος σου | 24/7 Συμβουλές Καλλιεργειών',
@@ -135,6 +137,7 @@ const en: LandingT = {
   enterpriseFeatures: ['Everything in Master', 'Multiple seats / team accounts', 'White-label or co-branded reports', 'Priority support', 'Custom integrations on request'],
   getInTouch: 'Get in touch',
   ctaHeadline: 'Stop guessing.', ctaBody: 'Oli is free to start. No sign-up required, no credit card.',
+  trialBadge: '🎁 1 month of Pro free for new users — no card needed',
   ctaButton: 'Try Oli now', ctaFine: 'Free to start · No credit card · Available 24/7',
   privacy: 'Privacy', terms: 'Terms',
   docTitle: 'Oli — Your AI Agronomist | Farming Advice 24/7',
@@ -191,6 +194,7 @@ const it: LandingT = {
   enterpriseFeatures: ['Tutto incluso in Master', 'Più postazioni / account team', 'Report white-label o co-branded', 'Supporto prioritario', 'Integrazioni personalizzate su richiesta'],
   getInTouch: 'Contattaci',
   ctaHeadline: 'Smettila di indovinare.', ctaBody: 'Oli è gratis per iniziare. Nessuna registrazione, nessuna carta di credito.',
+  trialBadge: '🎁 1 mese di Pro gratis per i nuovi utenti — senza carta',
   ctaButton: 'Prova Oli adesso', ctaFine: 'Gratis · Nessuna carta · Disponibile 24/7',
   privacy: 'Privacy', terms: 'Termini',
   docTitle: 'Oli — Il tuo Agronomo AI | Consulenza Agricola 24/7',
@@ -247,6 +251,7 @@ const es: LandingT = {
   enterpriseFeatures: ['Todo incluido en Master', 'Múltiples puestos / cuentas de equipo', 'Informes white-label o co-branded', 'Soporte prioritario', 'Integraciones personalizadas bajo petición'],
   getInTouch: 'Contáctanos',
   ctaHeadline: 'Deja de adivinar.', ctaBody: 'Oli es gratis para empezar. Sin registro, sin tarjeta de crédito.',
+  trialBadge: '🎁 1 mes de Pro gratis para nuevos usuarios — sin tarjeta',
   ctaButton: 'Prueba Oli ahora', ctaFine: 'Gratis · Sin tarjeta · Disponible 24/7',
   privacy: 'Privacidad', terms: 'Términos',
   docTitle: 'Oli — Tu Agrónomo IA | Asesoramiento Agrícola 24/7',
@@ -303,6 +308,7 @@ const fr: LandingT = {
   enterpriseFeatures: ['Tout inclus dans Master', 'Plusieurs sièges / comptes équipe', 'Rapports white-label ou co-brandés', 'Support prioritaire', 'Intégrations personnalisées sur demande'],
   getInTouch: 'Nous contacter',
   ctaHeadline: 'Arrête de deviner.', ctaBody: 'Oli est gratuit pour commencer. Sans inscription, sans carte bancaire.',
+  trialBadge: '🎁 1 mois de Pro offert pour les nouveaux — sans carte',
   ctaButton: 'Essayer Oli maintenant', ctaFine: 'Gratuit · Sans carte · Disponible 24/7',
   privacy: 'Confidentialité', terms: 'Conditions',
   docTitle: 'Oli — Ton Agronome IA | Conseils Agricoles 24/7',
@@ -359,6 +365,7 @@ const ar: LandingT = {
   enterpriseFeatures: ['كل ما في Master', 'مقاعد متعددة / حسابات الفريق', 'تقارير white-label أو co-branded', 'دعم ذو أولوية', 'تكاملات مخصصة عند الطلب'],
   getInTouch: 'تواصل معنا',
   ctaHeadline: 'توقف عن التخمين.', ctaBody: 'أولي مجاني للبدء. بدون تسجيل، بدون بطاقة ائتمان.',
+  trialBadge: '🎁 شهر Pro مجاني للمستخدمين الجدد — بدون بطاقة',
   ctaButton: 'جرّب أولي الآن', ctaFine: 'مجاني · بدون بطاقة · متاح 24/7',
   privacy: 'الخصوصية', terms: 'الشروط',
   docTitle: 'Oli — مستشارك الزراعي الذكي | نصائح زراعية 24/7',

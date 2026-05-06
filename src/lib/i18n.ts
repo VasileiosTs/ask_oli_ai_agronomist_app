@@ -139,6 +139,8 @@ export interface T {
   messagesPerMonth: string;
   // Chat input accessibility
   attachFile: string; voiceInput: string;
+  // Auth page trial note
+  trialNote: string;
 }
 
 export { dict } from './i18n-dict';
