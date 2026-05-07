@@ -1165,10 +1165,6 @@ export default function Landing() {
               const isRight = i % 2 === 1; // steps 2 flips to right-icon
               return (
                 <div key={i} className="relative">
-                  {/* Vertical connector line between steps */}
-                  {i < HOW_IT_WORKS(lang).length - 1 && (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-[72px] bottom-0 w-px bg-[#e8e8e3] pointer-events-none sm:hidden" />
-                  )}
                   <div className={`flex items-start gap-6 sm:gap-10 py-8 ${isRight ? 'sm:flex-row-reverse' : 'sm:flex-row'} flex-row`}>
                     {/* Icon block */}
                     <div className="flex-shrink-0 flex flex-col items-center">
