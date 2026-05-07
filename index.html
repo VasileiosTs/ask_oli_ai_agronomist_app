@@ -1,15 +1,24 @@
 <!doctype html>
 <html lang="el">
   <head>
-    <!-- Consent mode v2: default DENIED — must run before any Google tag -->
+    <!-- Consent mode v2: must run before any Google tag -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      // Non-EEA visitors: granted by default (no consent banner shown)
+      gtag('consent', 'default', {
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted',
+        'analytics_storage': 'granted'
+      });
+      // EEA + UK + CH: denied until Clickio banner accepted
       gtag('consent', 'default', {
         'ad_storage': 'denied',
         'ad_user_data': 'denied',
         'ad_personalization': 'denied',
         'analytics_storage': 'denied',
+        'region': ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB','CH'],
         'wait_for_update': 500
       });
     </script>
