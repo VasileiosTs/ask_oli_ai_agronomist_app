@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Fire-and-forget admin check — non-blocking, fails silently
           supabase.rpc('is_admin').then(({ data: adminResult }) => {
             setIsAdmin(!!adminResult);
-          }).catch(() => { /* not an admin or RPC unavailable */ });
+          }, () => { /* not an admin or RPC unavailable */ });
           return sanitizedProfile;
         }
       } catch (error) {
