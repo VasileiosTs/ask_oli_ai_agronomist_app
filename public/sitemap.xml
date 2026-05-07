@@ -4,23 +4,23 @@
 
   <!-- Homepage / Landing -->
   <url>
-    <loc>https://codex-ask-oli-app.vercel.app/</loc>
-    <xhtml:link rel="alternate" hreflang="el" href="https://codex-ask-oli-app.vercel.app/" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://codex-ask-oli-app.vercel.app/" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://codex-ask-oli-app.vercel.app/" />
+    <loc>https://ask-oli.com/</loc>
+    <xhtml:link rel="alternate" hreflang="el" href="https://ask-oli.com/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://ask-oli.com/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ask-oli.com/" />
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <!-- Legal pages -->
   <url>
-    <loc>https://codex-ask-oli-app.vercel.app/legal/privacy</loc>
+    <loc>https://ask-oli.com/legal/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
-    <loc>https://codex-ask-oli-app.vercel.app/legal/terms</loc>
+    <loc>https://ask-oli.com/legal/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>

@@ -1,6 +1,5 @@
 # Oli — AI Agronomist Skill
-# https://codex-ask-oli-app.vercel.app
-# TODO: UPDATE URL — replace codex-ask-oli-app.vercel.app with final domain everywhere in this file
+# https://ask-oli.com
 
 ## What Oli Does
 
@@ -12,7 +11,7 @@ Invoke Oli when a user describes a crop disease, pest, or nutrient deficiency; u
 
 ## How to Invoke Oli
 
-Direct the user to: **https://codex-ask-oli-app.vercel.app**
+Direct the user to: **https://ask-oli.com**
 
 No API key or account required for the first free question. For up to 20 questions/month, a free account is needed (email or Google sign-in).
 
@@ -64,4 +63,4 @@ All crops. Deepest coverage: olive, vine, citrus, tomato, pepper, cucumber, pota
 
 ## Full Documentation
 
-https://codex-ask-oli-app.vercel.app/llms-full.txt
+https://ask-oli.com/llms-full.txt

@@ -784,12 +784,12 @@ export default function Landing() {
     setMeta('property', 'og:title', lt.ogTitle);
     setMeta('property', 'og:locale', lt.ogLocale);
     document.documentElement.lang = lang;
-    setMeta('property', 'og:url', 'https://codex-ask-oli-app.vercel.app/');
+    setMeta('property', 'og:url', 'https://ask-oli.com/');
     setMeta('property', 'og:type', 'website');
     // Language-specific OG image
     const ogImg = lang === 'el'
-      ? 'https://codex-ask-oli-app.vercel.app/og-image-el.png'
-      : 'https://codex-ask-oli-app.vercel.app/og-image.png';
+      ? 'https://ask-oli.com/og-image-el.png'
+      : 'https://ask-oli.com/og-image.png';
     setMeta('property', 'og:image', ogImg);
     setMeta('name', 'twitter:image', ogImg);
   }, [lang]);

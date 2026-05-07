@@ -104,8 +104,8 @@ VAPID_PRIVATE_KEY
 VAPID_SUBJECT=mailto:hello@ask-oli.com
 RESEND_API_KEY
 FROM_EMAIL=Oli <noreply@ask-oli.com>
-APP_URL=https://codex-ask-oli-app.vercel.app
-ALLOWED_ORIGIN=https://codex-ask-oli-app.vercel.app
+APP_URL=https://ask-oli.com
+ALLOWED_ORIGIN=https://ask-oli.com
 SUPPORT_EMAIL=hello@ask-oli.com
 SUPABASE_URL          (auto-set)
 SUPABASE_SERVICE_ROLE_KEY  (auto-set)

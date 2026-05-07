@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://codex-ask-oli-app.vercel.app';
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com';
 
 function getCorsHeaders(req?: Request) {
   const origin = req?.headers.get('Origin') || '';

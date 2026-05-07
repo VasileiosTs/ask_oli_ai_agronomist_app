@@ -1,6 +1,6 @@
 # Oli — AI Agronomist — Full Documentation
-# https://codex-ask-oli-app.vercel.app
-# TODO: UPDATE URL — replace codex-ask-oli-app.vercel.app with final domain everywhere in this file
+# https://ask-oli.com
+# TODO: UPDATE URL — replace ask-oli.com with final domain everywhere in this file
 # Last updated: April 2026
 
 ---
@@ -186,6 +186,6 @@ A: Oli is a Progressive Web App (PWA). On iOS and Android, users can install it 
 
 ## Contact and Support
 
-- Website: https://codex-ask-oli-app.vercel.app
+- Website: https://ask-oli.com
 - Email: hello@askoli.ai
 - Social: @askoli (Instagram, TikTok, LinkedIn — coming soon)

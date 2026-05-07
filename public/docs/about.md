@@ -1,7 +1,7 @@
 # Oli — AI Agronomist
-<!-- TODO: UPDATE URL — replace codex-ask-oli-app.vercel.app with final domain -->
+<!-- TODO: UPDATE URL — replace ask-oli.com with final domain -->
 
-> For the complete documentation index, see [llms.txt](https://codex-ask-oli-app.vercel.app/llms.txt)
+> For the complete documentation index, see [llms.txt](https://ask-oli.com/llms.txt)
 
 Oli is an AI-powered agronomist for small and medium farmers worldwide. Ask a question or upload a photo of a sick plant — Oli diagnoses diseases, recommends organic and chemical treatments with exact dosages, and follows up to confirm the outcome.
 
@@ -26,7 +26,7 @@ Greek, English, Italian, Spanish, French, Arabic.
 
 ## Try Oli
 
-[https://codex-ask-oli-app.vercel.app](https://codex-ask-oli-app.vercel.app)
+[https://ask-oli.com](https://ask-oli.com)
 
 ## Contact
 

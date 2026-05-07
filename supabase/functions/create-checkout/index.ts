@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         .eq('id', user.id);
     }
 
-    const appUrl = Deno.env.get('APP_URL') ?? 'https://codex-ask-oli-app.vercel.app';
+    const appUrl = Deno.env.get('APP_URL') ?? 'https://ask-oli.com';
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

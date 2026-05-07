@@ -12,12 +12,12 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Set CRON_SECRET in Supabase Edge Function secrets (same value used in migration).
 const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Oli <noreply@ask-oli.com>";
-const APP_URL = Deno.env.get("APP_URL") || "https://codex-ask-oli-app.vercel.app";
+const APP_URL = Deno.env.get("APP_URL") || "https://ask-oli.com";
 const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@ask-oli.com";
 
 // ── CORS ──
 const ALLOWED_ORIGIN =
-  Deno.env.get("ALLOWED_ORIGIN") || "https://codex-ask-oli-app.vercel.app";
+  Deno.env.get("ALLOWED_ORIGIN") || "https://ask-oli.com";
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "";
