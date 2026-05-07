@@ -997,9 +997,6 @@ export default function Landing() {
                   <span className="flex-shrink-0 text-[#194121]/60">→</span>
                   <span className="truncate">{rotatingQuestions[suggestionIdx]}</span>
                 </button>
-                <p className="text-xs text-[#606659]">
-                  {lt.noSignup}
-                </p>
                 <span className="inline-block rounded-full bg-[#194121]/10 px-4 py-1.5 text-xs font-medium text-[#194121]">
                   {lt.trialBadge}
                 </span>
