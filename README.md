@@ -2,8 +2,8 @@
 
 > **"Every farmer who uses Oli builds the dataset that makes every future farmer's advice better."**
 
-**App:** https://codex-ask-oli-app.vercel.app  
-**Stage:** Pre-launch · Beachhead: Greece (all crops) · Vision: Global  
+**App:** https://ask-oli.com  
+**Stage:** Live · Beachhead: Greece (all crops) · Vision: Global  
 **Stack:** React 19 + TypeScript · Supabase (Postgres + Edge Functions + Auth) · Google Gemini 2.5 · Vercel
 
 ---
@@ -232,13 +232,12 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 - ✅ Onboarding — name, location with geocoding, primary crop
 - ✅ Push notifications (VAPID) + email reminders (Resend)
 - ✅ Multi-grower accounts — agronomist manages multiple farmer profiles
+- ✅ Stripe payment integration — checkout, webhooks, Pro/Agronomist tier gating
 - ✅ Promo codes — named codes + bulk generation, tier-granting with expiry
 - ✅ Automatic Gemini fallback — primary → gemini-2.0-flash-lite on quota or 5xx
 - ✅ Weather integration — Open-Meteo API, gated by intent (skipped for calculations)
 
 **Not live yet:**
-- 🔲 Stripe payment integration (paywall UI exists, checkout not wired)
-- 🔲 Production domain (askoli.ai)
 - 🔲 App Store / Play Store listing (PWA in the interim)
 - 🔲 Public B2B API
 
@@ -376,7 +375,7 @@ supabase/functions/
 
 ```bash
 git clone https://github.com/VasileiosTs/codex_ask_oli_app.git
-cd codex_ask_oli_app
+cd codex_ask_oli_app_review
 npm install
 cp .env.example .env.local   # fill in Supabase + Gemini credentials
 npm run dev                  # http://localhost:5173
@@ -398,12 +397,12 @@ SUPABASE_SERVICE_ROLE_KEY
 RESEND_API_KEY
 VAPID_PUBLIC_KEY
 VAPID_PRIVATE_KEY
-VAPID_SUBJECT=mailto:hello@askoli.ai
+VAPID_SUBJECT=mailto:hello@ask-oli.com
 CRON_SECRET
-FROM_EMAIL=Oli <noreply@askoli.ai>
-APP_URL=https://codex-ask-oli-app.vercel.app
-ALLOWED_ORIGIN=https://codex-ask-oli-app.vercel.app
-SUPPORT_EMAIL=hello@askoli.ai
+FROM_EMAIL=Oli <noreply@ask-oli.com>
+APP_URL=https://ask-oli.com
+ALLOWED_ORIGIN=https://ask-oli.com
+SUPPORT_EMAIL=hello@ask-oli.com
 ```
 
 ---
@@ -458,4 +457,4 @@ Phase 2 prep already in place:
 - Direct relationships with senior contacts at **ADAMA** (global crop protection, top 5 worldwide) and **Yara** (world's largest fertilizer company), Greek Ministry of Agriculture.
 - Operated across **27 countries**.
 
-**Contact:** founder@askoli.ai
+**Contact:** founder@ask-oli.com
