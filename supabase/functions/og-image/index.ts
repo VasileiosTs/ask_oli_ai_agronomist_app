@@ -73,12 +73,21 @@ Deno.serve(async (req) => {
   let data: any = null;
   if (shareId && UUID_REGEX.test(shareId)) {
     const sb = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
-    const { data: d } = await sb
+    const { data: byShareId } = await sb
       .from('safe_shared_diagnoses')
       .select('crop_type,problem,diagnosis,cause,severity,product_applied,product,organic_treatments,chemical_treatments')
       .eq('share_id', shareId)
       .maybeSingle();
-    data = d;
+    data = byShareId;
+
+    if (!data) {
+      const { data: byLegacyId } = await sb
+        .from('safe_shared_diagnoses')
+        .select('crop_type,problem,diagnosis,cause,severity,product_applied,product,organic_treatments,chemical_treatments')
+        .eq('legacy_intervention_id', shareId)
+        .maybeSingle();
+      data = byLegacyId;
+    }
   }
 
   // ── Content ──────────────────────────────────────────────────────────────

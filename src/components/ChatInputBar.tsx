@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { Paperclip, Mic, Send, Camera, Image, FileText, X, MapPin } from 'lucide-react';
+import { Paperclip, Mic, Send, Camera, Image, FileText, X, MapPin, AudioLines } from 'lucide-react';
 import clsx from 'clsx';
 import type { T } from '../lib/i18n';
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT, MAX_ATTACHMENTS, ALLOWED_FILE_ACCEPT } from '../lib/constants';
@@ -98,6 +97,10 @@ export default function ChatInputBar({
             <div key={i} className="relative h-16 w-16 flex-shrink-0">
               {att.file.type.startsWith('image/') ? (
                 <img src={att.previewUrl} alt="preview" className="h-full w-full rounded-xl object-cover" />
+              ) : att.file.type.startsWith('audio/') ? (
+                <div className="flex h-full w-full items-center justify-center rounded-xl bg-muted/20">
+                  <AudioLines className="h-8 w-8 text-muted" />
+                </div>
               ) : (
                 <div className="flex h-full w-full items-center justify-center rounded-xl bg-muted/20">
                   <FileText className="h-8 w-8 text-muted" />
@@ -125,6 +128,10 @@ export default function ChatInputBar({
             <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm hover:bg-muted/10 text-foreground"
               onClick={() => { fileInputRef.current?.click(); onToggleAttachmentSheet(false); }}>
               <FileText className="h-5 w-5 text-muted" />{t.uploadFile}
+            </button>
+            <button className="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm hover:bg-muted/10 text-foreground"
+              onClick={() => { fileInputRef.current?.click(); onToggleAttachmentSheet(false); }}>
+              <AudioLines className="h-5 w-5 text-muted" />{lang === 'el' ? 'Ήχος / αρχείο' : 'Audio / file'}
             </button>
           </div>
         )}

@@ -27,7 +27,7 @@ function extractOAuthName(user: { user_metadata?: Record<string, unknown> } | nu
 }
 
 export default function Onboarding() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, setProfileState } = useAuth();
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
 
@@ -203,10 +203,10 @@ export default function Onboarding() {
     if (referral) { payload.referred_by_share_id = referral; localStorage.removeItem('oli_referral'); }
 
     try {
-      const { error: upsertError } = await supabase
+      const { data: savedProfile, error: upsertError } = await supabase
         .from('users')
         .upsert(payload, { onConflict: 'auth_id' })
-        .select('id, onboarding_complete')
+        .select('*')
         .single();
 
       if (upsertError) {
@@ -214,6 +214,10 @@ export default function Onboarding() {
         setError(`${t.savingError} (${upsertError.message})`);
         setLoading(false);
         return;
+      }
+
+      if (savedProfile) {
+        setProfileState(savedProfile);
       }
 
       // Identify with coarse aggregate properties only — no name, no precise location (GDPR)
@@ -229,9 +233,11 @@ export default function Onboarding() {
         retries: 6,
         delayMs: 250,
         requireCompletedOnboarding: true,
+        preserveExisting: true,
       });
 
-      if (!refreshedProfile?.onboarding_complete) {
+      const completedProfile = refreshedProfile ?? savedProfile;
+      if (!completedProfile?.onboarding_complete) {
         setError(
           lang === 'el'
             ? 'Το προφίλ αποθηκεύτηκε αλλά δεν συγχρονίστηκε σωστά. Δοκίμασε ξανά σε λίγα δευτερόλεπτα.'
@@ -240,6 +246,8 @@ export default function Onboarding() {
         setLoading(false);
         return;
       }
+
+      setProfileState(completedProfile);
 
       navigate('/chat', { replace: true });
     } catch (err) {

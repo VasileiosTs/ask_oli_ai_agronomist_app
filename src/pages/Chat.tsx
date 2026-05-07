@@ -33,9 +33,37 @@ import { useChatAttachments, cleanupUploadedAssets, prepareAttachmentsForSend } 
 // ── Guest session storage keys ──
 const GUEST_SESSION_KEY = 'oli_guest_messages';
 const GREETING_SESSION_TTL_MS = 10 * 60 * 1000;
+const GUEST_CHAT_ENTRY_KEY = 'oli_guest_chat_entry';
+
+function sameCalendarMonth(isoDate?: string | null) {
+  if (!isoDate) return false;
+  const date = new Date(isoDate);
+  const now = new Date();
+  return (
+    date.getUTCFullYear() === now.getUTCFullYear()
+    && date.getUTCMonth() === now.getUTCMonth()
+  );
+}
+
+function inferMimeTypeFromPath(path: string) {
+  const lower = path.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.heic')) return 'image/heic';
+  if (lower.endsWith('.heif')) return 'image/heif';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.mp3')) return 'audio/mpeg';
+  if (lower.endsWith('.mp4') || lower.endsWith('.m4a')) return 'audio/mp4';
+  if (lower.endsWith('.wav')) return 'audio/wav';
+  if (lower.endsWith('.webm')) return 'audio/webm';
+  if (lower.endsWith('.ogg')) return 'audio/ogg';
+  if (lower.endsWith('.aac')) return 'audio/aac';
+  return 'application/octet-stream';
+}
 
 export default function Chat() {
-  const { user, profile, appUserId } = useAuth();
+  const { user, profile, appUserId, refreshProfile } = useAuth();
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,28 +88,39 @@ export default function Chat() {
   const [messageCount, setMessageCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showPaywallWarning, setShowPaywallWarning] = useState(false);
+  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
 
   // Initialise message count from profile so the paywall check is accurate on page load
   // (without this, messageCount starts at 0 and the client-side gate never fires even
   //  when the user has already exhausted their monthly quota in a previous session).
   useEffect(() => {
     if (!profile) return;
+    if (hasUnlimitedMessages) {
+      setShowPaywall(false);
+      setShowPaywallWarning(false);
+      return;
+    }
     const dbCount = typeof profile.message_count_month === 'number' ? profile.message_count_month : 0;
-    const resetDate = typeof profile.message_reset_date === 'string' ? new Date(profile.message_reset_date) : null;
-    const now = new Date();
-    const sameMonth = resetDate
-      && resetDate.getUTCFullYear() === now.getUTCFullYear()
-      && resetDate.getUTCMonth() === now.getUTCMonth();
-    const count = sameMonth ? dbCount : 0;
+    const count = sameCalendarMonth(profile.message_reset_date) ? dbCount : 0;
     setMessageCount(count);
     const remaining = FREE_LIMIT - count;
     if (remaining <= 0) {
       setShowPaywall(true);
+      setShowPaywallWarning(false);
     } else if (remaining <= PAYWALL_WARNING_MESSAGES_REMAINING) {
+      setShowPaywall(false);
       setShowPaywallWarning(true);
+    } else {
+      setShowPaywall(false);
+      setShowPaywallWarning(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id]);
+  }, [profile?.message_count_month, profile?.message_reset_date, hasUnlimitedMessages]);
+
+  useEffect(() => {
+    if (!appUserId) return;
+    refreshProfile({ preserveExisting: true }).catch(() => {});
+  }, [appUserId, refreshProfile]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const handleSendRef = useRef<((text: string) => Promise<void>) | null>(null);
   // Holds a message typed before appUserId loaded; drained automatically
@@ -121,7 +160,6 @@ export default function Chat() {
   const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
   const [guestMessageSent, setGuestMessageSent] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const hasUnlimitedMessages = isUnlimitedTier(typeof profile?.tier === 'string' ? profile.tier : null);
   useEffect(() => {
     greetingFetchedRef.current = false;
   }, [user?.id, lang, isGuestMode]);
@@ -196,7 +234,7 @@ export default function Chat() {
   const [isListening, setIsListening] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
+  const [shareModalData, setShareModalData] = useState<{ url: string; text?: string } | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
   const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
   const [inlineLogMsgId, setInlineLogMsgId] = useState<string | null>(null);
@@ -541,6 +579,7 @@ export default function Chat() {
     }
 
     const shareUrl = `${window.location.origin}/d/${publicShareId}?ref=${publicShareId}`;
+    const shareText = msg.metadata?.diagnosis_data?.problem || msg.content || t.shareDefaultText;
     trackEvent(Events.SHARE_DIAGNOSIS, { shareId: publicShareId });
 
     // Try Web Share API first (native on mobile)
@@ -548,7 +587,7 @@ export default function Chat() {
       try {
         await navigator.share({
           title: t.shareTitle,
-          text: msg.metadata?.diagnosis_data?.problem || t.shareDefaultText,
+          text: shareText,
           url: shareUrl,
         });
         showToast(t.linkCopied);
@@ -563,18 +602,12 @@ export default function Chat() {
       await navigator.clipboard.writeText(shareUrl);
       showToast(t.linkCopied);
     } catch {
-      // Clipboard blocked, always show the modal with the URL so user can copy manually
-      setShareModalUrl(shareUrl);
+      // Clipboard blocked — always show the modal with the URL so user can copy manually
+      setShareModalData({ url: shareUrl, text: shareText });
     }
-  };
 
-  useEffect(() => {
-    if (profile) {
-      setMessageCount(profile.message_count_month || 0);
-      return;
-    }
-    setMessageCount(0);
-  }, [profile]);
+    setShareModalData({ url: shareUrl, text: shareText });
+  };
 
   useEffect(() => {
     if (appUserId) {
@@ -775,6 +808,17 @@ export default function Chat() {
 
       trackEvent(Events.MESSAGE_SENT, { guest: true });
     } catch (err) {
+      const status = typeof err === 'object' && err !== null && 'status' in err
+        ? Number((err as { status?: unknown }).status)
+        : undefined;
+
+      if (status === 429) {
+        sessionStorage.setItem('oli_pending_input', text);
+        setShowLoginModal(true);
+        setIsTyping(false);
+        return;
+      }
+
       const errMsg = err instanceof Error ? err.message : null;
       const fallback = lang === 'el'
         ? 'Κάτι πήγε στραβά. Δοκίμασε ξανά σε λίγο.'
@@ -830,7 +874,9 @@ export default function Chat() {
   useEffect(() => {
     if (!appUserId) return;
 
-    // User is now authenticated, clear the guest quota flag so it doesn't affect their experience
+    sessionStorage.removeItem(GUEST_CHAT_ENTRY_KEY);
+
+    // User is now authenticated — clear the guest quota flag so it doesn't affect their experience
     localStorage.removeItem('oli_guest_used');
 
     // Restore any question that was pending before login (e.g. from ?q= when quota was used)
@@ -884,13 +930,16 @@ export default function Chat() {
         });
       }
 
-      // Count the guest message (increment message_count_month by 1)
-      const currentCount = profile?.message_count_month ?? 0;
+      // Count the guest message once the migrated conversation is attached to the account.
+      const currentCount = sameCalendarMonth(profile?.message_reset_date)
+        ? (profile?.message_count_month ?? 0)
+        : 0;
       await supabase.from('users').update({
         message_count_month: currentCount + 1,
         message_reset_date: new Date().toISOString(),
       }).eq('id', appUserId);
       setMessageCount(currentCount + 1);
+      refreshProfile({ preserveExisting: true }).catch(() => {});
 
       // Re-load messages for the new conversation
       if (conv?.id) {
@@ -908,7 +957,11 @@ export default function Chat() {
             created_at: m.created_at,
             metadata: m.metadata as Record<string, unknown> | undefined,
             starred: m.starred,
-            attachments: m.image_urls?.map((u: string) => ({ url: u, type: 'image' as const })),
+            attachments: m.image_urls?.map((u: string) => ({
+              url: u,
+              mimeType: inferMimeTypeFromPath(u),
+              name: u.split('/').pop() ?? 'attachment',
+            })),
           }))});
         }
       }
@@ -1269,7 +1322,7 @@ export default function Chat() {
       return;
     }
 
-    if (messageCount >= FREE_LIMIT) {
+    if (!hasUnlimitedMessages && messageCount >= FREE_LIMIT) {
       setShowPaywall(true);
       trackEvent(Events.PAYWALL_HIT, { messageCount });
       return;
@@ -1440,10 +1493,12 @@ export default function Chat() {
             const uncached: string[] = [];
             const cachedMap = await getCachedImages(m.image_urls);
             for (const path of m.image_urls) {
+              const mimeType = inferMimeTypeFromPath(path);
+              const name = path.split('/').pop() ?? 'attachment';
               const cached = cachedMap.get(path);
-              if (cached) {
+              if (cached && mimeType.startsWith('image/')) {
                 blobUrlsCreated.push(cached);
-                attachments.push({ url: cached, mimeType: 'image/jpeg', name: path.split('/').pop() ?? 'photo' });
+                attachments.push({ url: cached, mimeType, name });
               } else {
                 uncached.push(path);
               }
@@ -1455,7 +1510,12 @@ export default function Chat() {
               if (signed) {
                 for (const s of signed) {
                   if (s.signedUrl) {
-                    attachments.push({ url: s.signedUrl, mimeType: 'image/jpeg', name: (s.path || '').split('/').pop() ?? 'photo' });
+                    const path = s.path || '';
+                    attachments.push({
+                      url: s.signedUrl,
+                      mimeType: inferMimeTypeFromPath(path),
+                      name: path.split('/').pop() ?? 'attachment',
+                    });
                   }
                 }
               }
@@ -1915,10 +1975,11 @@ export default function Chat() {
       )}
 
       <ShareModal
-        isOpen={!!shareModalUrl}
-        onClose={() => setShareModalUrl(null)}
-        url={shareModalUrl ?? ''}
+        isOpen={!!shareModalData}
+        onClose={() => setShareModalData(null)}
+        url={shareModalData?.url ?? ''}
         title={lang === 'el' ? 'Διάγνωση από τον Oli' : 'Diagnosis from Oli'}
+        text={shareModalData?.text}
         lang={lang}
       />
 

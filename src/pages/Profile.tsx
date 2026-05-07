@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, ChevronLeft, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3 } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, ChevronLeft, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3, ArrowLeft } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -111,8 +111,23 @@ export default function Profile() {
   const hasUnlimitedMessages = isUnlimitedTier(
     currentTier,
   );
-  const msgCount = (currentProfile.message_count_month as number) ?? 0;
+  const resetDate = typeof currentProfile.message_reset_date === 'string'
+    ? new Date(currentProfile.message_reset_date)
+    : null;
+  const now = new Date();
+  const sameMonth = resetDate
+    && resetDate.getUTCFullYear() === now.getUTCFullYear()
+    && resetDate.getUTCMonth() === now.getUTCMonth();
+  const msgCount = sameMonth ? ((currentProfile.message_count_month as number) ?? 0) : 0;
   const msgPercent = Math.min((msgCount / FREE_LIMIT) * 100, 100);
+
+  const handleClose = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/chat');
+  };
 
   const openEdit = () => {
     setEditName((currentProfile.name as string) ?? '');
@@ -267,7 +282,21 @@ export default function Profile() {
         </button>
       </div>
       {/* Header */}
-      <div className="px-4 pt-4 pb-4">
+      <div className="px-4 pt-12 pb-4">
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label={lang === 'el' ? 'Πίσω' : 'Back'}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 bg-surface text-muted transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div className="text-sm font-semibold text-foreground">
+            {lang === 'el' ? 'Προφίλ' : 'Profile'}
+          </div>
+          <div className="h-10 w-10" aria-hidden="true" />
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-full bg-primary/20 overflow-hidden">
             {avatarUrl

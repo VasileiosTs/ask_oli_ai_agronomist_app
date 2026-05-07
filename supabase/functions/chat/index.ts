@@ -164,6 +164,14 @@ const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
   'image/heic',
   'image/heif',
   'application/pdf',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/mp4',
+  'audio/wav',
+  'audio/webm',
+  'audio/ogg',
+  'audio/aac',
+  'audio/x-m4a',
 ]);
 
 // ── Weather fetch (Open-Meteo, free, no API key required) ──────────────────
@@ -2340,11 +2348,11 @@ async function applyExtractedFieldContext(
 }
 
 // ── Guest mode rate limiting (DB-backed, survives isolate restarts) ──
-const GUEST_RATE_LIMIT = 1;  // max requests per window
-const GUEST_RATE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24-hour window
+const GUEST_RATE_LIMIT = 1;  // 1 free question per IP per 24 hours
+const GUEST_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 async function checkGuestRateLimit(ip: string, serviceRoleKey: string, supabaseUrl: string): Promise<boolean> {
-  if (ip === 'unknown') return true; // can't rate-limit unknown IPs
+  if (!ip || ip === 'unknown') return true; // can't rate-limit unknown IPs
   try {
     const db = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
@@ -2386,7 +2394,7 @@ async function handleGuestChat(
     return jsonResponse({ error: 'Message too long' }, 400);
   }
 
-  // Validate any inline attachments (max 1 for guest, images only)
+  // Validate any inline attachments (guest stays limited to a single attachment)
   const rawAttachments = Array.isArray(latestMessage.attachments) ? latestMessage.attachments : [];
   const validAttachments: InlineAttachment[] = rawAttachments
     .filter((a) => ALLOWED_INLINE_ATTACHMENT_MIME_TYPES.has(a.mimeType) && typeof a.data === 'string' && a.data.length > 0)

@@ -31,6 +31,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   logout: () => Promise<void>;
   refreshProfile: (options?: RefreshProfileOptions) => Promise<UserProfile | null>;
+  setProfileState: (profile: UserProfile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -38,6 +39,7 @@ const AuthContext = createContext<AuthContextValue>({
   appUserId: null, loading: true, isAdmin: false,
   logout: async () => {},
   refreshProfile: async () => null,
+  setProfileState: () => {},
 });
 
 /** Fields that should never be stored in client-side state (L5). */
@@ -106,6 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const setProfileState = (nextProfile: UserProfile | null) => {
+    setProfile(nextProfile);
+    persistProfile(nextProfile);
+  };
+
   const fetchProfile = async (
     authUserId: string,
     options: RefreshProfileOptions = {},
@@ -134,8 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             delete (data as Record<string, unknown>)[field];
           }
           const sanitizedProfile = data as UserProfile;
-          setProfile(sanitizedProfile);
-          persistProfile(sanitizedProfile);
+          setProfileState(sanitizedProfile);
           // Fire-and-forget admin check — non-blocking, fails silently
           supabase.rpc('is_admin').then(({ data: adminResult }) => {
             setIsAdmin(!!adminResult);
@@ -156,8 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!preserveExisting) {
-      setProfile(null);
-      persistProfile(null);
+      setProfileState(null);
     }
 
     return null;
@@ -178,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    setProfile(null);
+    setProfileState(null);
     setUser(null);
     setSession(null);
     setIsAdmin(false);
@@ -206,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(storedSession);
       setUser(storedSession.user);
       if (cachedProfile) {
-        setProfile(cachedProfile);
+        setProfileState(cachedProfile);
         setLoading(false);
       }
       fetchProfileWithTimeout(storedSession.user.id, {
@@ -231,8 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         await fetchProfileWithTimeout(session.user.id, { preserveExisting: restoredFromStorage });
       } else if (!restoredFromStorage) {
-        setProfile(null);
-        persistProfile(null);
+        setProfileState(null);
       }
       if (!cancelled) setLoading(false);
     }).catch((err) => {
@@ -283,8 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             trackEvent(Events.LOGIN);
           }
         } else {
-          setProfile(null);
-          persistProfile(null);
+          setProfileState(null);
           resetAnalytics();
         }
         setLoading(false);
@@ -302,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(storedSession.user);
           const cachedProfile = readStoredProfile(storedSession.user.id);
           if (cachedProfile) {
-            setProfile(cachedProfile);
+            setProfileState(cachedProfile);
             setLoading(false);
           }
           fetchProfileWithTimeout(storedSession.user.id, {
@@ -345,6 +348,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       appUserId: profile?.id ?? null,
       logout,
       refreshProfile,
+      setProfileState,
     }}>
       {children}
     </AuthContext.Provider>

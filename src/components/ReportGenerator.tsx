@@ -206,6 +206,7 @@ export default function ReportGenerator({ field, timeline, growthStage, lang, au
           onClose={() => setShareUrl(null)}
           url={shareUrl}
           title={`${field.name} — Oli Report`}
+          text={growthStage ? `${field.name}\n${growthStage}` : field.name}
           lang={lang}
         />
       )}
