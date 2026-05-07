@@ -1000,6 +1000,9 @@ export default function Landing() {
                 <p className="text-xs text-[#606659]">
                   {lt.noSignup}
                 </p>
+                <span className="inline-block rounded-full bg-[#194121]/10 px-4 py-1.5 text-xs font-medium text-[#194121]">
+                  {lt.trialBadge}
+                </span>
               </div>
             </div>
 
@@ -1024,10 +1027,7 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          <div className="mt-5 flex flex-col items-center gap-2">
-            <span className="inline-block rounded-full bg-[#194121]/10 px-4 py-1.5 text-xs font-medium text-[#194121]">
-              {lt.trialBadge}
-            </span>
+          <div className="mt-5 flex justify-center">
             <p className="text-center text-xs text-[#9a9b93]">
               {lt.statsFree}
             </p>
