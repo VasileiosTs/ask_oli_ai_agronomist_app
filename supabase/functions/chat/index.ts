@@ -169,18 +169,34 @@ const ALLOWED_INLINE_ATTACHMENT_MIME_TYPES = new Set([
 // ── Weather fetch (Open-Meteo, free, no API key required) ──────────────────
 // Same API used by WeatherWidget.tsx on the frontend.
 // Called only when user has lat/lon stored; times out silently after 3s.
+interface WeatherForecastDay {
+  date: string;          // YYYY-MM-DD
+  temp_min_c: number;
+  temp_max_c: number;
+  precipitation_mm: number;
+  wind_max_kmh: number;
+}
+
 interface WeatherSnapshot {
   temperature_c: number;
   humidity_pct: number;
   precipitation_mm: number;
   wind_kmh: number;
+  forecast?: WeatherForecastDay[]; // F1: only populated for planning-style queries
 }
 
-async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSnapshot | null> {
+// F1: Single Open-Meteo call returns current conditions plus an optional
+// 3-day daily forecast. Forecast doubles the response size, so we only
+// request it when intent === 'planning' ("when should I spray?", "is
+// Thursday a good day for fertilizing?"). Current-only path is unchanged.
+async function fetchWeather(lat: number, lon: number, includeForecast: boolean): Promise<WeatherSnapshot | null> {
   try {
+    const dailyParam = includeForecast
+      ? '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&forecast_days=3'
+      : '';
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&timezone=auto`;
+      `&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m${dailyParam}&timezone=auto`;
     const res = await Promise.race([
       fetch(url),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
@@ -189,12 +205,24 @@ async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSna
     const json = await (res as Response).json();
     const c = json?.current;
     if (!c) return null;
-    return {
+    const snapshot: WeatherSnapshot = {
       temperature_c: c.temperature_2m,
       humidity_pct: c.relative_humidity_2m,
       precipitation_mm: c.precipitation,
       wind_kmh: c.wind_speed_10m,
     };
+    if (includeForecast && json?.daily?.time && Array.isArray(json.daily.time)) {
+      const d = json.daily;
+      snapshot.forecast = d.time.map((date: string, i: number) => ({
+        date,
+        temp_min_c: d.temperature_2m_min?.[i],
+        temp_max_c: d.temperature_2m_max?.[i],
+        precipitation_mm: d.precipitation_sum?.[i] ?? 0,
+        wind_max_kmh: d.wind_speed_10m_max?.[i] ?? 0,
+      })).filter((day: WeatherForecastDay) =>
+        Number.isFinite(day.temp_min_c) && Number.isFinite(day.temp_max_c));
+    }
+    return snapshot;
   } catch {
     return null;
   }
@@ -202,7 +230,15 @@ async function fetchCurrentWeather(lat: number, lon: number): Promise<WeatherSna
 
 function formatWeatherContext(w: WeatherSnapshot): string {
   const precip = w.precipitation_mm > 0 ? `, ${w.precipitation_mm}mm rain` : '';
-  return `Current weather: ${w.temperature_c}°C, ${w.humidity_pct}% humidity${precip}, ${w.wind_kmh}km/h wind`;
+  const current = `Current weather: ${w.temperature_c}°C, ${w.humidity_pct}% humidity${precip}, ${w.wind_kmh}km/h wind`;
+  if (!w.forecast || w.forecast.length === 0) return current;
+  // F1: Compact forecast format kept under ~200 chars to limit prompt growth.
+  // Format: "Forecast: 2026-05-06 18-26°C, 0mm | 2026-05-07 17-25°C, 4mm | ..."
+  const forecastLine = w.forecast.map((d) => {
+    const rain = d.precipitation_mm > 0 ? `${d.precipitation_mm.toFixed(1)}mm` : '0mm';
+    return `${d.date} ${Math.round(d.temp_min_c)}-${Math.round(d.temp_max_c)}°C, ${rain}, wind ${Math.round(d.wind_max_kmh)}km/h`;
+  }).join(' | ');
+  return `${current}\n3-day forecast: ${forecastLine}`;
 }
 
 // ── Intent Classifier ────────────────────────────────────────────────────────
@@ -210,6 +246,18 @@ function formatWeatherContext(w: WeatherSnapshot): string {
 // Used to trim irrelevant prompt sections and inject a pre-classified hint,
 // so Gemini spends zero tokens deciding what type of question it is.
 type QueryIntent = 'diagnosis' | 'calculation' | 'planning' | 'followup' | 'indoor' | 'general';
+
+// W1: intents that benefit from real-time weather. General-knowledge questions
+// ("what is mealybug"), dose calculations, and indoor/houseplant care don't —
+// fetching weather for those wastes ~150-300ms and an Open-Meteo call.
+function intentNeedsWeather(intent: QueryIntent): boolean {
+  // Exclude only queries where outdoor weather is truly irrelevant:
+  // - calculation: dose/rate math is weather-independent
+  // - indoor: houseplant in a pot is not affected by outdoor conditions
+  // Everything else (diagnosis, planning, followup, general) gets weather so
+  // responses feel contextually aware, not just generic keyword answers.
+  return intent !== 'calculation' && intent !== 'indoor';
+}
 
 function classifyIntent(message: string, hasActualImages: boolean): QueryIntent {
   if (hasActualImages) return 'diagnosis'; // image attachment = always diagnostic intent
@@ -236,6 +284,86 @@ function classifyIntent(message: string, hasActualImages: boolean): QueryIntent 
   // Planning: what/when to do, schedules, programs
   if (/\b(when should|what should i|plan|schedule|program|calendar|next step|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο)\b/.test(m)) return 'planning';
   return 'general';
+}
+
+const QUERY_INTENT_VALUES: readonly QueryIntent[] = [
+  'diagnosis', 'calculation', 'followup', 'indoor', 'planning', 'general',
+];
+
+// I4: When the regex falls through to 'general' on a substantive message,
+// consult gemini-2.0-flash-lite (cheapest model) to verify. Catches
+// phrasing the regex doesn't (e.g. Greek code-mixed text, novel symptom
+// wording). Skipped for short messages (likely greetings/acks) and on
+// any failure path falls back to the regex result.
+async function classifyIntentLlm(
+  geminiApiKey: string,
+  message: string,
+  lang: string,
+): Promise<QueryIntent | null> {
+  try {
+    const langName = ({ el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic', pt: 'Portuguese' } as Record<string, string>)[lang] ?? 'English';
+    const payload = {
+      contents: [{
+        role: 'user',
+        parts: [{
+          text:
+            `Classify this farmer's message (${langName}) as ONE intent. Return JSON {"intent":"..."}.\n` +
+            `- diagnosis: symptoms, visual problems, "what's wrong with my plant"\n` +
+            `- calculation: dose, rate, dilution, units (l/ha, kg/ha)\n` +
+            `- followup: reporting back on a past treatment / progress\n` +
+            `- indoor: houseplant or container care\n` +
+            `- planning: when/what to do, schedules, spray programs\n` +
+            `- general: definitions, general knowledge, greetings\n\n` +
+            `Message: ${message}`,
+        }],
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: { intent: { type: 'STRING', enum: [...QUERY_INTENT_VALUES] } },
+          required: ['intent'],
+        },
+        temperature: 0,
+        maxOutputTokens: 32,
+      },
+    };
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    const parsed = parseGeminiPayload<{ intent: QueryIntent }>(data);
+    const intent = parsed?.intent;
+    return QUERY_INTENT_VALUES.includes(intent) ? intent : null;
+  } catch (err) {
+    console.warn('[chat:intentLlm] failed, falling back to regex:', err);
+    return null;
+  }
+}
+
+// I4: Hybrid intent. Regex first (free, instant). If regex says 'general'
+// AND the message is substantive (>30 chars, not a likely ack/greeting),
+// verify with the LLM classifier. On any LLM failure or short message,
+// keep the regex result.
+async function classifyIntentHybrid(
+  geminiApiKey: string,
+  message: string,
+  hasActualImages: boolean,
+  lang: string,
+): Promise<QueryIntent> {
+  const regexIntent = classifyIntent(message, hasActualImages);
+  if (regexIntent !== 'general') return regexIntent;
+  const trimmed = message.trim();
+  if (trimmed.length < 30) return regexIntent;
+  const llmIntent = await classifyIntentLlm(geminiApiKey, trimmed.slice(0, 500), lang);
+  return llmIntent ?? regexIntent;
 }
 
 function buildSystemPrompt(
@@ -1179,6 +1307,27 @@ function intentTemperature(intent: QueryIntent): number {
 
 const BANNED_OPENER_RE = /^\s*(great question|certainly|of course|sure|absolutely|happy to help)[!,.\-:\s]/i;
 
+const MAX_REPAIR_ATTEMPTS = 2;
+
+// V3: Schema-valid fallback when Gemini repeatedly returns malformed output.
+// Surfaces a short clarifier in the user's language, never names a disease,
+// flags itself in metadata so we can grep '[chat:repair_exhausted]' in logs.
+function buildSafeFallbackResponse(lang: string, hasActiveField: boolean): AiResponseJson {
+  const text = lang === 'el'
+    ? 'Θέλω να σε βοηθήσω σωστά. Μπορείς να μου πεις ποια καλλιέργεια και τι παρατηρείς; Αν μπορείς, στείλε και μια φωτογραφία.'
+    : "I want to make sure I help you well. Can you tell me which crop and what you're seeing? A photo helps too.";
+  return {
+    response_text: text,
+    intent: 'unclear',
+    crop_mentioned: null,
+    field_scope: hasActiveField ? 'specific' : 'general',
+    question_count: 1,
+    has_banned_opener: false,
+    diagnosis_data: null,
+    action_detected: null,
+  } as AiResponseJson;
+}
+
 interface ValidatedResponseResult {
   json: AiResponseJson;
   promptTokens: number;
@@ -1225,27 +1374,44 @@ async function generateValidatedResponse(
     json = { ...json, field_scope: 'specific' };
   }
 
-  const validation = validateResponse(json, hasActiveField);
+  let validation = validateResponse(json, hasActiveField);
+  let repairAttempts = 0;
+  let repairExhausted = false;
 
-  if (!validation.valid) {
-    console.warn('Response validation failed, retrying with repair prompt:', validation.errors);
+  // V3: Up to MAX_REPAIR_ATTEMPTS repair calls. Each iteration re-runs
+  // server-side overrides (banned opener, field_scope) before re-validating
+  // so we don't keep retrying for issues already fixed locally.
+  while (!validation.valid && repairAttempts < MAX_REPAIR_ATTEMPTS) {
+    repairAttempts++;
+    console.warn(`[chat:repair] attempt ${repairAttempts}/${MAX_REPAIR_ATTEMPTS} — errors:`, validation.errors);
     // P2: Inject repair instruction into systemPrompt (not user content, proper separation)
     const repairSystemPrompt =
       systemPrompt +
-      `\n\n⚠️ REPAIR REQUIRED, your previous response failed these validation checks:\n` +
+      `\n\n⚠️ REPAIR REQUIRED (attempt ${repairAttempts}/${MAX_REPAIR_ATTEMPTS}). Your previous response failed:\n` +
       validation.errors.map((e) => `- ${e}`).join('\n') +
-      `\nFix ALL of the above issues in your new response. Do not repeat the same mistakes.`;
+      `\nFix ALL of the above. Do not repeat the same mistakes.`;
     const repair = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
     json = repair.json;
-    // Accumulate tokens across both calls so the usage log reflects total spend
     promptTokens += repair.promptTokens;
     outputTokens += repair.outputTokens;
     totalTokens += repair.totalTokens;
 
-    // Re-check banned opener after repair
     if (BANNED_OPENER_RE.test(json.response_text)) {
       json = { ...json, has_banned_opener: true };
     }
+    if (hasActiveField) {
+      json = { ...json, field_scope: 'specific' };
+    }
+    validation = validateResponse(json, hasActiveField);
+  }
+
+  // V3: If still invalid after the retry budget, fall back to a safe
+  // schema-valid clarifier instead of letting bad output reach the user.
+  // Logged separately so we can monitor frequency in production.
+  if (!validation.valid) {
+    repairExhausted = true;
+    console.error('[chat:repair_exhausted] returning safe fallback. Final errors:', validation.errors);
+    json = buildSafeFallbackResponse(lang, hasActiveField);
   }
 
   // S1: Enforce confidence threshold, strip specific disease data below 40%
@@ -1253,6 +1419,21 @@ async function generateValidatedResponse(
 
   // S2: Strip any hallucinated missing_pillars values, UI breaks silently on unknown strings
   const safeJson = sanitizeMissingPillars(thresholdJson);
+
+  // M2: Per-request token telemetry. Greppable from Supabase logs to spot
+  // prompt-bloat regressions (e.g. fieldContext growing unbounded as a user
+  // adds fields/interventions). repairAttempts tells us how often the
+  // validation retry fires; repairExhausted flags safe-fallback events.
+  console.info('[chat:tokens]', JSON.stringify({
+    intent,
+    promptTokens,
+    outputTokens,
+    totalTokens,
+    systemPromptChars: systemPrompt.length,
+    fieldContextChars: fieldContext.length,
+    repairAttempts,
+    repairExhausted,
+  }));
 
   return {
     json: { ...safeJson, response_text: cleanAssistantText(safeJson.response_text) },
@@ -1848,11 +2029,12 @@ async function updateConversationFieldLink(
 async function mergeMessageMetadata(
   supabaseAdmin: any,
   appUserId: string,
-  messageId: string,
+  messageId: string | null,
   patch: Record<string, unknown>,
   fieldId?: string | null,
   conversationId?: string | null,
 ) {
+  if (!messageId) return;
   const { data: existing } = await supabaseAdmin
     .from('chat_messages')
     .select('metadata')
@@ -2304,7 +2486,7 @@ Deno.serve(async (req) => {
 
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from('users')
-      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date, area_unit')
+      .select('id, name, location, location_lat, location_lon, language, primary_crop, tier, message_count_month, message_reset_date, area_unit, last_greeting, last_greeting_at')
       .eq('auth_id', user.id)
       .single();
 
@@ -2606,7 +2788,7 @@ Return ONLY the greeting text, nothing else.`;
     let serverContext: Awaited<ReturnType<typeof assembleServerFieldContext>>;
     let aiResponse: AiResponseJson;
     let assistantText = '';
-    let assistantMetadata: Record<string, unknown> = {};
+    let assistantMetadata: Record<string, unknown> | null = {};
     let nextMessageCount: number;
     let shouldRefundMessageCount = false;
 
@@ -2673,11 +2855,28 @@ Return ONLY the greeting text, nothing else.`;
 
     const userLang = appUser.language || body.lang || 'en';
 
-    // Fetch real-time weather if user has GPS coordinates stored
+    // W1: Classify intent up-front so we can skip weather for queries that
+    // don't need it. hasActualImages excludes PDFs/audio (image/* MIME only)
+    // because PDFs/audio shouldn't force diagnosis intent.
+    // I4: Hybrid classifier — regex first, LLM fallback only when regex
+    // can't decide AND the message is substantive enough to be worth ~300ms.
+    const hasActualImages = requestMessages.some(m =>
+      Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType.startsWith('image/'))
+    );
+    const queryIntent = await classifyIntentHybrid(
+      geminiApiKey,
+      latestUserMessage.content,
+      hasActualImages,
+      userLang,
+    );
+
+    // Fetch real-time weather only when the intent benefits from it.
+    // F1: Add a 3-day forecast for planning intents ("when should I spray?")
+    // — same Open-Meteo call, just opts into the daily fields.
     const userLat = typeof appUser.location_lat === 'number' ? appUser.location_lat : null;
     const userLon = typeof appUser.location_lon === 'number' ? appUser.location_lon : null;
-    const weatherSnapshot = (userLat !== null && userLon !== null)
-      ? await fetchCurrentWeather(userLat, userLon)
+    const weatherSnapshot = (userLat !== null && userLon !== null && intentNeedsWeather(queryIntent))
+      ? await fetchWeather(userLat, userLon, queryIntent === 'planning')
       : null;
 
     const growerContext = [
@@ -2861,12 +3060,9 @@ Return ONLY the greeting text, nothing else.`;
         );
       }
 
-      // hasActualImages: only true for image/* mime types, not PDFs or audio.
-      // PDFs/audio force diagnosis intent and would misdirect the five-pillar framework.
-      const hasActualImages = requestMessages.some(m =>
-        Array.isArray(m.attachments) && m.attachments.some(a => a.mimeType.startsWith('image/'))
-      );
-      const queryIntent = classifyIntent(latestUserMessage.content, hasActualImages);
+      // W1: hasActualImages and queryIntent are computed up-front in the
+      // outer scope (before the weather fetch). Reused here to avoid
+      // re-classifying the same message twice per request.
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
       // Image pre-extraction: run a focused Gemini call on actual image attachments only.
