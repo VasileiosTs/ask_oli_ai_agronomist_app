@@ -141,7 +141,7 @@ function getCorsHeaders(req?: Request) {
 }
 
 const FREE_LIMIT = 20; // messages per month, must match shared/subscription.ts (FREE_MESSAGE_LIMIT)
-const UNLIMITED_TIERS = new Set(['pro', 'agronomist', 'enterprise']);
+const UNLIMITED_TIERS = new Set(['pro', 'master', 'enterprise']);
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_INLINE_ATTACHMENTS = 3;
 const MAX_MESSAGE_CHARS = 8000;

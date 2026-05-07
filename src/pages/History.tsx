@@ -74,7 +74,7 @@ export default function History() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const tier = profile?.tier as string | undefined;
-  const isAdvisor = tier === 'agronomist' || tier === 'enterprise';
+  const isAdvisor = tier === 'master' || tier === 'enterprise';
   const isFree = !tier || tier === 'free';
 
   // Advisors see their own interventions PLUS any interventions belonging to

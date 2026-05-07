@@ -3,7 +3,7 @@
  * Oli Public API – v1
  *
  * Authentication: Bearer token in Authorization header.
- * The token is a raw API key issued via the Profile page (agronomist / enterprise tiers).
+ * The token is a raw API key issued via the Profile page (master / enterprise tiers).
  * We SHA-256 hash it and compare against api_keys.key_hash.
  *
  * Endpoints:
@@ -99,7 +99,7 @@ async function authenticateJwt(
   return { userId: row.id };
 }
 
-const API_ALLOWED_TIERS = new Set(['agronomist', 'enterprise']);
+const API_ALLOWED_TIERS = new Set(['master', 'enterprise']);
 
 async function assertApiTier(supabase: ReturnType<typeof createClient>, userId: string): Promise<boolean> {
   const { data } = await supabase.from('users').select('tier').eq('id', userId).maybeSingle();
@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
     // POST /keys — create new API key
     if (req.method === 'POST') {
       const hasTier = await assertApiTier(supabase, jwtAuth.userId);
-      if (!hasTier) return err('API access requires agronomist or enterprise tier', 403);
+      if (!hasTier) return err('API access requires master or enterprise tier', 403);
 
       const body = await req.json().catch(() => ({}));
       const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : 'My API key';

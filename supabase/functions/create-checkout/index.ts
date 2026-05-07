@@ -14,7 +14,7 @@ const PRICE_IDS: Record<string, Record<string, string>> = {
     month: Deno.env.get('STRIPE_PRICE_PRO_MONTHLY') ?? '',
     year:  Deno.env.get('STRIPE_PRICE_PRO') ?? '',
   },
-  agronomist: {
+  master: {
     month: Deno.env.get('STRIPE_PRICE_MASTER_MONTHLY') ?? '',
     year:  Deno.env.get('STRIPE_PRICE_MASTER') ?? '',
   },
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get('APP_URL') ?? 'https://ask-oli.com';
 
     // Give a 30-day free trial only to first-time paid subscribers (free tier users).
-    // Existing paid users upgrading tiers (e.g. pro → agronomist) skip the trial.
+    // Existing paid users upgrading tiers (e.g. pro → master) skip the trial.
     const isFirstTimeUpgrade = !profile?.tier || profile.tier === 'free';
 
     const session = await stripe.checkout.sessions.create({

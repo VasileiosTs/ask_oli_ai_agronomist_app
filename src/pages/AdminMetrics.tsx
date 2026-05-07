@@ -601,7 +601,7 @@ export default function AdminMetrics() {
                         className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                       >
                         <option value="pro">PRO</option>
-                        <option value="agronomist">AGRONOMIST</option>
+                        <option value="master">MASTER</option>
                       </select>
                     </div>
                     <div>
@@ -702,7 +702,7 @@ export default function AdminMetrics() {
                         className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                       >
                         <option value="pro">PRO</option>
-                        <option value="agronomist">AGRONOMIST</option>
+                        <option value="master">MASTER</option>
                       </select>
                     </div>
                     <div>

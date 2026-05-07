@@ -6,7 +6,7 @@ const PRICE_TO_TIER: Record<string, string> = {};
 const proPriceId     = Deno.env.get('STRIPE_PRICE_PRO');
 const masterPriceId  = Deno.env.get('STRIPE_PRICE_MASTER');
 if (proPriceId)    PRICE_TO_TIER[proPriceId]    = 'pro';
-if (masterPriceId) PRICE_TO_TIER[masterPriceId] = 'agronomist';
+if (masterPriceId) PRICE_TO_TIER[masterPriceId] = 'master';
 
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature');

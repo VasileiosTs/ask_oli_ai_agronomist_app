@@ -85,7 +85,7 @@ const TIERS = (lang: string, currentTier?: string | null, period: Period = 'year
       forRoles: ['farmer', 'hobbyist', ''],
     },
     {
-      key: 'agronomist',
+      key: 'master',
       icon: Briefcase,
       iconColor: 'text-amber-600',
       name: { en: 'Master', el: 'Master' },
@@ -111,7 +111,7 @@ const TIERS = (lang: string, currentTier?: string | null, period: Period = 'year
       },
       cta: { en: 'Upgrade to Master', el: 'Αναβάθμιση σε Master' },
       contactOnly: false,
-      isCurrent: isCurrent('agronomist'),
+      isCurrent: isCurrent('master'),
       forRoles: ['agronomist', 'farmer', ''],
     },
     {
