@@ -661,10 +661,20 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+function hasValidStoredSession(): boolean {
+  try {
+    const raw = localStorage.getItem('oli-auth');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { expires_at?: number } | null;
+    if (!parsed?.expires_at) return false;
+    return parsed.expires_at > Date.now() / 1000 + 60;
+  } catch {
+    return false;
+  }
+}
+
 export default function Landing() {
-  // App.tsx already redirects authenticated users to /chat before Landing renders,
-  // so isLoggedIn is always false here. Avoids importing the 46kB supabase chunk.
-  const isLoggedIn = false;
+  const isLoggedIn = hasValidStoredSession();
   const { lang, setLang } = useLanguage();
   const lt = LANDING_DICT[lang as keyof typeof LANDING_DICT] ?? LANDING_DICT.en;
   const navigate = useNavigate();

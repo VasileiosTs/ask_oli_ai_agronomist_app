@@ -15,11 +15,7 @@ const queryClient = new QueryClient({
 /** Check localStorage for a non-expired Supabase session without importing Supabase. */
 function hasValidStoredSession(): boolean {
   try {
-    const key = Object.keys(localStorage).find(
-      k => k.startsWith('sb-') && k.endsWith('-auth-token')
-    );
-    if (!key) return false;
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem('oli-auth');
     if (!raw) return false;
     const parsed = JSON.parse(raw) as { expires_at?: number } | null;
     if (!parsed?.expires_at) return false;
