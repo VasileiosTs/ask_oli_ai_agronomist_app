@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { Session, User } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { readStoredAuthSession } from '../lib/authStorage';
 import { identifyUser, resetAnalytics, trackEvent, Events } from '../lib/analytics';
 
 const PROFILE_FETCH_TIMEOUT_MS = 4000;
@@ -46,22 +47,7 @@ const AuthContext = createContext<AuthContextValue>({
 const REDACTED_FIELDS = ['stripe_customer_id', 'stripe_subscription_id'] as const;
 
 function readStoredSession(): Session | null {
-  try {
-    const raw = localStorage.getItem('oli-auth');
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Session | null;
-    if (!parsed?.access_token || !parsed?.user?.id) {
-      return null;
-    }
-
-    return parsed;
-  } catch (error) {
-    console.warn('Failed to read stored session fallback:', error);
-    return null;
-  }
+  return readStoredAuthSession<Session>();
 }
 
 function readStoredProfile(authUserId?: string | null): UserProfile | null {

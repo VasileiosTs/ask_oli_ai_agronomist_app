@@ -7,6 +7,7 @@ import OliLogo from '../components/OliLogo';
 import { ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from '../lib/constants';
 import { LANG_OPTIONS } from '../lib/i18n';
 import { LANDING_DICT } from '../lib/landing-dict';
+import { hasValidStoredAuthSession } from '../lib/authStorage';
 
 // ── Unit detection ────────────────────────────────────────────────────────────
 const detectImperial = (): boolean => {
@@ -661,20 +662,8 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-function hasValidStoredSession(): boolean {
-  try {
-    const raw = localStorage.getItem('oli-auth');
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as { expires_at?: number } | null;
-    if (!parsed?.expires_at) return false;
-    return parsed.expires_at > Date.now() / 1000 + 60;
-  } catch {
-    return false;
-  }
-}
-
 export default function Landing() {
-  const isLoggedIn = hasValidStoredSession();
+  const isLoggedIn = hasValidStoredAuthSession();
   const { lang, setLang } = useLanguage();
   const lt = LANDING_DICT[lang as keyof typeof LANDING_DICT] ?? LANDING_DICT.en;
   const navigate = useNavigate();

@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { createClient, type Session } from '@supabase/supabase-js';
+import { readStoredAuthSession } from './authStorage';
 
 export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 export const supabasePublicKey =
@@ -17,21 +18,7 @@ export const supabase = createClient(supabaseUrl, supabasePublicKey, {
 });
 
 export function readStoredSupabaseSession(): Session | null {
-  try {
-    const raw = localStorage.getItem('oli-auth');
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Session | null;
-    if (!parsed?.access_token || !parsed?.user?.id) {
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    return null;
-  }
+  return readStoredAuthSession<Session>();
 }
 
 export async function getAccessTokenWithFallback(timeoutMs = 2500): Promise<string | null> {
