@@ -268,6 +268,7 @@ export default function Chat() {
   /** Incremented on each conversation load/clear to detect stale async loads (L2: prevents blob URL leaks). */
   const loadGenerationRef = useRef(0);
   const lastSendAttemptRef = useRef(0);
+  const queryMessageSentRef = useRef(false);
 
   // Only use explicitly selected field, never auto-select.
   // Field context is inferred per-message via extraction, not forced globally.
@@ -845,18 +846,33 @@ export default function Chat() {
     }
   }, [input]);
 
-  // Auto-send guest query from ?q= param, or show login if quota already used
+  // Auto-send landing-page query from ?q= for guests and authenticated users.
   useEffect(() => {
-    if (!guestQuery || !user) {
-      // If guest quota already used and they arrive with ?q=, save question and prompt login
-      if (guestQuery && guestAlreadyUsed && !user) {
-        sessionStorage.setItem('oli_pending_input', decodeURIComponent(guestQuery));
-        setShowLoginModal(true);
-      }
-    }
-    if (!guestQuery || !isGuestMode || guestMessageSent) return;
+    if (!guestQuery || queryMessageSentRef.current) return;
 
     const text = decodeURIComponent(guestQuery);
+
+    if (user && appUserId && !isGuestMode) {
+      queryMessageSentRef.current = true;
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('q');
+      setSearchParams(newParams, { replace: true });
+      sessionStorage.removeItem('oli_draft_input');
+      setInput('');
+      handleSend(text);
+      return;
+    }
+
+    if (guestAlreadyUsed && !user) {
+      queryMessageSentRef.current = true;
+      sessionStorage.setItem('oli_pending_input', text);
+      setShowLoginModal(true);
+      return;
+    }
+
+    if (!isGuestMode || guestMessageSent) return;
+
+    queryMessageSentRef.current = true;
     // Clear the ?q= param to prevent re-send on re-render
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('q');
@@ -868,7 +884,7 @@ export default function Chat() {
 
     sendGuestMessage(text);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guestQuery, isGuestMode]);
+  }, [guestQuery, isGuestMode, appUserId, user?.id]);
 
   // Migrate guest messages after login + onboarding
   useEffect(() => {
@@ -1156,6 +1172,21 @@ export default function Chat() {
         dispatch({ type: 'filter', predicate: (msg) => !(msg.role === 'assistant' && !msg.content) });
         if (streamedContent.length > 0) {
           dispatch({ type: 'update', id: assistantMsgId, patch: { interrupted: true, retryText: userText } });
+        } else if (!messageAdded) {
+          const capacityMsg = lang === 'el'
+            ? 'Η υπηρεσία AI είναι προσωρινά σε πλήρη χρήση. Δοκίμασε ξανά σε λίγα λεπτά.'
+            : 'AI service is temporarily at capacity. Please try again in a few minutes.';
+          dispatch({
+            type: 'append',
+            message: {
+              id: assistantMsgId,
+              role: 'assistant',
+              content: capacityMsg,
+              created_at: new Date().toISOString(),
+              interrupted: true,
+              retryText: userText,
+            },
+          });
         } else {
           const capacityMsg = lang === 'el'
             ? 'Η υπηρεσία AI είναι προσωρινά σε πλήρη χρήση. Δοκίμασε ξανά σε λίγα λεπτά.'
@@ -1173,6 +1204,18 @@ export default function Chat() {
       // Otherwise show error text on the empty assistant bubble with retry option
       if (streamedContent.length > 0) {
         dispatch({ type: 'update', id: assistantMsgId, patch: { interrupted: true, retryText: userText } });
+      } else if (!messageAdded) {
+        dispatch({
+          type: 'append',
+          message: {
+            id: assistantMsgId,
+            role: 'assistant',
+            content: t.connectionError,
+            created_at: new Date().toISOString(),
+            interrupted: true,
+            retryText: userText,
+          },
+        });
       } else {
         dispatch({ type: 'update_by', predicate: (msg) => msg.role === 'assistant' && !msg.content, patch: { content: t.connectionError, interrupted: true, retryText: userText } });
       }

@@ -253,6 +253,7 @@ export default function Auth() {
 
               <form onSubmit={mode === 'signin' ? handlePasswordSignIn : handlePasswordSignUp} className="space-y-3">
                 <input
+                  id="email" name="email"
                   type="email" required
                   value={email} onChange={e => setEmail(e.target.value)}
                   placeholder={t.emailPlaceholder}
@@ -264,6 +265,7 @@ export default function Auth() {
                 />
                 <div className="relative">
                   <input
+                    id="password" name="password"
                     type={showPassword ? 'text' : 'password'} required
                     value={password} onChange={e => setPassword(e.target.value)}
                     placeholder={isEl ? 'Κωδικός πρόσβασης' : 'Password'}
@@ -340,6 +342,7 @@ export default function Auth() {
                   : "Enter your email and I'll send you a password reset link."}
               </p>
               <input
+                id="email" name="email"
                 type="email" required autoFocus
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
@@ -380,6 +383,7 @@ export default function Auth() {
                   : "Enter your email and I'll send you a sign-in link, no password needed."}
               </p>
               <input
+                id="email" name="email"
                 type="email" required autoFocus
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}

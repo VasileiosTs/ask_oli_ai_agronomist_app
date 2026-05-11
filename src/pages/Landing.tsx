@@ -7,6 +7,7 @@ import OliLogo from '../components/OliLogo';
 import { ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from '../lib/constants';
 import { LANG_OPTIONS } from '../lib/i18n';
 import { LANDING_DICT } from '../lib/landing-dict';
+import { hasValidStoredAuthSession } from '../lib/authStorage';
 
 // ── Unit detection ────────────────────────────────────────────────────────────
 const detectImperial = (): boolean => {
@@ -662,9 +663,7 @@ function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => voi
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Landing() {
-  // App.tsx already redirects authenticated users to /chat before Landing renders,
-  // so isLoggedIn is always false here. Avoids importing the 46kB supabase chunk.
-  const isLoggedIn = false;
+  const isLoggedIn = hasValidStoredAuthSession();
   const { lang, setLang } = useLanguage();
   const lt = LANDING_DICT[lang as keyof typeof LANDING_DICT] ?? LANDING_DICT.en;
   const navigate = useNavigate();

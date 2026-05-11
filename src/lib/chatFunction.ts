@@ -186,7 +186,11 @@ export async function streamChatCompletion(
 
       if (parsed.event === 'error') {
         const message = typeof payload.message === 'string' ? payload.message : 'Unknown chat streaming error';
-        throw createStreamError(message);
+        const code = typeof payload.code === 'string' ? payload.code : undefined;
+        // Map known codes to HTTP-equivalent status so Chat.tsx catch block
+        // shows the right UI (503 → capacity message, etc.)
+        const status = code === 'ai_quota' ? 503 : undefined;
+        throw createStreamError(message, status, code);
       }
 
       if (parsed.event === 'done') {

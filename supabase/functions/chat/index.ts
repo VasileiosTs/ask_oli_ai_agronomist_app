@@ -122,22 +122,53 @@ interface ChatRequestBody {
 }
 
 // C1: Restrict CORS to production domain (was wildcard *)
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com';
+const ALLOWED_ORIGINS = new Set([
+  Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com',
+  'https://www.ask-oli.com',
+  'https://ask-oli.com',
+]);
 
 function getCorsHeaders(req?: Request) {
   const origin = req?.headers.get('Origin') || '';
   // Allow the configured production domain and localhost for dev
   const isAllowed =
-    origin === ALLOWED_ORIGIN ||
+    ALLOWED_ORIGINS.has(origin) ||
     origin.startsWith('http://localhost:') ||
     origin.startsWith('http://127.0.0.1:');
 
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGIN,
+    'Access-Control-Allow-Origin': isAllowed ? origin : 'https://ask-oli.com',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Vary': 'Origin',
   };
+}
+
+
+// ── Error alerting ────────────────────────────────────────────────────────────
+// Fire-and-forget email alert to founder when the chat function crashes.
+// Uses Resend directly (same key as send-email function) — no inter-function call.
+async function alertError(error: unknown, context: string): Promise<void> {
+  const resendKey = Deno.env.get('RESEND_API_KEY');
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'Oli <noreply@ask-oli.com>';
+  if (!resendKey) return;
+  try {
+    const message = error instanceof Error
+      ? `${error.name}: ${error.message}\n\n${error.stack ?? ''}`
+      : String(error);
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: ['hello@ask-oli.com'],
+        subject: `🚨 Oli chat function error — ${context}`,
+        html: `<pre style="font-family:monospace;font-size:13px">${message.slice(0, 3000)}</pre><p><b>Context:</b> ${context}</p><p><b>Time:</b> ${new Date().toISOString()}</p>`,
+      }),
+    });
+  } catch {
+    // Never let alerting break the error handler
+  }
 }
 
 const FREE_LIMIT = 20; // messages per month, must match shared/subscription.ts (FREE_MESSAGE_LIMIT)
@@ -2861,7 +2892,10 @@ Return ONLY the greeting text, nothing else.`;
               ? 'spring'
               : 'summer';
 
-    const userLang = appUser.language || body.lang || 'en';
+    // body.lang reflects the language the user is currently typing in (detected client-side).
+    // It takes priority over appUser.language (profile preference) so the response
+    // always matches the user's active language, not their profile setting.
+    const userLang = body.lang || appUser.language || 'en';
 
     // W1: Classify intent up-front so we can skip weather for queries that
     // don't need it. hasActualImages excludes PDFs/audio (image/* MIME only)
@@ -3294,6 +3328,10 @@ Return ONLY the greeting text, nothing else.`;
           closeController();
         } catch (error) {
           console.error('chat function stream error', error);
+          // Alert on unexpected stream errors (not quota errors — those are expected)
+          if (!(error instanceof GeminiQuotaError)) {
+            alertError(error, 'stream handler').catch(() => {});
+          }
           if (shouldRefundMessageCount) {
             await cleanupFailedChatAttempt(
               supabaseAdmin,
@@ -3306,9 +3344,14 @@ Return ONLY the greeting text, nothing else.`;
             );
             shouldRefundMessageCount = false;
           }
-          // H2: Don't leak internal error details to client
+          // H2: Don't leak internal error details to client, but pass a
+          // machine-readable code so the frontend can show the right message.
+          const isQuota = error instanceof GeminiQuotaError;
           sendEvent('error', {
-            message: 'An error occurred while processing your request',
+            message: isQuota
+              ? 'AI service is temporarily at capacity. Please try again in a few minutes.'
+              : 'An error occurred while processing your request',
+            code: isQuota ? 'ai_quota' : 'internal_error',
           });
           closeController();
         }
@@ -3325,6 +3368,8 @@ Return ONLY the greeting text, nothing else.`;
     });
   } catch (error) {
     console.error('chat function error', error);
+    // Fire-and-forget alert — never let it block the error response
+    alertError(error, 'outer handler').catch(() => {});
     // H2: Sanitized error message, never leak internal details
     return jsonResponse(
       {

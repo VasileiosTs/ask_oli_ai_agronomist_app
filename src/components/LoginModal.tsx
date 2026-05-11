@@ -145,6 +145,7 @@ export default function LoginModal({ onClose }: Props) {
             {/* Magic link */}
             <form onSubmit={handleMagicLink} className="space-y-3">
               <input
+                id="email" name="email"
                 type="email"
                 required
                 value={email}
