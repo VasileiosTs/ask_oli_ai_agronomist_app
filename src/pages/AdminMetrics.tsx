@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Users, TrendingUp, Activity, BarChart3, Target, Zap,
   ArrowUp, ArrowDown, Minus, RefreshCw, Loader2, ShieldAlert,
-  ArrowLeft, Calendar, Gift, AlertTriangle, CheckCircle2,
-  XCircle, Trash2, Plus, Download, Eye, EyeOff
+  ArrowLeft, Calendar, Gift, Trash2, Plus, Download, Eye, EyeOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -66,16 +65,6 @@ interface PromoRedemption {
   user_id: string;
 }
 
-interface OpsEvent {
-  id: string;
-  source: string;
-  event_type: string;
-  severity: string;
-  message: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function TrendBadge({ current, previous }: { current: number; previous: number }) {
@@ -133,21 +122,6 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Users; title: string
   );
 }
 
-function severityColor(s: string) {
-  switch (s) {
-    case 'critical': return 'text-red-400 bg-red-500/10';
-    case 'error': return 'text-red-300 bg-red-500/10';
-    case 'warning': return 'text-amber-400 bg-amber-500/10';
-    default: return 'text-muted bg-background';
-  }
-}
-
-function SeverityIcon({ s }: { s: string }) {
-  if (s === 'critical' || s === 'error') return <XCircle className="h-3.5 w-3.5 flex-shrink-0" />;
-  if (s === 'warning') return <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />;
-  return <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />;
-}
-
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminMetrics() {
@@ -158,7 +132,6 @@ export default function AdminMetrics() {
   const [snapshots, setSnapshots] = useState<KpiSnapshot[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [recentRedemptions, setRecentRedemptions] = useState<PromoRedemption[]>([]);
-  const [opsEvents, setOpsEvents] = useState<OpsEvent[]>([]);
   const [liveActiveUsers, setLiveActiveUsers] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -176,7 +149,7 @@ export default function AdminMetrics() {
   const [bulkResult, setBulkResult] = useState<string[]>([]);
 
   // Active tab
-  const [tab, setTab] = useState<'metrics' | 'promo' | 'ops'>('metrics');
+  const [tab, setTab] = useState<'metrics' | 'promo'>('metrics');
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -206,16 +179,6 @@ export default function AdminMetrics() {
     if (data) setRecentRedemptions(data as PromoRedemption[]);
   }, []);
 
-  const loadOpsEvents = useCallback(async () => {
-    const { data } = await supabase
-      .from('operational_events')
-      .select('id, source, event_type, severity, message, metadata, created_at')
-      .in('severity', ['warning', 'error', 'critical'])
-      .order('created_at', { ascending: false })
-      .limit(50);
-    if (data) setOpsEvents(data as OpsEvent[]);
-  }, []);
-
   const loadLiveActiveUsers = useCallback(async () => {
     // "Active now" = sent a message in the last 15 minutes
     const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
@@ -232,10 +195,9 @@ export default function AdminMetrics() {
       loadSnapshots(),
       loadPromoCodes(),
       loadRecentRedemptions(),
-      loadOpsEvents(),
       loadLiveActiveUsers(),
     ]);
-  }, [loadSnapshots, loadPromoCodes, loadRecentRedemptions, loadOpsEvents, loadLiveActiveUsers]);
+  }, [loadSnapshots, loadPromoCodes, loadRecentRedemptions, loadLiveActiveUsers]);
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); setLoading(false); return; }
@@ -389,7 +351,7 @@ export default function AdminMetrics() {
 
         {/* Tab bar */}
         <div className="max-w-4xl mx-auto flex gap-1 mt-2">
-          {(['metrics', 'promo', 'ops'] as const).map(t => (
+          {(['metrics', 'promo'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -398,10 +360,7 @@ export default function AdminMetrics() {
                 tab === t ? 'bg-primary text-white' : 'text-muted hover:text-foreground'
               )}
             >
-              {t === 'metrics' ? 'KPIs' : t === 'promo' ? 'Promo Codes' : 'Ops Feed'}
-              {t === 'ops' && opsEvents.some(e => e.severity === 'critical') && (
-                <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-red-400" />
-              )}
+              {t === 'metrics' ? 'KPIs' : 'Promo Codes'}
             </button>
           ))}
         </div>
@@ -820,50 +779,6 @@ export default function AdminMetrics() {
           </>
         )}
 
-        {/* ═══ TAB: OPS FEED ════════════════════════════════════════════════ */}
-        {tab === 'ops' && (
-          <>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted">Last 50 warning+ events</p>
-              <button onClick={loadOpsEvents} className="text-xs text-primary font-medium">Refresh</button>
-            </div>
-            {opsEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle2 className="h-10 w-10 text-primary mx-auto mb-3 opacity-60" />
-                <p className="text-sm text-muted">No warnings or errors. All clear.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {opsEvents.map(e => (
-                  <div key={e.id} className={clsx('rounded-xl border border-border/20 p-3', severityColor(e.severity))}>
-                    <div className="flex items-start gap-2">
-                      <SeverityIcon s={e.severity} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-xs">{e.source}</span>
-                          <span className="text-[10px] opacity-70">·</span>
-                          <span className="text-[10px] opacity-70">{e.event_type}</span>
-                          <span className="text-[10px] opacity-70 ml-auto">
-                            {new Date(e.created_at).toLocaleString()}
-                          </span>
-                        </div>
-                        <p className="text-xs mt-0.5 opacity-90 break-words">{e.message}</p>
-                        {e.metadata && Object.keys(e.metadata).length > 0 && (
-                          <details className="mt-1">
-                            <summary className="text-[10px] cursor-pointer opacity-60">metadata</summary>
-                            <pre className="text-[10px] opacity-70 mt-1 overflow-x-auto whitespace-pre-wrap">
-                              {JSON.stringify(e.metadata, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
       </div>
     </main>
   );
