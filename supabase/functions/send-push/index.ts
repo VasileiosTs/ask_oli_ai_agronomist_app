@@ -136,7 +136,7 @@ function getCorsHeaders(req: Request) {
     origin === "http://localhost:3000";
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGIN,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-resource",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }

@@ -16,7 +16,7 @@ function getCorsHeaders(req?: Request) {
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : 'https://ask-oli.com',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-resource',
     'Vary': 'Origin',
   };
 }
