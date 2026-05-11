@@ -450,30 +450,76 @@ Phase 2 prep already in place:
 
 **Vasileios Tsipas** — Solo founder. Xylokastro, Corinthia, Greece.
 
-Not a software person who discovered farming. A licensed agronomist, export operator, and startup founder who learned to build software because the tool he needed didn't exist.
+Not a software person who discovered farming. A licensed agronomist who ran EU-level agricultural trade negotiations, built a €1.5M export operation, founded a multi-award-winning agri-startup, managed greenhouse production for nine years, and then built Oli — because the tool he needed in the field didn't exist.
 
-### The domain
+**BSc Agricultural Sciences** — School of Agriculture, Food, and Nutrition, Thessaloniki  
+**Certified:** Green Economy & Environmental Friendly Entrepreneurship  
+**Languages:** Greek (native) · English (advanced)
 
-- **BSc Agricultural Sciences**, Aristotle University of Thessaloniki
-- Licensed agronomist running active phytosanitary consultancy since 2019 — seasonal crop assessments, disease diagnosis, growth cycle planning for plant nurseries across Corinthia
-- **EU DG Agri Consultant** (Brussels & China, 2017–2018) — contributed to the EU-China Agricultural Trade Agreement of 2019; conducted nationwide farm visits in China advising on plant production and exports; collaborated with EU and Chinese officials on geographical indication protections for EU agricultural products
-- *2nd Best Young Agriculture Professional in Greece* (2020) — Greek Young Farmers Association
-- *Most Promising Young Agriculture Professional in the EU* (2017–2018) — European Commission, DG Agriculture
+---
 
-### The operator track record
+### Career
 
-**Bravo Stimaga Grapes S.A.** — BD & Operations Manager (Dec 2021–present)
-Secured anchor distributor partnerships in Netherlands and Belgium generating **€1.5M+ ARR**. Negotiated 5 long-term multi-country contracts valued €250k–€500k each annually, commencing 2025. Managed key accounts across Greece, UK, Netherlands, Poland, Belgium, Germany, and Sweden. Directed packing-season operations for 80–110 staff. Delivered **35% productivity increase** and **45% harvest efficiency improvement** through KPI-led processes. Digitalized certification pipelines (GlobalG.A.P., BRC, IFS, Sedex) to 100% compliance.
+**Business Development & Operations Manager**  
+*Bravo Stimaga Grapes S.A. — Stimaga, Greece · Dec 2021 – Present*
 
-**PlantBox** — Founder (2018–present)
-Built a multi-award-winning agri-startup producing pre-packaged trees with extended shelf life. Exported to **27 countries** including USA and China. Clients included Samsung, Deloitte, H&M, STIHL, and OECD. Designed IATA-compliant production and shipping systems; served 50+ large corporate and government accounts. Awards: National Bank of Greece Innovation Award, American-Hellenic Chamber of Commerce, Ministry of Digital Transformation, Athens Chamber of Commerce — EU entrepreneurship recognition, Brussels 2017.
+- Secured distributor partnerships in Netherlands and Belgium generating **€1.5M+ ARR**
+- Negotiated **5 long-term multi-country contracts** each valued at €250k–€500k/year, commencing 2025
+- Managed key accounts across Greece, UK, Netherlands, Poland, Belgium, Germany, and Sweden
+- Directed packing-season operations for **80–110 staff**; achieved **35% productivity increase** and **45% harvest efficiency improvement** through KPI-led process design
+- Digitalized all certification pipelines (GlobalG.A.P., BRC, IFS, Sedex) to 100% audit compliance
+- Built institutional partnerships with: Greek Ministry of Agriculture, Enterprise Greece, Export Gate (EFG Bank), German Embassy in Greece, Agriculture University of Athens, Greek Ministry of Economy, Greek Ministry of Environment and Energy, American-Hellenic Chamber of Commerce, Piraeus Bank, Greek Supermarket Association
 
-**Family greenhouse operation** — Production Manager (2007–2016)
-Managed daily production and distribution across a 7-hectare greenhouse facility with a team of 25. Achieved **25% annual production growth** over five years at a **55% average profit margin**. Reduced production costs 20% through supplier negotiations. Expanded the product range 15% to align with market demand.
+**Plant Nurseries Production Consultant**  
+*Freelance Advisory — Corinthia, Greece · Jan 2019 – Present*
+
+- Conducts phytosanitary inspections for plant health and regulatory compliance
+- Develops seasonal plant care programmes, optimising growth cycles and sustainability
+- Designs and delivers training programmes for nursery staff on propagation, disease prevention, and efficient handling
+- Advises on cost-reduction strategies and connects nurseries with international export opportunities
+
+**Founder**  
+*PlantBox — Corinthia, Greece · Jan 2018 – Present*
+
+- Founded a multi-award-winning agri-startup producing pre-packaged trees with extended shelf life
+- Exported to **27 countries** including USA, China, and across the EU
+- Served **50+ large corporate and government clients** — Samsung, Deloitte, H&M, STIHL, OECD, Ministry of Economy
+- Designed production and shipping systems adhering to IATA and global phytosanitary regulations
+
+**Agribusiness Consultant**  
+*European Union DG Agri & Ministry of Agriculture — Brussels · China · Nov 2017 – Dec 2018*
+
+- Facilitated agricultural trade discussions that contributed to the **EU-China Agricultural Trade Agreement of 2019**
+- Conducted nationwide farm visits across China advising farmers on plant production and export standards
+- Collaborated with EU and Chinese officials to strengthen Geographical Indication (GI) protections for EU agricultural products
+
+**Production Manager**  
+*Plant Nurseries Tsipas Christos — Kamari, Greece · Sep 2007 – Sep 2016*
+
+- Managed all production, operations, and distribution across a **7-hectare greenhouse facility**
+- Led and trained a team of **25 workers**
+- Achieved **25% annual production growth** over five years at a sustained **55% average profit margin**
+- Reduced production costs by **20%** through supplier negotiations and production planning
+- Expanded product range by 15% to match shifting market demand
+
+---
+
+### Awards & Recognition
+
+| Year | Award | Body |
+|------|-------|------|
+| 2020 | **2nd Best Young Agriculture Professional in Greece** | Greek Young Farmers Association |
+| 2017–18 | **Most Promising Young Agriculture Professional in the EU** | European Commission, DG Agriculture |
+| 2017–19 | **Startup Innovation Award** | National Bank of Greece |
+| 2017–19 | **Startup Innovation Award** | American-Hellenic Chamber of Commerce |
+| 2017–19 | **Startup Innovation Award** | Ministry of Digital Transformation, Greece |
+| 2017–19 | **Startup Innovation Award** | Athens Chamber of Commerce and Industry |
+
+---
 
 ### The relationships that close B2B
 
-Direct senior contacts at **ADAMA** (top-5 global crop protection company) and **Yara** (world's largest fertilizer company). Working relationships with: Greek Ministry of Agriculture, Enterprise Greece, Export Gate (EFG Bank), Agriculture University of Athens, American-Hellenic Chamber of Commerce, German Embassy in Greece, Greek Ministry of Economy, Piraeus Bank, Greek Supermarket Association.
+Direct senior contacts at **ADAMA** (top-5 global crop protection) and **Yara** (world's largest fertilizer company). Active institutional relationships with Greek Ministry of Agriculture, Enterprise Greece, Agriculture University of Athens, American-Hellenic Chamber of Commerce, and German Embassy Greece.
 
 Every Oli B2B conversation — a cooperative, an input distributor, a Yara or ADAMA data partnership — is a warm call, not a cold one.
 
