@@ -5,6 +5,8 @@ import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './lib/LanguageContext';
 
 const Landing = lazy(() => import('./pages/Landing'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
 // AuthenticatedShell is lazy — Supabase only loads when user leaves the landing page
 const AuthenticatedShell = lazy(() => import('./AuthenticatedShell'));
 
@@ -42,6 +44,9 @@ export default function App() {
                 path="/"
                 element={hasValidStoredSession() ? <Navigate to="/chat" replace /> : <Landing />}
               />
+              {/* Legal pages — fully public, no auth loading, accessible to crawlers */}
+              <Route path="/legal/privacy" element={<Privacy />} />
+              <Route path="/legal/terms" element={<Terms />} />
               {/* All other routes — lazy-loads AuthProvider + Supabase only when needed */}
               <Route path="/*" element={<AuthenticatedShell />} />
             </Routes>

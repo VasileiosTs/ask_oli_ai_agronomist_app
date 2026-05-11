@@ -8,6 +8,9 @@ import AppLayout from './components/AppLayout';
 import BottomNav from './components/BottomNav';
 import LoadingSpinner from './components/LoadingSpinner';
 import PaywallModal from './components/PaywallModal';
+import LegalBackButton from './components/LegalBackButton';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import { Leaf, X } from 'lucide-react';
 
 const Auth = lazy(() => import('./pages/Auth'));
@@ -38,73 +41,6 @@ const NotFound = () => {
       <Link to="/" className="rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90">
         {t.notFoundHome}
       </Link>
-    </div>
-  );
-};
-
-const LegalBackButton = () => {
-  const { t } = useLanguage();
-  return (
-    <Link to="/" className="inline-flex items-center gap-1.5 mb-6 text-sm text-muted hover:text-foreground transition-colors">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-      {t.notFoundHome}
-    </Link>
-  );
-};
-
-const Privacy = () => {
-  const { t } = useLanguage();
-  const h2 = "text-base font-semibold text-foreground mt-4";
-  return (
-    <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground max-w-2xl mx-auto">
-      <LegalBackButton />
-      <h1 className="mb-6 text-2xl font-bold">{t.privacyPolicy}</h1>
-      <div className="space-y-4 text-sm text-muted leading-relaxed">
-        <p className="text-xs text-muted">{t.legalUpdated}</p>
-        <h2 className={h2}>1. {t.privacyDataTitle}</h2>
-        <p>{t.privacyDataAccount}</p><p>{t.privacyDataUsage}</p><p>{t.privacyDataTech}</p>
-        <h2 className={h2}>2. {t.privacyHowTitle}</h2>
-        <p>{t.privacyHowBody}</p>
-        <h2 className={h2}>3. {t.privacyStorageTitle}</h2>
-        <p>{t.privacyStorageBody}</p><p><strong className="text-foreground">Row Level Security:</strong> {t.privacyStorageRls}</p>
-        <h2 className={h2}>4. {t.privacyThirdTitle}</h2>
-        <p><strong className="text-foreground">Google Gemini:</strong> {t.privacyGemini}</p>
-        <p><strong className="text-foreground">Sentry:</strong> {t.privacySentry}</p>
-        <p><strong className="text-foreground">PostHog:</strong> {t.privacyPostHog}</p>
-        <p><strong className="text-foreground">Vercel:</strong> {t.privacyVercel}</p>
-        <h2 className={h2}>5. {t.privacyGdprTitle}</h2>
-        <p>{t.privacyGdprAccess}</p><p>{t.privacyGdprDelete}</p><p>{t.privacyGdprCorrect}</p><p>{t.privacyGdprPortability}</p>
-        <h2 className={h2}>6. Cookies</h2>
-        <p>{t.privacyCookies}</p>
-        <h2 className={h2}>7. {t.privacyAge}</h2>
-        <h2 className={h2}>8. {t.privacyContact}</h2>
-        <p><a href="mailto:hello@ask-oli.com" className="text-primary hover:underline">hello@ask-oli.com</a></p>
-      </div>
-    </div>
-  );
-};
-
-const Terms = () => {
-  const { t } = useLanguage();
-  const h2 = "text-base font-semibold text-foreground mt-4";
-  return (
-    <div className="min-h-[100dvh] bg-background px-6 py-8 text-foreground max-w-2xl mx-auto">
-      <LegalBackButton />
-      <h1 className="mb-6 text-2xl font-bold">{t.termsOfService}</h1>
-      <div className="space-y-4 text-sm text-muted leading-relaxed">
-        <p className="text-xs text-muted">{t.legalUpdated}</p>
-        <h2 className={h2}>1. {t.termsNature}</h2><p>{t.termsNatureBody}</p>
-        <h2 className={h2}>2. {t.termsLiability}</h2><p>{t.termsLiabilityBody}</p>
-        <h2 className={h2}>3. {t.termsUse}</h2><p>{t.termsUseBody}</p>
-        <h2 className={h2}>4. {t.termsAccounts}</h2><p>{t.termsAccountsBody}</p>
-        <h2 className={h2}>5. {t.termsIp}</h2><p>{t.termsIpBody}</p>
-        <h2 className={h2}>6. {t.termsTermination}</h2><p>{t.termsTerminationBody}</p>
-        <h2 className={h2}>7. {t.termsLaw}</h2><p>{t.termsLawBody}</p>
-        <h2 className={h2}>8. {t.privacyContact}</h2>
-        <p><a href="mailto:hello@ask-oli.com" className="text-primary hover:underline">hello@ask-oli.com</a></p>
-      </div>
     </div>
   );
 };
