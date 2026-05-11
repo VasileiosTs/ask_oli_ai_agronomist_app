@@ -4,16 +4,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.ask-oli.com"
-        }
-      ],
-      "destination": "https://ask-oli.com/$1"
-    },
-    {
       "source": "/",
       "destination": "/index.html"
     },
