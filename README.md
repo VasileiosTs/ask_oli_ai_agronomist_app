@@ -3,7 +3,7 @@
 > **"Every farmer who uses Oli builds the dataset that makes every future farmer's advice better."**
 
 **App:** https://ask-oli.com  
-**Stage:** Live · Beachhead: Greece (all crops) · Vision: Global  
+**Stage:** Live · Starting in Greece · Mission: Global smallholder farmers  
 **Stack:** React 19 + TypeScript · Supabase (Postgres + Edge Functions + Auth) · Google Gemini 2.5 · Vercel
 
 ---
@@ -168,12 +168,14 @@ No one in agriculture has this data at scale. Extension services have fragments.
 |------|-------|-----|
 | **Free** | €0 · 20 messages/month | Farmers trying the product |
 | **Pro** | €4.99/month · €49/year | Individual farmers, unlimited advice |
-| **Agronomist** | €49/month · €490/year | Certified agronomists managing multiple farmer clients |
+| **Master** | €49/month · €490/year | Certified agronomists managing multiple farmer clients |
 | **Enterprise** | Custom | Cooperatives, agri-input distributors, extension services |
 
-The Agronomist tier is a deliberate wedge into the professional channel — the same agronomists who recommend products to hundreds of farmers become Oli's distribution network.
+The Master tier turns agronomists into a distribution channel — each agronomist who joins brings their network of farmers with them. Cooperatives are not a revenue target; they are a go-to-market engine that onboards hundreds of farmers at once under a trusted institution they already work with.
 
-**Future — B2B API:** Sell agricultural AI inference to cooperatives, input distributors (ADAMA, Yara, Bayer), and agtech platforms. High-margin, high-scale.
+**Growth flywheel:** Consumer app acquires farmers at near-zero CAC → cooperatives and agronomists distribute to their networks → outcome data compounds → better recommendations → more farmers. Revenue comes from farmers converting to Pro, not from B2B contracts.
+
+**Future — B2B API:** Sell agricultural AI inference to cooperatives, input distributors (ADAMA, Yara, Bayer), and agtech platforms. High-margin, high-scale. Built after product-market fit is proven.
 
 Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscriber at €4.99/month covers 1,000–5,000 conversations. Gross margin at scale exceeds 85%.
 
@@ -188,7 +190,7 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 | Precision agriculture software | $12B → $25B by 2030 |
 | Addressable: 500M smallholder farms worldwide | ~$50B/year in inputs + advisory spend |
 
-**Beachhead:** Greece — 700,000 registered farm holdings, high smartphone penetration, 6 languages supported from day one. Greece is the test lab, not the destination.
+**Starting market:** Greece — 700,000 registered farm holdings, high smartphone penetration, tight farming community networks. Greece is the test lab where we prove the model before expanding. The product is built for every smallholder farmer on earth from day one — 6 languages, any crop, any device.
 
 **Expansion path:** Mediterranean (Italy, Spain, Morocco, Egypt) → India → sub-Saharan Africa → Latin America.
 

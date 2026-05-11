@@ -144,6 +144,33 @@ function getCorsHeaders(req?: Request) {
   };
 }
 
+
+// ── Error alerting ────────────────────────────────────────────────────────────
+// Fire-and-forget email alert to founder when the chat function crashes.
+// Uses Resend directly (same key as send-email function) — no inter-function call.
+async function alertError(error: unknown, context: string): Promise<void> {
+  const resendKey = Deno.env.get('RESEND_API_KEY');
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'Oli <noreply@ask-oli.com>';
+  if (!resendKey) return;
+  try {
+    const message = error instanceof Error
+      ? `${error.name}: ${error.message}\n\n${error.stack ?? ''}`
+      : String(error);
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: ['hello@ask-oli.com'],
+        subject: `🚨 Oli chat function error — ${context}`,
+        html: `<pre style="font-family:monospace;font-size:13px">${message.slice(0, 3000)}</pre><p><b>Context:</b> ${context}</p><p><b>Time:</b> ${new Date().toISOString()}</p>`,
+      }),
+    });
+  } catch {
+    // Never let alerting break the error handler
+  }
+}
+
 const FREE_LIMIT = 20; // messages per month, must match shared/subscription.ts (FREE_MESSAGE_LIMIT)
 const UNLIMITED_TIERS = new Set(['pro', 'master', 'enterprise']);
 const MAX_HISTORY_MESSAGES = 10;
@@ -3301,6 +3328,10 @@ Return ONLY the greeting text, nothing else.`;
           closeController();
         } catch (error) {
           console.error('chat function stream error', error);
+          // Alert on unexpected stream errors (not quota errors — those are expected)
+          if (!(error instanceof GeminiQuotaError)) {
+            alertError(error, 'stream handler').catch(() => {});
+          }
           if (shouldRefundMessageCount) {
             await cleanupFailedChatAttempt(
               supabaseAdmin,
@@ -3337,6 +3368,8 @@ Return ONLY the greeting text, nothing else.`;
     });
   } catch (error) {
     console.error('chat function error', error);
+    // Fire-and-forget alert — never let it block the error response
+    alertError(error, 'outer handler').catch(() => {});
     // H2: Sanitized error message, never leak internal details
     return jsonResponse(
       {

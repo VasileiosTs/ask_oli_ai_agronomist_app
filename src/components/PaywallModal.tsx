@@ -160,7 +160,13 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
   const currentTier = typeof profile?.tier === 'string' ? profile.tier : 'free';
   const userRole = typeof profile?.role === 'string' ? profile.role : '';
   const tiers = TIERS(lang, currentTier, period);
-  const displayedTiers = tiers;
+  // Farmers see only Free + Pro — Master/Enterprise visible only to professional roles
+  // or if they're already on those tiers (so they can manage their subscription).
+  const isProfessional = ['agronomist', 'cooperative', 'enterprise'].includes(userRole) ||
+    ['master', 'enterprise'].includes(currentTier);
+  const displayedTiers = isProfessional
+    ? tiers
+    : tiers.filter(t => t.key === 'free' || t.key === 'pro');
   const selectedTier = displayedTiers.find(t => t.key === selected);
 
   const openEmailFallback = (tierKey: string) => {
@@ -358,12 +364,23 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
           </p>
         )}
 
-        <div className="px-5 pb-5 pt-1">
+        <div className="px-5 pb-5 pt-1 space-y-2">
           <p className="text-center text-xs text-muted">
             {l === 'el'
               ? 'Ακύρωση ανά πάσα στιγμή · Χωρίς κρυφές χρεώσεις'
               : 'Cancel anytime · No hidden charges'}
           </p>
+          {!isProfessional && (
+            <p className="text-center text-xs text-muted">
+              {l === 'el' ? 'Είσαι γεωπόνος ή συνεταιρισμός;' : 'Are you an agronomist or cooperative?'}{' '}
+              <a
+                href={`mailto:hello@ask-oli.com?subject=${encodeURIComponent('Oli Master / Enterprise enquiry')}`}
+                className="text-primary underline hover:opacity-70 transition-opacity"
+              >
+                {l === 'el' ? 'Επικοινωνήστε μαζί μας' : 'Contact us'}
+              </a>
+            </p>
+          )}
         </div>
       </div>
     </div>
