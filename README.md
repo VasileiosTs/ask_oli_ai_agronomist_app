@@ -419,13 +419,13 @@ SUPPORT_EMAIL=hello@ask-oli.com
 
 ## Why This Wins
 
-**Founder-market fit.** 18 years agri-business, certified agronomist, direct relationships with ADAMA and Yara, operated across 27 countries. The founder is the product's first user and knows every buyer in the value chain.
+**Founder-market fit — the real kind.** Vasileios isn't a software person who discovered farming. He is a licensed agronomist who ran phytosanitary assessments, managed 80–110 seasonal staff, grew a €1.5M/year export operation, consulted for EU DG Agri in Brussels and China, and founded a startup that exported to 27 countries. He built Oli because the tool he needed didn't exist. Every buyer in the value chain — cooperative, distributor, input manufacturer — is a warm call. The product's first user is its builder.
 
-**Timing.** Gemini 2.5's multimodal capability makes photo-based crop diagnosis reliable at scale. The agent architecture — image pre-extraction, modular routing, structured JSON output, field memory — is what turns a capable model into a reliable agronomist. This wasn't possible 18 months ago.
+**Timing.** Gemini 2.5's multimodal capability makes photo-based crop diagnosis reliable at scale. The agent architecture — image pre-extraction, modular intent routing, structured JSON output enforced at the API level, rolling field memory — is what turns a capable model into a reliable agronomist. This wasn't possible 18 months ago.
 
-**The flywheel.** Every VIO recorded makes the next recommendation more accurate. Every farmer who joins makes the dataset denser. Competitors cannot fast-follow — they need years of outcome data that only comes from real farmers using the product.
+**The flywheel.** Every VIO outcome recorded makes the next recommendation more accurate. Every farmer who joins makes the dataset denser. Competitors cannot fast-follow — they need years of real-world outcome data that only comes from farmers using the product in the field.
 
-**No incumbent owns this space.** Enterprise agtech ignores smallholders. Consumer agtech is mostly photo-ID apps with no memory, no follow-up, no data loop. Oli is the first to close the full cycle: diagnosis → treatment → outcome → learning → better diagnosis.
+**No incumbent owns this space.** Enterprise agtech ignores smallholders. Consumer agtech is mostly photo-ID apps with no memory, no follow-up, no data loop. Oli is the first product to close the full cycle: diagnosis → treatment → outcome → learning → better diagnosis.
 
 ---
 
@@ -448,15 +448,33 @@ Phase 2 prep already in place:
 
 ## Founder
 
-**Vasileios Tsipas** — Solo founder, Xylokastro, Corinthia, Greece.
+**Vasileios Tsipas** — Solo founder. Xylokastro, Corinthia, Greece.
 
-18+ years in agri-business, international BD, and supply chain. Not a tourist in this market — an agronomist who built software, not a software person who discovered farming.
+Not a software person who discovered farming. A licensed agronomist, export operator, and startup founder who learned to build software because the tool he needed didn't exist.
 
-- **Bravo Stimaga Grapes S.A.** (2021–present) — €1.5M+ ARR through distributor partnerships across NL/BE/UK/Poland/Germany/Sweden. 35% YoY revenue growth.
-- **Freelance Agronomist Consultant** (2019+) — phytosanitary assessments, plant health diagnosis, growth cycle planning.
-- **Founded an award-winning plant nursery** — exported to USA and China. EU entrepreneurship recognition, Brussels 2017.
-- Clients: Samsung, Deloitte, H&M, STIHL, OECD.
-- Direct relationships with senior contacts at **ADAMA** (global crop protection, top 5 worldwide) and **Yara** (world's largest fertilizer company), Greek Ministry of Agriculture.
-- Operated across **27 countries**.
+### The domain
 
-**Contact:** founder@ask-oli.com
+- **BSc Agricultural Sciences**, Aristotle University of Thessaloniki
+- Licensed agronomist running active phytosanitary consultancy since 2019 — seasonal crop assessments, disease diagnosis, growth cycle planning for plant nurseries across Corinthia
+- **EU DG Agri Consultant** (Brussels & China, 2017–2018) — contributed to the EU-China Agricultural Trade Agreement of 2019; conducted nationwide farm visits in China advising on plant production and exports; collaborated with EU and Chinese officials on geographical indication protections for EU agricultural products
+- *2nd Best Young Agriculture Professional in Greece* (2020) — Greek Young Farmers Association
+- *Most Promising Young Agriculture Professional in the EU* (2017–2018) — European Commission, DG Agriculture
+
+### The operator track record
+
+**Bravo Stimaga Grapes S.A.** — BD & Operations Manager (Dec 2021–present)
+Secured anchor distributor partnerships in Netherlands and Belgium generating **€1.5M+ ARR**. Negotiated 5 long-term multi-country contracts valued €250k–€500k each annually, commencing 2025. Managed key accounts across Greece, UK, Netherlands, Poland, Belgium, Germany, and Sweden. Directed packing-season operations for 80–110 staff. Delivered **35% productivity increase** and **45% harvest efficiency improvement** through KPI-led processes. Digitalized certification pipelines (GlobalG.A.P., BRC, IFS, Sedex) to 100% compliance.
+
+**PlantBox** — Founder (2018–present)
+Built a multi-award-winning agri-startup producing pre-packaged trees with extended shelf life. Exported to **27 countries** including USA and China. Clients included Samsung, Deloitte, H&M, STIHL, and OECD. Designed IATA-compliant production and shipping systems; served 50+ large corporate and government accounts. Awards: National Bank of Greece Innovation Award, American-Hellenic Chamber of Commerce, Ministry of Digital Transformation, Athens Chamber of Commerce — EU entrepreneurship recognition, Brussels 2017.
+
+**Family greenhouse operation** — Production Manager (2007–2016)
+Managed daily production and distribution across a 7-hectare greenhouse facility with a team of 25. Achieved **25% annual production growth** over five years at a **55% average profit margin**. Reduced production costs 20% through supplier negotiations. Expanded the product range 15% to align with market demand.
+
+### The relationships that close B2B
+
+Direct senior contacts at **ADAMA** (top-5 global crop protection company) and **Yara** (world's largest fertilizer company). Working relationships with: Greek Ministry of Agriculture, Enterprise Greece, Export Gate (EFG Bank), Agriculture University of Athens, American-Hellenic Chamber of Commerce, German Embassy in Greece, Greek Ministry of Economy, Piraeus Bank, Greek Supermarket Association.
+
+Every Oli B2B conversation — a cooperative, an input distributor, a Yara or ADAMA data partnership — is a warm call, not a cold one.
+
+**Contact:** hello@ask-oli.com · [LinkedIn](https://www.linkedin.com/in/vasileios-tsipas/)
