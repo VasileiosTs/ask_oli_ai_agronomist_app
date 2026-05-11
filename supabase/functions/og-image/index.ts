@@ -7,14 +7,26 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Brand tokens (match send-email + SharedDiagnosis)
+const TERRA   = '#C4521A';
+const GREEN   = '#194121';
+const CREAM   = '#F0EDE5';
+const BORDER  = '#DDD6CB';
+const MUTED   = '#888077';
+const TEXT    = '#3D3830';
+
 const SEV: Record<string, { color: string; label: string }> = {
-  low:    { color: '#2EA043', label: 'Χαμηλή σοβαρότητα' },
-  medium: { color: '#D97706', label: 'Μέτρια σοβαρότητα' },
-  high:   { color: '#DC2626', label: 'Υψηλή σοβαρότητα' },
+  low:    { color: '#166534', label: 'Low severity' },
+  medium: { color: '#92400e', label: 'Medium severity' },
+  high:   { color: '#991b1b', label: 'High severity' },
 };
 
 function x(s: string): string {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function wrap(text: string, max: number): string[] {
@@ -26,16 +38,16 @@ function wrap(text: string, max: number): string[] {
     if (t.length > max && cur) { lines.push(cur); cur = w; } else cur = t;
   }
   if (cur) lines.push(cur);
-  return lines.slice(0, 3); // hard cap at 3 lines to prevent overflow
+  return lines.slice(0, 3);
 }
 
-const OG_RATE_LIMIT = 60;   // requests per window per IP
-const OG_WINDOW_HOURS = 1;   // window size in hours
+const OG_RATE_LIMIT  = 60;
+const OG_WINDOW_HOURS = 1;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
-  // Per-IP rate limiting (prevents cheap DoS on this unauthenticated endpoint)
+  // Per-IP rate limiting
   const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
   if (clientIp !== 'unknown') {
     const sbAdmin = createClient(
@@ -59,20 +71,20 @@ Deno.serve(async (req) => {
         { onConflict: 'ip' },
       );
     } else {
-      await sbAdmin.from('og_image_rate_limits')
-        .update({ count: rl.count + 1 })
-        .eq('ip', clientIp);
+      await sbAdmin.from('og_image_rate_limits').update({ count: rl.count + 1 }).eq('ip', clientIp);
     }
   }
 
-  const url = new URL(req.url);
+  const url     = new URL(req.url);
   const shareId = url.searchParams.get('id');
-
-  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   let data: any = null;
-  if (shareId && UUID_REGEX.test(shareId)) {
-    const sb = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+  if (shareId && UUID_RE.test(shareId)) {
+    const sb = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    );
     const { data: byShareId } = await sb
       .from('safe_shared_diagnoses')
       .select('crop_type,problem,diagnosis,cause,severity,product_applied,product,organic_treatments,chemical_treatments')
@@ -90,155 +102,166 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── Content ──────────────────────────────────────────────────────────────
-  const crop    = x((data?.crop_type || 'Καλλιέργεια').toUpperCase());
-  const problem = x(data?.problem || data?.diagnosis || 'Διάγνωση από Oli');
-  const cause   = x(data?.cause || '');
-  const sev     = data?.severity ? SEV[data.severity as string] : null;
-  const product = x(data?.product_applied || data?.product || '');
+  // ── Content ───────────────────────────────────────────────────────────────
+  const cropRaw    = (data?.crop_type || '').toUpperCase();
+  const problemRaw = data?.problem || data?.diagnosis || 'Oli Diagnosis';
+  const causeRaw   = data?.cause || '';
+  const sev        = data?.severity ? SEV[data.severity as string] : null;
   const organic: string[] = Array.isArray(data?.organic_treatments) ? data.organic_treatments : [];
   const chemical: string[] = Array.isArray(data?.chemical_treatments) ? data.chemical_treatments : [];
 
-  // ── Layout ────────────────────────────────────────────────────────────────
-  // Fixed 1200×630 — the OG standard. All Y positions calculated top-down
-  // with explicit bounds so nothing can overflow.
-  const W = 1200, H = 630, P = 64;
+  // ── Layout constants ──────────────────────────────────────────────────────
+  // 1200 × 630 — OG standard. Top 220px = terracotta header, rest = cream.
+  const W = 1200, H = 630;
+  const P = 60;                  // horizontal padding
+  const HEADER_H = 240;          // terracotta zone height
+  const BODY_TOP = HEADER_H;     // cream zone starts here
 
-  // Zones (all measured from top):
-  const HEADER_TOP = 48;   // logo + brand
-  const RULE1      = 112;  // horizontal divider after header
-  const CONTENT_TOP = 136; // crop label starts here
-  const FOOTER_TOP  = H - 80; // footer zone starts here
-  const CONTENT_H   = FOOTER_TOP - CONTENT_TOP; // 414px available for content
+  // Header: wordmark row
+  const MARK_Y = 52;
 
-  // Problem headline sizing — font size chosen so 3 lines fit in ~180px
-  const probFontSize = problem.length > 40 ? 48 : problem.length > 24 ? 58 : 68;
-  const probLineH = Math.round(probFontSize * 1.15);
-  const maxCharsPerLine = Math.floor(30 + (68 - probFontSize) * 0.5);
-  const probLines = wrap(problem, maxCharsPerLine);
-  const probBlockH = probLines.length * probLineH;
+  // Crop label
+  const CROP_Y = MARK_Y + 52;
 
-  // After problem: cause (optional), then pills
-  const PROB_Y  = CONTENT_TOP + 28; // first line baseline
-  const CAUSE_Y = PROB_Y + probBlockH + 28;
-  const PILLS_Y = cause ? CAUSE_Y + 36 : PROB_Y + probBlockH + 32;
+  // Problem headline
+  const probFontSize  = problemRaw.length > 44 ? 46 : problemRaw.length > 28 ? 54 : 62;
+  const probLineH     = Math.round(probFontSize * 1.18);
+  const maxChars      = Math.floor(32 + (62 - probFontSize) * 0.4);
+  const probLines     = wrap(problemRaw, maxChars);
+  const PROB_Y        = CROP_Y + (cropRaw ? 44 : 8);
 
-  // Ensure pills don't go below footer — clamp
-  const PILLS_SAFE_Y = Math.min(PILLS_Y, FOOTER_TOP - 68);
+  // Cause (if fits)
+  const CAUSE_Y = PROB_Y + probLines.length * probLineH + 20;
+  const causeVisible = causeRaw && CAUSE_Y < HEADER_H - 8;
 
-  // Treatment pills — max 3, prefer organic first
+  // ── Body: treatment pills ─────────────────────────────────────────────────
+  const PILLS_Y = BODY_TOP + 40;
   const pills = [
-    ...organic.slice(0, 2).map(t => ({ t: `🌿 ${x(t)}`, c: '#2EA043' })),
-    ...chemical.slice(0, 1).map(t => ({ t: `⚗️ ${x(t)}`, c: '#60A5FA' })),
-    // fallback if no treatments: show product
-    ...(organic.length === 0 && chemical.length === 0 && product ? [{ t: product, c: '#2EA043' }] : []),
+    ...organic.slice(0, 2).map((t: string) => ({ label: t, color: GREEN, bg: '#dcfce7' })),
+    ...chemical.slice(0, 1).map((t: string) => ({ label: t, color: '#1d4ed8', bg: '#dbeafe' })),
   ].slice(0, 3);
 
-  const pillW = pills.length === 1 ? 500 : pills.length === 2 ? 450 : 340;
+  const pillH = 52;
+  const pillGap = 16;
+  const pillW = pills.length === 0 ? 0
+    : pills.length === 1 ? 600
+    : pills.length === 2 ? 520
+    : 360;
+
   const pillsHTML = pills.map((p, i) => {
-    const px = P + i * (pillW + 16);
-    const label = p.t.length > 38 ? p.t.slice(0, 38) + '…' : p.t;
+    const px = P + i * (pillW + pillGap);
+    const label = x(p.label.length > 42 ? p.label.slice(0, 42) + '…' : p.label);
     return `
-    <rect x="${px}" y="${PILLS_SAFE_Y}" width="${pillW}" height="52" rx="10"
-      fill="${p.c}10" stroke="${p.c}40" stroke-width="1.5"/>
-    <text x="${px + 18}" y="${PILLS_SAFE_Y + 34}" fill="${p.c}"
-      font-size="16" font-family="system-ui,sans-serif">${label}</text>`;
+    <rect x="${px}" y="${PILLS_Y}" width="${pillW}" height="${pillH}" rx="12"
+      fill="${p.bg}" stroke="${p.color}55" stroke-width="1.5"/>
+    <text x="${px + 18}" y="${PILLS_Y + 33}" fill="${p.color}"
+      font-size="17" font-family="Georgia,serif" font-style="italic">${label}</text>`;
   }).join('');
 
-  // Severity badge (top right)
+  // ── OLI branding (bottom-right of cream zone) ─────────────────────────────
+  const BRAND_Y = H - 56;
+
+  // ── Severity badge (top right of header) ─────────────────────────────────
   const sevHTML = sev ? (() => {
-    const bw = Math.max(sev.label.length * 9 + 36, 140);
+    const bw = sev.label.length * 9 + 40;
     const bx = W - P - bw;
-    const by = HEADER_TOP;
+    const by = MARK_Y - 6;
     return `
-    <rect x="${bx}" y="${by}" width="${bw}" height="34" rx="17"
-      fill="${sev.color}18" stroke="${sev.color}55" stroke-width="1.5"/>
-    <text x="${bx + bw / 2}" y="${by + 22}" fill="${sev.color}"
-      font-size="13" font-family="system-ui,sans-serif" text-anchor="middle"
-      font-weight="500">${sev.label}</text>`;
+    <rect x="${bx}" y="${by}" width="${bw}" height="32" rx="16"
+      fill="rgba(255,255,255,0.18)"/>
+    <text x="${bx + bw / 2}" y="${by + 21}" fill="white"
+      font-size="12" font-family="-apple-system,sans-serif" text-anchor="middle"
+      font-weight="600" letter-spacing="0.04em">${x(sev.label.toUpperCase())}</text>`;
   })() : '';
 
-  // CTA button — "Δοκίμασε δωρεάν" — links to app
-  const CTAbtnW = 220;
-  const CTAbtnX = W - P - CTAbtnW;
-  const CTAbtnY = FOOTER_TOP + 18;
-
+  // ── SVG ───────────────────────────────────────────────────────────────────
   const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
-  xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  xmlns="http://www.w3.org/2000/svg">
+
+<!-- Cream background -->
+<rect width="${W}" height="${H}" fill="${CREAM}"/>
+
+<!-- Terracotta header zone -->
+<rect width="${W}" height="${HEADER_H}" fill="${TERRA}"/>
+
+<!-- Subtle texture on header: diagonal lines -->
 <defs>
-  <radialGradient id="bg" cx="50%" cy="20%" r="75%">
-    <stop offset="0%" stop-color="#0d1a12"/>
-    <stop offset="100%" stop-color="#080C10"/>
-  </radialGradient>
-  <radialGradient id="glow" cx="50%" cy="0%" r="55%">
-    <stop offset="0%" stop-color="#2EA043" stop-opacity="0.11"/>
-    <stop offset="100%" stop-color="#2EA043" stop-opacity="0"/>
-  </radialGradient>
-  <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0%"   stop-color="#2EA043" stop-opacity="0"/>
-    <stop offset="40%"  stop-color="#2EA043" stop-opacity="1"/>
-    <stop offset="100%" stop-color="#2EA043" stop-opacity="0.2"/>
-  </linearGradient>
+  <pattern id="hatch" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <line x1="0" y1="0" x2="0" y2="24" stroke="rgba(255,255,255,0.04)" stroke-width="6"/>
+  </pattern>
 </defs>
+<rect width="${W}" height="${HEADER_H}" fill="url(#hatch)"/>
 
-<!-- Background -->
-<rect width="${W}" height="${H}" fill="url(#bg)"/>
-<rect width="${W}" height="${H}" fill="url(#glow)"/>
+<!-- Header / body divider -->
+<line x1="0" y1="${HEADER_H}" x2="${W}" y2="${HEADER_H}"
+  stroke="${BORDER}" stroke-width="1.5"/>
 
-<!-- Left accent bar -->
-<rect x="0" y="0" width="4" height="${H}" fill="url(#bar)"/>
+<!-- ── HEADER CONTENT ── -->
 
-<!-- Header divider -->
-<line x1="${P}" y1="${RULE1}" x2="${W - P}" y2="${RULE1}"
-  stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+<!-- "· Oli" wordmark -->
+<text x="${P}" y="${MARK_Y}" fill="rgba(245,239,230,0.95)"
+  font-size="22" font-family="Georgia,'Times New Roman',serif"
+  font-style="italic" letter-spacing="0.01em">· Oli</text>
 
-<!-- Footer divider -->
-<line x1="${P}" y1="${FOOTER_TOP}" x2="${W - P}" y2="${FOOTER_TOP}"
-  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-
-<!-- Logo -->
-<svg x="${P}" y="${HEADER_TOP}" width="30" height="30" viewBox="0 0 32 32">
-  <ellipse cx="16" cy="7"  rx="7" ry="10" fill="#2D6A4F"/>
-  <ellipse cx="16" cy="25" rx="7" ry="10" fill="#2D6A4F"/>
-  <ellipse cx="7"  cy="16" rx="10" ry="7" fill="#2EA043"/>
-  <ellipse cx="25" cy="16" rx="10" ry="7" fill="#2EA043"/>
-  <circle  cx="16" cy="16" r="5"  fill="#080C10"/>
-</svg>
-<text x="${P + 42}" y="${HEADER_TOP + 20}" fill="#2EA043"
-  font-size="13" font-family="system-ui,sans-serif"
-  letter-spacing="3" font-weight="600">OLI · AI ΓΕΩΠΟΝΟΣ</text>
+<!-- "AI AGRONOMIST" label -->
+<text x="${P + 76}" y="${MARK_Y}" fill="rgba(245,239,230,0.55)"
+  font-size="11" font-family="-apple-system,Helvetica,sans-serif"
+  letter-spacing="0.14em" font-weight="600">AI AGRONOMIST</text>
 
 ${sevHTML}
 
 <!-- Crop label -->
-<text x="${P}" y="${CONTENT_TOP + 20}" fill="#2EA043"
-  font-size="12" font-family="system-ui,sans-serif"
-  letter-spacing="6" font-weight="700">${crop}</text>
+${cropRaw ? `<text x="${P}" y="${CROP_Y}" fill="rgba(245,239,230,0.60)"
+  font-size="12" font-family="-apple-system,Helvetica,sans-serif"
+  letter-spacing="0.12em" font-weight="700">${x(cropRaw)}</text>` : ''}
 
-<!-- Problem headline -->
-${probLines.map((line, i) => `<text x="${P}" y="${PROB_Y + i * probLineH}" fill="#FFFFFF"
-  font-size="${probFontSize}" font-family="system-ui,sans-serif"
-  font-weight="700" letter-spacing="-1">${x(line)}</text>`).join('\n')}
+<!-- Problem headline (italic serif) -->
+${probLines.map((line, i) => `<text x="${P}" y="${PROB_Y + i * probLineH}" fill="#F5EFE6"
+  font-size="${probFontSize}" font-family="Georgia,'Times New Roman',serif"
+  font-style="italic" letter-spacing="-0.01em">${x(line)}</text>`).join('\n')}
 
-<!-- Cause -->
-${cause ? `<text x="${P}" y="${CAUSE_Y}" fill="rgba(232,237,242,0.42)"
-  font-size="18" font-family="system-ui,sans-serif">${cause.length > 75 ? cause.slice(0,75) + '…' : cause}</text>` : ''}
+<!-- Cause line -->
+${causeVisible ? `<text x="${P}" y="${CAUSE_Y}" fill="rgba(245,239,230,0.62)"
+  font-size="18" font-family="-apple-system,Helvetica,sans-serif" font-style="italic">
+  ${x(causeRaw.length > 80 ? causeRaw.slice(0, 80) + '…' : causeRaw)}
+</text>` : ''}
+
+<!-- ── BODY CONTENT (cream zone) ── -->
+
+<!-- Section label: TREATMENT -->
+${pills.length > 0 ? `<text x="${P}" y="${PILLS_Y - 14}" fill="${MUTED}"
+  font-size="11" font-family="-apple-system,Helvetica,sans-serif"
+  letter-spacing="0.12em" font-weight="700">
+  ${organic.length > 0 ? (chemical.length > 0 ? 'ORGANIC · CHEMICAL' : 'ORGANIC OPTIONS') : 'CHEMICAL OPTIONS'}
+</text>` : ''}
 
 <!-- Treatment pills -->
 ${pillsHTML}
 
-<!-- Footer left: brand -->
-<text x="${P}" y="${FOOTER_TOP + 28}" fill="rgba(232,237,242,0.22)"
-  font-size="13" font-family="system-ui,sans-serif">askoli.app</text>
+<!-- "No treatments recorded" fallback -->
+${pills.length === 0 ? `<text x="${P}" y="${PILLS_Y + 32}" fill="${MUTED}"
+  font-size="18" font-family="Georgia,serif" font-style="italic">
+  Diagnosis shared by Oli · AI Agronomist
+</text>` : ''}
 
-<text x="${P}" y="${FOOTER_TOP + 46}" fill="rgba(232,237,242,0.14)"
-  font-size="12" font-family="system-ui,sans-serif">Δωρεάν για τις πρώτες 20 ερωτήσεις</text>
+<!-- Brand footer -->
+<text x="${P}" y="${BRAND_Y}" fill="${MUTED}"
+  font-size="15" font-family="Georgia,'Times New Roman',serif"
+  font-style="italic">ask-oli.com</text>
 
-<!-- CTA button: Δοκίμασε δωρεάν -->
-<rect x="${CTAbtnX}" y="${CTAbtnY}" width="${CTAbtnW}" height="44" rx="22" fill="#2EA043"/>
-<text x="${CTAbtnX + CTAbtnW / 2}" y="${CTAbtnY + 28}" fill="white"
-  font-size="15" font-weight="700" font-family="system-ui,sans-serif"
-  text-anchor="middle">Δοκίμασε δωρεάν →</text>
+<!-- "Free 20 questions" tagline -->
+<text x="${P}" y="${BRAND_Y + 22}" fill="${MUTED}"
+  font-size="12" font-family="-apple-system,Helvetica,sans-serif"
+  letter-spacing="0.04em">Free for the first 20 questions</text>
+
+<!-- CTA pill (right side) -->
+<rect x="${W - P - 260}" y="${BRAND_Y - 18}" width="260" height="46" rx="23"
+  fill="${GREEN}"/>
+<text x="${W - P - 130}" y="${BRAND_Y + 12}" fill="white"
+  font-size="15" font-family="-apple-system,Helvetica,sans-serif"
+  font-weight="700" text-anchor="middle" letter-spacing="0.01em">
+  Try Oli free →
+</text>
 
 </svg>`;
 
