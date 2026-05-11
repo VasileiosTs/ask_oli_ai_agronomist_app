@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { LocateFixed, Loader2 } from 'lucide-react';
 
 export interface LocationResult {
   name: string;
@@ -46,6 +47,8 @@ export default function LocationAutocomplete({
   const [suggestions, setSuggestions] = useState<LocationResult[]>([]);
   const [open, setOpen] = useState(false);
   const [dropPos, setDropPos] = useState<DropdownPos | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const defaultInputClass =
@@ -113,6 +116,43 @@ export default function LocationAutocomplete({
     onSelect(null); // typing invalidates previously locked coords
   };
 
+  const detectGps = () => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords: pos }) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json&zoom=10`,
+            { headers: { 'Accept-Language': lang } },
+          );
+          const data = await res.json();
+          const addr = data.address ?? {};
+          const label = [
+            addr.village || addr.town || addr.city || addr.county,
+            addr.state,
+            addr.country,
+          ].filter(Boolean).join(', ') || `${pos.latitude.toFixed(4)}, ${pos.longitude.toFixed(4)}`;
+          onChange(label);
+          onSelect({ lat: pos.latitude, lon: pos.longitude, label });
+        } catch {
+          // Nominatim failed — store raw coords with a readable label
+          const label = `${pos.latitude.toFixed(4)}, ${pos.longitude.toFixed(4)}`;
+          onChange(label);
+          onSelect({ lat: pos.latitude, lon: pos.longitude, label });
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      () => {
+        setGpsError(lang === 'el' ? 'Δεν επιτράπηκε η πρόσβαση στην τοποθεσία.' : 'Location access denied.');
+        setGpsLoading(false);
+      },
+      { timeout: 8000 },
+    );
+  };
+
   const dropdown = open && suggestions.length > 0 && dropPos
     ? createPortal(
         <ul
@@ -142,19 +182,35 @@ export default function LocationAutocomplete({
 
   return (
     <div className={className}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        autoFocus={autoFocus}
-        onChange={e => handleType(e.target.value)}
-        onFocus={() => { if (suggestions.length > 0) { updatePos(); setOpen(true); } }}
-        placeholder={placeholder ?? (lang === 'el' ? 'π.χ. Καλαμάτα' : 'e.g. Kalamata')}
-        autoComplete="off"
-        className={inputClassName ?? defaultInputClass}
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          autoFocus={autoFocus}
+          onChange={e => handleType(e.target.value)}
+          onFocus={() => { if (suggestions.length > 0) { updatePos(); setOpen(true); } }}
+          placeholder={placeholder ?? (lang === 'el' ? 'π.χ. Καλαμάτα' : 'e.g. Kalamata')}
+          autoComplete="off"
+          className={`${inputClassName ?? defaultInputClass} pr-10`}
+        />
+        <button
+          type="button"
+          onClick={detectGps}
+          disabled={gpsLoading}
+          title={lang === 'el' ? 'Εντοπισμός τοποθεσίας' : 'Detect my location'}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-primary transition-colors disabled:opacity-40"
+        >
+          {gpsLoading
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <LocateFixed className="h-4 w-4" />}
+        </button>
+      </div>
       {dropdown}
-      {showHint && (
+      {gpsError && (
+        <p className="mt-1 px-1 text-xs text-red-400">{gpsError}</p>
+      )}
+      {!gpsError && showHint && (
         coords ? (
           <p className="mt-1 px-1 text-xs text-primary/70">
             {lang === 'el' ? '✓ Τοποθεσία επιβεβαιωμένη' : '✓ Location confirmed'}

@@ -215,6 +215,8 @@ export default function Chat() {
   const [activeGrowerId, setActiveGrowerId] = useState<string | undefined>();
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
+  // Stores fieldId passed via router state before fields have loaded (race condition fix)
+  const pendingNavFieldIdRef = useRef<string | null>(null);
 
   // Hydrate ?grower= / ?field= URL params (e.g. when navigating from a client's profile).
   useEffect(() => {
@@ -667,14 +669,30 @@ export default function Chat() {
     setFields([]);
   }, [appUserId]);
 
-  // Pre-select field when navigating from FieldDetail "Ask Oli" button
+  // Phase 1: capture incoming fieldId / conversationId from router state immediately,
+  // before fields have loaded (fixes race condition where fields.length === 0 on navigation).
   useEffect(() => {
-    const navFieldId = (routeLocation.state as { fieldId?: string } | null)?.fieldId;
-    if (navFieldId && fields.length > 0 && fields.some(f => f.id === navFieldId)) {
-      setActiveFieldId(navFieldId);
+    const state = routeLocation.state as { fieldId?: string; conversationId?: string } | null;
+    if (state?.fieldId) {
+      pendingNavFieldIdRef.current = state.fieldId;
+    }
+    if (state?.conversationId) {
+      setActiveConversationId(state.conversationId);
+    }
+    if (state?.fieldId || state?.conversationId) {
       window.history.replaceState({}, '');
     }
-  }, [routeLocation.state, fields]);
+  }, [routeLocation.state]);
+
+  // Phase 2: apply pending fieldId once fields have loaded.
+  useEffect(() => {
+    if (!pendingNavFieldIdRef.current || fields.length === 0) return;
+    const id = pendingNavFieldIdRef.current;
+    if (fields.some(f => f.id === id)) {
+      setActiveFieldId(id);
+      pendingNavFieldIdRef.current = null;
+    }
+  }, [fields]);
 
   const prevMessageCountRef = useRef(0);
   useEffect(() => {

@@ -1896,10 +1896,11 @@ async function assembleServerFieldContext(
     fetchPendingFollowUps(supabaseAdmin, appUserId, activeFieldId),
     fetchRecentMemorySnapshots(supabaseAdmin, appUserId, activeFieldId, 5),
     activeFieldId
-      ? supabaseAdmin.from('crops').select('planted_at, name').eq('field_id', activeFieldId).limit(1)
+      ? supabaseAdmin.from('crops').select('name, variety, planted_at, status, plant_count').eq('field_id', activeFieldId).limit(5)
       : Promise.resolve({ data: null }),
   ]);
-  const plantedAt = cropsResult?.data?.[0]?.planted_at ?? null;
+  const cropsData: Array<{ name: string; variety: string | null; planted_at: string | null; status: string | null; plant_count: number | null }> = cropsResult?.data ?? [];
+  const plantedAt = cropsData[0]?.planted_at ?? null;
 
   const fieldMap = new Map(fields.map((field) => [field.id, field]));
   const sections: string[] = [];
@@ -1910,6 +1911,18 @@ async function assembleServerFieldContext(
     const stage = estimateGrowthStage(activeField.crop_type, plantedAt);
     if (stage) fieldBlock += ` | Growth stage: ${stage}`;
     sections.push(`ACTIVE FIELD:\n${fieldBlock}`);
+
+    if (cropsData.length > 0) {
+      const cropLines = cropsData.map(c => {
+        const parts = [c.name];
+        if (c.variety) parts.push(`variety: ${c.variety}`);
+        if (c.plant_count) parts.push(`plants: ${c.plant_count}`);
+        if (c.planted_at) parts.push(`planted: ${c.planted_at.slice(0, 7)}`);
+        if (c.status && c.status !== 'healthy') parts.push(`status: ${c.status}`);
+        return `- ${parts.join(' | ')}`;
+      });
+      sections.push(`CROPS IN FIELD (${cropsData.length}):\n${cropLines.join('\n')}`);
+    }
 
     if (Array.isArray(activeField.recent_diagnoses) && activeField.recent_diagnoses.length > 0) {
       sections.push(`RECENT DIAGNOSES:\n- ${activeField.recent_diagnoses.join('\n- ')}`);

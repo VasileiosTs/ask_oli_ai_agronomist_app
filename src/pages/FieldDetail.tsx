@@ -97,17 +97,32 @@ export default function FieldDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from('crops')
-        .select('id, name, variety, planted_at, status, notes')
+        .select('id, name, variety, planted_at, status, notes, plant_count')
         .eq('field_id', fieldId)
         .order('created_at', { ascending: false });
-      return (data ?? []) as Array<{ id: string; name: string; variety: string | null; planted_at: string | null; status: string | null; notes: string | null }>;
+      return (data ?? []) as Array<{ id: string; name: string; variety: string | null; planted_at: string | null; status: string | null; notes: string | null; plant_count: number | null }>;
+    },
+    enabled: !!fieldId,
+  });
+
+  // ── Recent conversations for this field ──
+  const { data: fieldConversations = [] } = useQuery({
+    queryKey: ['field-conversations', fieldId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('conversations')
+        .select('id, title, updated_at')
+        .eq('field_id', fieldId)
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      return (data ?? []) as Array<{ id: string; title: string | null; updated_at: string }>;
     },
     enabled: !!fieldId,
   });
 
   // ── CropManager state ──
   const [addCropOpen, setAddCropOpen] = useState(false);
-  const [cropForm, setCropForm] = useState<{ name: string; variety: string; planted_at: string }>({ name: '', variety: '', planted_at: '' });
+  const [cropForm, setCropForm] = useState<{ name: string; variety: string; planted_at: string; plant_count: string }>({ name: '', variety: '', planted_at: '', plant_count: '' });
   const [savingCrop, setSavingCrop] = useState(false);
   const [removingCropId, setRemovingCropId] = useState<string | null>(null);
 
@@ -121,9 +136,10 @@ export default function FieldDetail() {
         name: cropForm.name.trim(),
         variety: cropForm.variety.trim() || null,
         planted_at: cropForm.planted_at || null,
+        plant_count: cropForm.plant_count ? parseInt(cropForm.plant_count, 10) : null,
       });
       if (!error) {
-        setCropForm({ name: '', variety: '', planted_at: '' });
+        setCropForm({ name: '', variety: '', planted_at: '', plant_count: '' });
         setAddCropOpen(false);
         await queryClient.invalidateQueries({ queryKey: ['field-crops', fieldId] });
       }
@@ -316,6 +332,32 @@ export default function FieldDetail() {
           </div>
         )}
 
+        {/* ── Past conversations for this field ── */}
+        {fieldConversations.length > 0 && (
+          <div className="mx-4 mt-6">
+            <h3 className="mb-2 text-sm font-semibold text-foreground">
+              {lang === 'el' ? 'Προηγούμενες συνομιλίες' : 'Past conversations'}
+            </h3>
+            <div className="space-y-1.5">
+              {fieldConversations.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => navigate('/chat', { state: { fieldId, conversationId: c.id } })}
+                  className="w-full flex items-center gap-2 rounded-xl border border-border/30 bg-surface px-3 py-2.5 text-left hover:bg-primary/5 transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 text-primary/60" />
+                  <span className="flex-1 text-sm text-foreground truncate">
+                    {c.title || (lang === 'el' ? 'Συνομιλία' : 'Conversation')}
+                  </span>
+                  <span className="text-[11px] text-muted flex-shrink-0">
+                    {new Date(c.updated_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short' })}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Ask Oli Button ── */}
         <div className="mx-4 mt-4">
           <button
@@ -376,6 +418,14 @@ export default function FieldDetail() {
                 onChange={e => setCropForm(f => ({ ...f, planted_at: e.target.value }))}
                 className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
               />
+              <input
+                type="number"
+                min="1"
+                placeholder={lang === 'el' ? 'Αριθμός φυτών (προαιρ.)' : 'Number of plants (optional)'}
+                value={cropForm.plant_count}
+                onChange={e => setCropForm(f => ({ ...f, plant_count: e.target.value }))}
+                className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+              />
               <button
                 onClick={addCrop}
                 disabled={savingCrop || !cropForm.name.trim()}
@@ -404,9 +454,11 @@ export default function FieldDetail() {
                     <p className="text-sm font-medium text-foreground truncate">
                       {c.name}{c.variety ? ` · ${c.variety}` : ''}
                     </p>
-                    {c.planted_at && (
+                    {(c.planted_at || c.plant_count) && (
                       <p className="text-[11px] text-muted">
-                        {lang === 'el' ? 'Φυτεύτηκε' : 'Planted'}: {new Date(c.planted_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {c.planted_at && `${lang === 'el' ? 'Φυτεύτηκε' : 'Planted'}: ${new Date(c.planted_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                        {c.planted_at && c.plant_count ? ' · ' : ''}
+                        {c.plant_count && `${c.plant_count} ${lang === 'el' ? 'φυτά' : 'plants'}`}
                       </p>
                     )}
                   </div>
