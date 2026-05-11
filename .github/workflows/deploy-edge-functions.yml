@@ -31,4 +31,6 @@ jobs:
           supabase functions deploy delete-account --no-verify-jwt
           supabase functions deploy kpi-snapshot --no-verify-jwt
           supabase functions deploy api-v1 --no-verify-jwt
+          supabase functions deploy stripe-webhook --no-verify-jwt
+          supabase functions deploy create-checkout --no-verify-jwt
           echo "All edge functions deployed"
