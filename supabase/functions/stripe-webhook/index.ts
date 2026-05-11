@@ -3,10 +3,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Map Stripe price IDs → app tiers (env vars mirror create-checkout)
 const PRICE_TO_TIER: Record<string, string> = {};
-const proPriceId     = Deno.env.get('STRIPE_PRICE_PRO');
-const masterPriceId  = Deno.env.get('STRIPE_PRICE_MASTER');
-if (proPriceId)    PRICE_TO_TIER[proPriceId]    = 'pro';
-if (masterPriceId) PRICE_TO_TIER[masterPriceId] = 'master';
+const proPriceId          = Deno.env.get('STRIPE_PRICE_PRO');
+const proPriceMonthlyId   = Deno.env.get('STRIPE_PRICE_PRO_MONTHLY');
+const masterPriceId       = Deno.env.get('STRIPE_PRICE_MASTER');
+const masterPriceMonthlyId = Deno.env.get('STRIPE_PRICE_MASTER_MONTHLY');
+if (proPriceId)           PRICE_TO_TIER[proPriceId]           = 'pro';
+if (proPriceMonthlyId)    PRICE_TO_TIER[proPriceMonthlyId]    = 'pro';
+if (masterPriceId)        PRICE_TO_TIER[masterPriceId]        = 'master';
+if (masterPriceMonthlyId) PRICE_TO_TIER[masterPriceMonthlyId] = 'master';
 
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
