@@ -185,6 +185,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let initialResolved = false;
     let restoredFromStorage = false;
 
+    // Hydrate optimistically from localStorage so the UI doesn't flash a
+    // loading spinner on every page load for already-authenticated users.
+    // IMPORTANT: we do NOT set loading=false here — getSession() is still
+    // in-flight and will be the source of truth. Setting loading=false early
+    // caused ChatRouteGuard to briefly see authenticated=false (because
+    // getSession hadn't resolved yet) and navigate the user back to "/".
     const hydrateFromStoredSession = () => {
       const storedSession = readStoredSession();
       if (!storedSession?.user) {
@@ -193,27 +199,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const cachedProfile = readStoredProfile(storedSession.user.id);
       restoredFromStorage = true;
-      initialResolved = true;
+      // Populate state immediately so components have something to render,
+      // but keep loading=true so guards wait for getSession() confirmation.
       setSession(storedSession);
       setUser(storedSession.user);
       if (cachedProfile) {
         setProfileState(cachedProfile);
-        setLoading(false);
       }
+      // Kick off a profile refresh in the background; getSession() will call
+      // its own fetchProfileWithTimeout so we use preserveExisting here to
+      // avoid wiping the cached profile between the two calls.
       fetchProfileWithTimeout(storedSession.user.id, {
         retries: 4,
         delayMs: 250,
         preserveExisting: true,
-      }).finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      }).catch(() => {});
       return true;
     };
 
     hydrateFromStoredSession();
 
     // Step 1: getSession() processes the URL hash from magic links
-    // and returns the current session (existing or just-authed).
+    // and returns the authoritative current session. This is the single
+    // point that flips loading → false for the initial render.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
       initialResolved = true;
@@ -227,10 +235,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!cancelled) setLoading(false);
     }).catch((err) => {
       console.error('getSession failed:', err);
-      if (!restoredFromStorage) {
-        initialResolved = true;
-        if (!cancelled) setLoading(false);
-      }
+      // Even on failure, unblock the UI — hydrateFromStoredSession already
+      // populated state so the user won't see a broken screen.
+      initialResolved = true;
+      if (!cancelled) setLoading(false);
     });
 
     // Step 2: onAuthStateChange handles all future auth events.
@@ -280,7 +288,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Safety net: if nothing resolves within 5s, stop the spinner
+    // Safety net: if nothing resolves within 5s, stop the spinner.
+    // This covers network failures where getSession() hangs indefinitely.
     const timeout = setTimeout(() => {
       if (!cancelled && !initialResolved) {
         const storedSession = readStoredSession();
@@ -292,7 +301,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const cachedProfile = readStoredProfile(storedSession.user.id);
           if (cachedProfile) {
             setProfileState(cachedProfile);
-            setLoading(false);
           }
           fetchProfileWithTimeout(storedSession.user.id, {
             retries: 4,
@@ -301,6 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).finally(() => {
             if (!cancelled) setLoading(false);
           });
+          // setLoading(false) will be called inside fetchProfileWithTimeout.finally
           return;
         }
 

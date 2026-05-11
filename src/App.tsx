@@ -1,12 +1,14 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './lib/LanguageContext';
-import { hasValidStoredAuthSession } from './lib/authStorage';
 
-const Landing = lazy(() => import('./pages/Landing'));
-// AuthenticatedShell is lazy — Supabase only loads when user leaves the landing page
+// AuthenticatedShell owns ALL routing — including the landing page redirect for
+// authenticated users. Keeping the "/" route here and doing a synchronous
+// hasValidStoredAuthSession() check caused a double-redirect: the sync check
+// could fail on a post-refresh session shape, show Landing briefly, then
+// AuthenticatedShell would redirect to /chat — visibly bouncing the user.
 const AuthenticatedShell = lazy(() => import('./AuthenticatedShell'));
 
 const queryClient = new QueryClient({
@@ -20,12 +22,7 @@ export default function App() {
         <BrowserRouter>
           <Suspense fallback={<div className="min-h-screen bg-[#0D1117]" />}>
             <Routes>
-              {/* Landing — renders with zero Supabase JS for fast mobile paint */}
-              <Route
-                path="/"
-                element={hasValidStoredAuthSession() ? <Navigate to="/chat" replace /> : <Landing />}
-              />
-              {/* All other routes — lazy-loads AuthProvider + Supabase only when needed */}
+              {/* All routes — AuthenticatedShell handles "/" and redirects for auth state */}
               <Route path="/*" element={<AuthenticatedShell />} />
             </Routes>
           </Suspense>
