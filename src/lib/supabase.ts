@@ -22,7 +22,15 @@ export function readStoredSupabaseSession(): Session | null {
 }
 
 export async function getAccessTokenWithFallback(timeoutMs = 2500): Promise<string | null> {
-  const storedSession = readStoredSupabaseSession();
+  // Read the stored token defensively — the raw localStorage value may be in
+  // either the standard { access_token } shape or the nested
+  // { currentSession: { access_token } } shape Supabase writes after a refresh.
+  const storedRaw = readStoredAuthSession<Record<string, unknown>>();
+  const storedToken =
+    (typeof storedRaw?.access_token === 'string' ? storedRaw.access_token : null) ??
+    (typeof (storedRaw?.currentSession as Record<string, unknown> | undefined)?.access_token === 'string'
+      ? (storedRaw!.currentSession as Record<string, unknown>).access_token as string
+      : null);
 
   try {
     const sessionResult = await Promise.race([
@@ -31,13 +39,13 @@ export async function getAccessTokenWithFallback(timeoutMs = 2500): Promise<stri
     ]);
 
     if (sessionResult && 'data' in sessionResult) {
-      return sessionResult.data.session?.access_token ?? storedSession?.access_token ?? null;
+      return sessionResult.data.session?.access_token ?? storedToken ?? null;
     }
   } catch (error) {
     console.warn('Falling back to stored auth token:', error);
   }
 
-  return storedSession?.access_token ?? null;
+  return storedToken ?? null;
 }
 
 export async function getCurrentUserId(): Promise<string | null> {

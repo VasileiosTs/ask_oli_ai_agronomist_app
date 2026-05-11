@@ -3306,9 +3306,14 @@ Return ONLY the greeting text, nothing else.`;
             );
             shouldRefundMessageCount = false;
           }
-          // H2: Don't leak internal error details to client
+          // H2: Don't leak internal error details to client, but pass a
+          // machine-readable code so the frontend can show the right message.
+          const isQuota = error instanceof GeminiQuotaError;
           sendEvent('error', {
-            message: 'An error occurred while processing your request',
+            message: isQuota
+              ? 'AI service is temporarily at capacity. Please try again in a few minutes.'
+              : 'An error occurred while processing your request',
+            code: isQuota ? 'ai_quota' : 'internal_error',
           });
           closeController();
         }
