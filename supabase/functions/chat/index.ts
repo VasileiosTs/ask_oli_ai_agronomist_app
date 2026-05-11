@@ -2865,7 +2865,10 @@ Return ONLY the greeting text, nothing else.`;
               ? 'spring'
               : 'summer';
 
-    const userLang = appUser.language || body.lang || 'en';
+    // body.lang reflects the language the user is currently typing in (detected client-side).
+    // It takes priority over appUser.language (profile preference) so the response
+    // always matches the user's active language, not their profile setting.
+    const userLang = body.lang || appUser.language || 'en';
 
     // W1: Classify intent up-front so we can skip weather for queries that
     // don't need it. hasActualImages excludes PDFs/audio (image/* MIME only)
