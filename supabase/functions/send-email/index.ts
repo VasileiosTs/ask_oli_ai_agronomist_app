@@ -96,55 +96,102 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 
 // ── Email Templates ──
 
+// ── Brand tokens ──
+const TERRA = "#C4521A";
+const GREEN = "#194121";
+const CREAM_BG = "#F0EDE5";
+const BORDER = "#DDD6CB";
+const FOOTER_BG = "#EAE5DC";
+const TEXT_BODY = "#3D3830";
+const TEXT_MUTED = "#888077";
+const HEADER_TEXT = "#F5EFE6";
+const SAN = `-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif`;
+const SER = `Georgia,'Times New Roman',serif`;
+
+function base(lang: string, opts: {
+  label?: string;
+  headline: string;
+  body: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  preheader?: string;
+}): string {
+  const { label, headline, body: bodyHtml, ctaText, ctaUrl, preheader } = opts;
+  const isEl = lang === "el";
+  return `<!DOCTYPE html>
+<html lang="${lang}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:${CREAM_BG};-webkit-text-size-adjust:100%;">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ""}
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:${CREAM_BG};">
+  <tr><td style="padding:28px 16px 44px;">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;margin:0 auto;">
+      <tr><td style="background:${TERRA};border-radius:16px 16px 0 0;padding:24px 32px 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          <tr>
+            <td><span style="font-size:15px;font-style:italic;font-family:${SER};color:${HEADER_TEXT};letter-spacing:0.01em;">· Oli</span></td>
+            ${label ? `<td style="text-align:right;"><span style="font-size:10px;font-family:${SAN};color:${HEADER_TEXT};letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">${label}</span></td>` : ""}
+          </tr>
+        </table>
+        <h1 style="margin:18px 0 0;font-size:26px;line-height:1.28;letter-spacing:-0.02em;font-style:italic;font-family:${SER};color:${HEADER_TEXT};">${headline}</h1>
+      </td></tr>
+      <tr><td style="background:#ffffff;padding:32px;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};">
+        ${bodyHtml}
+        ${ctaText && ctaUrl ? `
+        <table cellpadding="0" cellspacing="0" role="presentation" style="margin:28px 0 4px;">
+          <tr><td style="background:${GREEN};border-radius:10px;">
+            <a href="${ctaUrl}" style="display:inline-block;padding:13px 28px;color:#ffffff;text-decoration:none;font-family:${SAN};font-size:15px;font-weight:600;">${ctaText}</a>
+          </td></tr>
+        </table>` : ""}
+      </td></tr>
+      <tr><td style="background:${FOOTER_BG};border-radius:0 0 16px 16px;border:1px solid ${BORDER};border-top:none;padding:16px 32px;">
+        <p style="margin:0;font-size:11.5px;font-family:${SAN};color:${TEXT_MUTED};line-height:1.5;">
+          ${isEl ? "Αυτό το email στάλθηκε από το Oli" : "This email was sent by Oli"}&nbsp;·&nbsp;<a href="${APP_URL}/legal/privacy" style="color:${TEXT_MUTED};text-decoration:none;">${isEl ? "Απόρρητο" : "Privacy"}</a>&nbsp;·&nbsp;<a href="${APP_URL}/profile" style="color:${TEXT_MUTED};text-decoration:none;">${isEl ? "Ρυθμίσεις" : "Notifications"}</a>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+function ep(text: string, extra = ""): string {
+  return `<p style="margin:0 0 16px;font-size:15px;font-family:${SAN};color:${TEXT_BODY};line-height:1.65;${extra}">${text}</p>`;
+}
+function esmall(text: string): string {
+  return `<p style="margin:12px 0 0;font-size:12.5px;font-family:${SAN};color:${TEXT_MUTED};line-height:1.5;">${text}</p>`;
+}
+function ehr(): string {
+  return `<hr style="margin:20px 0;border:none;border-top:1px solid #E5E0D6;">`;
+}
+
+// ── Email templates ──
+
 function welcomeEmail(name: string, lang: string): { subject: string; html: string } {
   const isEl = lang === "el";
   return {
-    subject: isEl ? "Καλώς ήρθες στο Oli! 🌱" : "Welcome to Oli! 🌱",
-    html: `
-<!DOCTYPE html>
-<html lang="${lang}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <tr><td style="text-align:center;padding-bottom:24px;">
-      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
-    </td></tr>
-    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
-      <h1 style="margin:0 0 12px;font-size:22px;color:#1a1a1a;">
-        ${isEl ? `Γεια σου ${name}!` : `Hi ${name}!`}
-      </h1>
-      <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">
-        ${isEl
-          ? "Ο Oli είναι ο AI γεωπόνος σου — πάντα δίπλα σου για διαγνώσεις, συμβουλές ψεκασμού και παρακολούθηση παρεμβάσεων."
-          : "Oli is your AI agronomist — always here for crop diagnosis, spray advice, and intervention tracking."
-        }
-      </p>
-      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
-        ${isEl ? "Ξεκίνα στέλνοντας μια φωτογραφία ή ρωτώντας οτιδήποτε:" : "Get started by sending a photo or asking anything:"}
-      </p>
-      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
-        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
-          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">
-            ${isEl ? "Άνοιξε τον Oli →" : "Open Oli →"}
-          </a>
-        </td></tr>
-      </table>
-      <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;">
-        ${isEl
-          ? "Μπορείς επίσης να εγκαταστήσεις το Oli ως εφαρμογή στο κινητό σου από το browser."
-          : "You can also install Oli as an app on your phone from your browser."
-        }
-      </p>
-    </td></tr>
-    <tr><td style="text-align:center;padding-top:24px;">
-      <p style="font-size:12px;color:#999;">
-        ${isEl ? "Αυτό το email στάλθηκε από το Oli" : "This email was sent by Oli"}
-        · <a href="${APP_URL}/legal/privacy" style="color:#999;">Privacy</a>
-      </p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    subject: isEl ? "Καλώς ήρθες στο Oli! 🌱" : "Welcome to Oli. 🌱",
+    html: base(lang, {
+      label: isEl ? "ΚΑΛΩΣ ΗΡΘΕΣ" : "WELCOME",
+      headline: isEl ? "Ο γεωπόνος σου είναι έτοιμος." : "Your agronomist is ready.",
+      preheader: isEl ? "Στείλε μια φωτογραφία και πάρε άμεση διάγνωση." : "Send a photo and get instant crop diagnosis.",
+      body: [
+        ep(isEl ? `Γεια σου <b>${name}</b>,` : `Hi <b>${name}</b>,`),
+        ep(isEl
+          ? "Ο Oli είναι ο AI γεωπόνος σου — 24/7 διαθέσιμος για διαγνώσεις καλλιεργειών, συμβουλές ψεκασμού και παρακολούθηση παρεμβάσεων. Δωρεάν για τις πρώτες 20 ερωτήσεις κάθε μήνα."
+          : "Oli is your AI agronomist — available 24/7 for crop diagnosis, spray advice, and intervention tracking. Free for your first 20 questions each month."),
+        ep(isEl
+          ? "Ξεκίνα στέλνοντας μια φωτογραφία ή ρωτώντας οτιδήποτε για τις καλλιέργειές σου."
+          : "Get started by sending a photo or asking anything about your crops."),
+        ehr(),
+        esmall(isEl
+          ? "Μπορείς επίσης να εγκαταστήσεις τον Oli ως εφαρμογή από το browser του κινητού σου."
+          : "You can also install Oli as an app from your phone's browser."),
+      ].join(""),
+      ctaText: isEl ? "Ξεκίνα εδώ →" : "Start here →",
+      ctaUrl: `${APP_URL}/chat`,
+    }),
   };
 }
 
@@ -152,264 +199,139 @@ function vioReminderEmail(
   name: string,
   problem: string,
   step: number,
-  lang: string
+  lang: string,
 ): { subject: string; html: string } {
   const isEl = lang === "el";
-  const stepMsg = step <= 1
-    ? (isEl ? `Εφάρμοσες τη θεραπεία για "${problem}";` : `Did you apply the treatment for "${problem}"?`)
-    : (isEl ? `Βλέπεις βελτίωση στο "${problem}";` : `Any improvement with "${problem}"?`);
-
+  const isApply = step <= 1;
+  const subject = isApply
+    ? (isEl ? `Oli: Εφάρμοσες τη θεραπεία για "${problem}";` : `Oli: Did you apply the treatment for "${problem}"?`)
+    : (isEl ? `Oli: Βλέπεις βελτίωση στο "${problem}";` : `Oli: Any improvement with "${problem}"?`);
   return {
-    subject: isEl ? `Oli: ${stepMsg}` : `Oli: ${stepMsg}`,
-    html: `
-<!DOCTYPE html>
-<html lang="${lang}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <tr><td style="text-align:center;padding-bottom:24px;">
-      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
-    </td></tr>
-    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
-      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">
-        ${isEl ? `${name}, ` : `${name}, `}${stepMsg}
-      </h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
-        ${isEl
-          ? "Ανοίξε τον Oli για να καταγράψεις το αποτέλεσμα. Αυτό βοηθάει τον Oli να σου δίνει καλύτερες συμβουλές."
-          : "Open Oli to record the outcome. This helps Oli give you better advice in the future."
-        }
-      </p>
-      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
-        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
-          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">
-            ${isEl ? "Άνοιξε τον Oli →" : "Open Oli →"}
-          </a>
-        </td></tr>
-      </table>
-    </td></tr>
-    <tr><td style="text-align:center;padding-top:24px;">
-      <p style="font-size:12px;color:#999;">
-        <a href="${APP_URL}/profile" style="color:#999;">${isEl ? "Ρυθμίσεις ειδοποιήσεων" : "Notification settings"}</a>
-      </p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    subject,
+    html: base(lang, {
+      label: isApply ? (isEl ? "ΠΑΡΑΚΟΛΟΥΘΗΣΗ" : "FOLLOW-UP") : (isEl ? "ΑΠΟΤΕΛΕΣΜΑ" : "OUTCOME"),
+      headline: isApply
+        ? (isEl ? "Εφάρμοσες τη θεραπεία;" : "Did you apply the treatment?")
+        : (isEl ? "Βλέπεις βελτίωση;" : "Any improvement?"),
+      preheader: subject,
+      body: [
+        ep(isApply
+          ? (isEl ? `Πριν από λίγες μέρες κατέγραψες παρέμβαση για <b>${problem}</b>. Εφάρμοσες τη συνιστώμενη θεραπεία;` : `A few days ago you logged an intervention for <b>${problem}</b>. Did you apply the recommended treatment?`)
+          : (isEl ? `Εφάρμοσες θεραπεία για <b>${problem}</b>. Τώρα ο Oli θέλει να ξέρει αν υπάρχει βελτίωση.` : `You applied treatment for <b>${problem}</b>. Oli wants to know if there's been any improvement.`)),
+        ep(isEl ? "Ανοίξε τον Oli για να καταγράψεις το αποτέλεσμα." : "Open Oli to record the outcome."),
+      ].join(""),
+      ctaText: isEl ? "Καταγραφή αποτελέσματος →" : "Log your result →",
+      ctaUrl: `${APP_URL}/chat`,
+    }),
   };
 }
 
 function weeklyDigestEmail(
   name: string,
   stats: { messages: number; interventions: number; outcomes: number; pendingVio: number },
-  lang: string
+  lang: string,
 ): { subject: string; html: string } {
   const isEl = lang === "el";
-  const week = new Date().toLocaleDateString(isEl ? "el" : "en", { month: "short", day: "numeric" });
+  const week = new Date().toLocaleDateString(isEl ? "el-GR" : "en-GB", { month: "short", day: "numeric" });
+
+  const statCell = (value: number, label: string, warn = false): string =>
+    `<td style="width:50%;padding:14px;text-align:center;background:#F7F5F0;border-radius:8px;">
+      <div style="font-size:30px;font-weight:700;font-family:${SER};font-style:italic;color:${warn && value > 0 ? TERRA : GREEN};">${value}</div>
+      <div style="font-size:11px;font-family:${SAN};color:${TEXT_MUTED};margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;">${label}</div>
+    </td>`;
+
+  const pendingNote = stats.pendingVio > 0
+    ? `<p style="margin:0 0 16px;padding:12px 16px;background:#FEF5EE;border-left:3px solid ${TERRA};border-radius:0 8px 8px 0;font-size:14px;font-family:${SAN};color:#7A3010;line-height:1.5;">${isEl ? `${stats.pendingVio} παρεμβάσεις περιμένουν αποτέλεσμα.` : `${stats.pendingVio} intervention${stats.pendingVio > 1 ? "s" : ""} awaiting outcome.`}</p>`
+    : "";
 
   return {
     subject: isEl ? `Oli: Η εβδομάδα σου (${week})` : `Oli: Your week (${week})`,
-    html: `
-<!DOCTYPE html>
-<html lang="${lang}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <tr><td style="text-align:center;padding-bottom:24px;">
-      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
-    </td></tr>
-    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
-      <h1 style="margin:0 0 16px;font-size:20px;color:#1a1a1a;">
-        ${isEl ? `${name}, η εβδομάδα σου` : `${name}, your week`}
-      </h1>
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-        <tr>
-          <td style="width:50%;padding:12px;text-align:center;background:#f9f8f4;border-radius:12px 0 0 0;">
-            <div style="font-size:28px;font-weight:700;color:#194121;">${stats.messages}</div>
-            <div style="font-size:12px;color:#888;margin-top:4px;">${isEl ? "Μηνύματα" : "Messages"}</div>
-          </td>
-          <td style="width:50%;padding:12px;text-align:center;background:#f9f8f4;border-radius:0 12px 0 0;">
-            <div style="font-size:28px;font-weight:700;color:#194121;">${stats.interventions}</div>
-            <div style="font-size:12px;color:#888;margin-top:4px;">${isEl ? "Παρεμβάσεις" : "Interventions"}</div>
-          </td>
-        </tr>
-        <tr>
-          <td style="width:50%;padding:12px;text-align:center;background:#f9f8f4;border-radius:0 0 0 12px;">
-            <div style="font-size:28px;font-weight:700;color:#194121;">${stats.outcomes}</div>
-            <div style="font-size:12px;color:#888;margin-top:4px;">${isEl ? "Αποτελέσματα" : "Outcomes"}</div>
-          </td>
-          <td style="width:50%;padding:12px;text-align:center;background:#f9f8f4;border-radius:0 0 12px 0;">
-            <div style="font-size:28px;font-weight:700;color:${stats.pendingVio > 0 ? '#d97706' : '#194121'};">${stats.pendingVio}</div>
-            <div style="font-size:12px;color:#888;margin-top:4px;">${isEl ? "Εκκρεμή VIO" : "Pending VIO"}</div>
-          </td>
-        </tr>
-      </table>
-      ${stats.pendingVio > 0 ? `
-      <p style="margin:0 0 24px;font-size:14px;color:#d97706;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;">
-        ${isEl
-          ? `Έχεις ${stats.pendingVio} παρεμβάσεις που περιμένουν αποτέλεσμα. Άνοιξε τον Oli!`
-          : `You have ${stats.pendingVio} interventions awaiting outcome. Open Oli!`
-        }
-      </p>` : ""}
-      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
-        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
-          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">
-            ${isEl ? "Άνοιξε τον Oli →" : "Open Oli →"}
-          </a>
-        </td></tr>
-      </table>
-    </td></tr>
-    <tr><td style="text-align:center;padding-top:24px;">
-      <p style="font-size:12px;color:#999;">
-        <a href="${APP_URL}/profile" style="color:#999;">${isEl ? "Ρυθμίσεις ειδοποιήσεων" : "Notification settings"}</a>
-      </p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    html: base(lang, {
+      label: isEl ? `ΕΒΔΟΜΑΔΑ ${week.toUpperCase()}` : `WEEK OF ${week.toUpperCase()}`,
+      headline: isEl
+        ? `${stats.messages} μηνύματα. ${stats.interventions} παρεμβάσεις.`
+        : `${stats.messages} messages. ${stats.interventions} interventions.`,
+      preheader: isEl ? "Δες τι έγινε στις καλλιέργειές σου αυτή την εβδομάδα." : "See what happened on your farm this week.",
+      body: [
+        ep(isEl ? `Γεια σου <b>${name}</b>, ιδού η εβδομάδα σου:` : `Hi <b>${name}</b>, here's your week:`),
+        `<table width="100%" cellpadding="4" cellspacing="0" role="presentation" style="margin:0 0 20px;">
+          <tr>${statCell(stats.messages, isEl ? "Μηνύματα" : "Messages")}<td style="width:8px;"></td>${statCell(stats.interventions, isEl ? "Παρεμβάσεις" : "Interventions")}</tr>
+          <tr><td colspan="3" style="height:8px;"></td></tr>
+          <tr>${statCell(stats.outcomes, isEl ? "Αποτελέσματα" : "Outcomes")}<td style="width:8px;"></td>${statCell(stats.pendingVio, isEl ? "Εκκρεμή VIO" : "Pending VIO", true)}</tr>
+        </table>`,
+        pendingNote,
+      ].join(""),
+      ctaText: isEl ? "Δες το ιστορικό →" : "View history →",
+      ctaUrl: `${APP_URL}/history`,
+    }),
   };
 }
 
-function onboardingDripEmail(
-  name: string,
-  day: number,
-  lang: string
-): { subject: string; html: string } {
+function onboardingDripEmail(name: string, day: number, lang: string): { subject: string; html: string } {
   const isEl = lang === "el";
-
-  const content = day <= 3
-    ? {
-        subject: isEl ? "Ήξερες ότι ο Oli αναγνωρίζει 200+ ασθένειες;" : "Did you know Oli detects 200+ diseases?",
-        heading: isEl ? `${name}, δοκίμασε τη φωτο-διάγνωση!` : `${name}, try photo diagnosis!`,
-        body: isEl
-          ? "Στείλε μια φωτογραφία της καλλιέργειάς σου και πάρε άμεση διάγνωση με σύσταση θεραπείας. Ο Oli αναγνωρίζει πάνω από 200 ασθένειες και παράσιτα."
-          : "Send a photo of your crop and get instant diagnosis with treatment advice. Oli detects over 200 diseases and pests.",
-        cta: isEl ? "Στείλε φωτογραφία →" : "Send a photo →",
-      }
-    : {
-        subject: isEl ? "Ο Oli σε περιμένει — δωρεάν ακόμα!" : "Oli is waiting — still free!",
-        heading: isEl ? `${name}, μη χάσεις τις δωρεάν ερωτήσεις σου!` : `${name}, don't miss your free questions!`,
-        body: isEl
-          ? "Έχεις 20 δωρεάν ερωτήσεις κάθε μήνα. Ρώτησε τον Oli για ψεκασμούς, λίπανση, ή ό,τι αφορά τις καλλιέργειές σου."
-          : "You have 20 free questions every month. Ask Oli about spraying, fertilization, or anything about your crops.",
-        cta: isEl ? "Ρώτα τον Oli →" : "Ask Oli →",
-      };
-
+  const isDay3 = day <= 3;
   return {
-    subject: content.subject,
-    html: `
-<!DOCTYPE html>
-<html lang="${lang}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <tr><td style="text-align:center;padding-bottom:24px;">
-      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
-    </td></tr>
-    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
-      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">${content.heading}</h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">${content.body}</p>
-      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
-        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
-          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">${content.cta}</a>
-        </td></tr>
-      </table>
-    </td></tr>
-    <tr><td style="text-align:center;padding-top:24px;">
-      <p style="font-size:12px;color:#999;">
-        <a href="${APP_URL}/profile" style="color:#999;">${isEl ? "Ρυθμίσεις ειδοποιήσεων" : "Notification settings"}</a>
-      </p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    subject: isDay3
+      ? (isEl ? "Ήξερες ότι ο Oli αναγνωρίζει 200+ ασθένειες;" : "Did you know Oli detects 200+ diseases?")
+      : (isEl ? "Ο Oli σε περιμένει — δωρεάν ακόμα!" : "Oli is waiting — still free!"),
+    html: base(lang, {
+      label: isDay3 ? (isEl ? "ΜΕΡΑ 3" : "DAY 3") : (isEl ? "ΑΚΟΜΑ ΔΩΡΕΑΝ" : "STILL FREE"),
+      headline: isDay3
+        ? (isEl ? "200+ ασθένειες αναγνωρίζονται." : "200+ diseases detected.")
+        : (isEl ? "20 δωρεάν ερωτήσεις το μήνα." : "20 free questions a month."),
+      body: ep(isDay3
+        ? (isEl
+            ? `<b>${name}</b>, στείλε μια φωτογραφία της καλλιέργειάς σου και πάρε άμεση διάγνωση με σύσταση θεραπείας. Ο Oli αναγνωρίζει πάνω από 200 ασθένειες και παράσιτα.`
+            : `<b>${name}</b>, send a photo of your crop and get instant diagnosis with treatment advice. Oli detects over 200 diseases and pests.`)
+        : (isEl
+            ? `<b>${name}</b>, έχεις 20 δωρεάν ερωτήσεις κάθε μήνα. Ρώτα τον Oli για ψεκασμούς, λίπανση ή ό,τι αφορά τις καλλιέργειές σου.`
+            : `<b>${name}</b>, you have 20 free questions every month. Ask Oli about spraying, fertilization, or anything about your crops.`)),
+      ctaText: isDay3 ? (isEl ? "Στείλε φωτογραφία →" : "Send a photo →") : (isEl ? "Ρώτα τον Oli →" : "Ask Oli →"),
+      ctaUrl: `${APP_URL}/chat`,
+    }),
   };
 }
 
-function reEngagementEmail(
-  name: string,
-  lang: string
-): { subject: string; html: string } {
+function reEngagementEmail(name: string, lang: string): { subject: string; html: string } {
   const isEl = lang === "el";
   return {
-    subject: isEl ? "Λείπεις από τον Oli! 🌿" : "We miss you at Oli! 🌿",
-    html: `
-<!DOCTYPE html>
-<html lang="${lang}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <tr><td style="text-align:center;padding-bottom:24px;">
-      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
-    </td></tr>
-    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
-      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">
-        ${isEl ? `${name}, πώς πάνε οι καλλιέργειες;` : `${name}, how are your crops doing?`}
-      </h1>
-      <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">
-        ${isEl
-          ? "Ο Oli είναι εδώ για να σε βοηθήσει με ό,τι χρειαστείς — από διάγνωση ασθενειών μέχρι πρόγραμμα ψεκασμών."
-          : "Oli is here to help with anything you need — from disease diagnosis to spray schedules."
-        }
-      </p>
-      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
-        ${isEl
-          ? "Στείλε μια φωτογραφία ή κάνε μια ερώτηση — είναι δωρεάν."
-          : "Send a photo or ask a question — it's free."
-        }
-      </p>
-      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
-        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
-          <a href="${APP_URL}/chat" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">
-            ${isEl ? "Επιστροφή στον Oli →" : "Back to Oli →"}
-          </a>
-        </td></tr>
-      </table>
-    </td></tr>
-    <tr><td style="text-align:center;padding-top:24px;">
-      <p style="font-size:12px;color:#999;">
-        <a href="${APP_URL}/profile" style="color:#999;">${isEl ? "Ρυθμίσεις ειδοποιήσεων" : "Notification settings"}</a>
-      </p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    subject: isEl ? "Οι καλλιέργειες δεν περιμένουν. 🌿" : "Your crops don't wait. 🌿",
+    html: base(lang, {
+      label: isEl ? "ΣΚΕΦΤΟΜΑΣΤΕ ΓΙΑ ΣΑΣ" : "WE'VE BEEN THINKING",
+      headline: isEl ? "Οι καλλιέργειες δεν περιμένουν." : "Your crops don't wait.",
+      preheader: isEl ? "Ο Oli είναι εδώ — δωρεάν." : "Oli is here — free.",
+      body: [
+        ep(isEl ? `<b>${name}</b>,` : `<b>${name}</b>,`),
+        ep(isEl
+          ? "Ο Oli είναι εδώ για ό,τι χρειαστείς — από διάγνωση ασθενειών μέχρι πρόγραμμα ψεκασμών. Δωρεάν."
+          : "Oli is here for whatever you need — from disease diagnosis to spray schedules. Free."),
+      ].join(""),
+      ctaText: isEl ? "Επιστροφή στον Oli →" : "Back to Oli →",
+      ctaUrl: `${APP_URL}/chat`,
+    }),
   };
 }
 
 function upgradeInterestEmail(
   requester: { email: string; name: string; currentTier: string; requestedTier: string },
-  lang: string,
+  _lang: string,
 ): { subject: string; html: string } {
-  const requestedTier = requester.requestedTier || "pro";
-  const planLabel = requestedTier.charAt(0).toUpperCase() + requestedTier.slice(1);
-  const subject = `Upgrade interest: ${planLabel}`;
-  const isEl = lang === "el";
-
+  const planLabel = (requester.requestedTier || "pro").charAt(0).toUpperCase() + (requester.requestedTier || "pro").slice(1);
   return {
-    subject,
-    html: `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:24px;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e8e5dc;">
-    <tr><td style="padding:28px 28px 8px;">
-      <h1 style="margin:0;font-size:22px;color:#194121;">Oli upgrade request</h1>
-    </td></tr>
-    <tr><td style="padding:0 28px 28px;color:#485045;font-size:15px;line-height:1.6;">
-      <p>${isEl
-        ? "Ένας χρήστης ζήτησε αναβάθμιση από το paywall."
-        : "A user requested an upgrade from the paywall."}</p>
-      <p><strong>Name:</strong> ${requester.name || "Unknown"}</p>
-      <p><strong>Email:</strong> ${requester.email}</p>
-      <p><strong>Current tier:</strong> ${requester.currentTier || "free"}</p>
-      <p><strong>Requested tier:</strong> ${planLabel}</p>
-      <p><strong>Requested from:</strong> ${APP_URL}</p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    subject: `Upgrade interest: ${planLabel} — ${requester.name || requester.email}`,
+    html: base("en", {
+      label: "UPGRADE REQUEST",
+      headline: `${requester.name || "A user"} wants ${planLabel}.`,
+      body: [
+        `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 16px;">
+          <tr><td style="padding:8px 0;border-bottom:1px solid #E5E0D6;font-size:14px;font-family:${SAN};color:${TEXT_MUTED};">Name</td><td style="padding:8px 0;border-bottom:1px solid #E5E0D6;font-size:14px;font-family:${SAN};color:${TEXT_BODY};font-weight:600;">${requester.name || "—"}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #E5E0D6;font-size:14px;font-family:${SAN};color:${TEXT_MUTED};">Email</td><td style="padding:8px 0;border-bottom:1px solid #E5E0D6;font-size:14px;font-family:${SAN};color:${TEXT_BODY};font-weight:600;">${requester.email}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #E5E0D6;font-size:14px;font-family:${SAN};color:${TEXT_MUTED};">Current tier</td><td style="padding:8px 0;border-bottom:1px solid #E5E0D6;font-size:14px;font-family:${SAN};color:${TEXT_BODY};">${requester.currentTier || "free"}</td></tr>
+          <tr><td style="padding:8px 0;font-size:14px;font-family:${SAN};color:${TEXT_MUTED};">Requested</td><td style="padding:8px 0;font-size:14px;font-family:${SAN};color:${TERRA};font-weight:700;">${planLabel}</td></tr>
+        </table>`,
+        ep(`Reach out at <a href="mailto:${requester.email}" style="color:${TERRA};">${requester.email}</a> to process the upgrade.`),
+      ].join(""),
+    }),
   };
 }
 
@@ -422,63 +344,70 @@ function trialExpiryWarningEmail(
 ): { subject: string; html: string } {
   const isEl = lang === "el";
   const tierLabel = tier === "master" ? "Master" : "Pro";
-  const daysStr = daysLeft === 1
-    ? (isEl ? "1 μέρα" : "1 day")
-    : (isEl ? `${daysLeft} μέρες` : `${daysLeft} days`);
+  const daysStr = daysLeft === 1 ? (isEl ? "1 μέρα" : "1 day") : (isEl ? `${daysLeft} μέρες` : `${daysLeft} days`);
+  return {
+    subject: isFinal
+      ? (isEl ? `Oli: Η δοκιμή σου λήγει σε ${daysStr} ⏳` : `Oli: Your trial ends in ${daysStr} ⏳`)
+      : (isEl ? `Oli: ${daysStr} ακόμα στο ${tierLabel}` : `Oli: ${daysStr} left on ${tierLabel}`),
+    html: base(lang, {
+      label: isFinal ? (isEl ? "ΤΕΛΕΥΤΑΙΑ ΕΥΚΑΙΡΙΑ" : "LAST CHANCE") : (isEl ? `${daysStr.toUpperCase()} ΑΠΟΜΕΝΟΥΝ` : `${daysStr.toUpperCase()} LEFT`),
+      headline: isFinal
+        ? (isEl ? `${daysStr} ακόμα — μετά επιστρέφεις στο Free.` : `${daysStr} left — then back to Free.`)
+        : (isEl ? `Η δοκιμή ${tierLabel} τελειώνει σύντομα.` : `Your ${tierLabel} trial is ending soon.`),
+      preheader: isEl ? "Αναβάθμισε πριν λήξει η δοκιμή σου." : "Upgrade before your trial expires.",
+      body: [
+        ep(isEl ? `<b>${name}</b>,` : `<b>${name}</b>,`),
+        ep(isFinal
+          ? (isEl
+              ? `Η δωρεάν δοκιμή σου στο <b>${tierLabel}</b> λήγει σε <b>${daysStr}</b>. Αναβάθμισε τώρα για να κρατήσεις τα χωράφια σου, το ιστορικό σου και τις απεριόριστες ερωτήσεις.`
+              : `Your free <b>${tierLabel}</b> trial ends in <b>${daysStr}</b>. Upgrade now to keep your fields, history, and unlimited questions.`)
+          : (isEl
+              ? `Απολαμβάνεις το <b>${tierLabel}</b> δωρεάν! Η δοκιμή σου λήγει σε <b>${daysStr}</b>. Αναβάθμισε πριν λήξει.`
+              : `You've been enjoying <b>${tierLabel}</b> for free! Your trial ends in <b>${daysStr}</b>. Upgrade before it expires.`)),
+        esmall(isEl
+          ? "Αν δεν αναβαθμίσεις, ο λογαριασμός σου μεταβαίνει στο Free πλάνο. Τα δεδομένα σου παραμένουν."
+          : "If you don't upgrade, your account moves to the Free plan. Your data stays safe."),
+      ].join(""),
+      ctaText: isEl ? `Αναβάθμιση σε ${tierLabel} →` : `Upgrade to ${tierLabel} →`,
+      ctaUrl: `${APP_URL}/profile`,
+    }),
+  };
+}
 
-  const subject = isFinal
-    ? (isEl ? `Oli: Η δοκιμή σου λήγει σε ${daysStr} ⏳` : `Oli: Your trial ends in ${daysStr} ⏳`)
-    : (isEl ? `Oli: ${daysStr} ακόμα στο ${tierLabel}!` : `Oli: ${daysStr} left on ${tierLabel}!`);
-
-  const heading = isFinal
-    ? (isEl ? `${name}, σχεδόν τελείωσε!` : `${name}, almost there!`)
-    : (isEl ? `${name}, η δοκιμή σου λήγει σύντομα` : `${name}, your trial is ending soon`);
-
-  const body = isFinal
+function subscriptionConfirmationEmail(name: string, tier: string, lang: string): { subject: string; html: string } {
+  const isEl = lang === "el";
+  const tierLabel = tier === "master" ? "Master" : "Pro";
+  const features = tier === "master"
     ? (isEl
-        ? `Η δωρεάν δοκιμή σου στο ${tierLabel} λήγει σε <strong>${daysStr}</strong>. Αναβάθμισε τώρα για να κρατήσεις τα χωράφια σου, το ιστορικό σου και τις απεριόριστες ερωτήσεις.`
-        : `Your free ${tierLabel} trial ends in <strong>${daysStr}</strong>. Upgrade now to keep your fields, history, and unlimited questions.`)
+        ? ["Απεριόριστες ερωτήσεις & διαγνώσεις", "Απεριόριστα χωράφια", "Διαχείριση πελατών (agronomist mode)", "Πρόσβαση συνεταιρισμού"]
+        : ["Unlimited questions & diagnoses", "Unlimited fields", "Client management (agronomist mode)", "Cooperative access"])
     : (isEl
-        ? `Απολαμβάνεις το ${tierLabel} δωρεάν! Η δοκιμή σου λήγει σε <strong>${daysStr}</strong>. Αναβάθμισε πριν λήξει για να συνεχίσεις χωρίς διακοπή.`
-        : `You've been enjoying ${tierLabel} for free! Your trial ends in <strong>${daysStr}</strong>. Upgrade before it expires to continue without interruption.`);
+        ? ["Απεριόριστες ερωτήσεις & διαγνώσεις", "Απεριόριστα χωράφια", "Πλήρες ιστορικό παρεμβάσεων"]
+        : ["Unlimited questions & diagnoses", "Unlimited fields", "Full intervention history"]);
 
-  const cta = isEl ? `Αναβάθμιση σε ${tierLabel} →` : `Upgrade to ${tierLabel} →`;
-  const footer = isEl ? "Αν δεν αναβαθμίσεις, ο λογαριασμός σου μεταβαίνει στο Δωρεάν πλάνο. Τα δεδομένα σου παραμένουν."
-    : "If you don't upgrade, your account moves to the Free plan. Your data stays safe.";
+  const featureRows = features.map(f =>
+    `<tr><td style="padding:8px 0;border-bottom:1px solid #EDE8DF;font-size:14px;font-family:${SAN};color:${TEXT_BODY};line-height:1.5;"><span style="color:${TERRA};font-weight:700;margin-right:10px;">✓</span>${f}</td></tr>`
+  ).join("");
 
   return {
-    subject,
-    html: `
-<!DOCTYPE html>
-<html lang="${lang}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <tr><td style="text-align:center;padding-bottom:24px;">
-      <span style="font-size:28px;font-weight:700;color:#194121;">🌱 Oli</span>
-    </td></tr>
-    <tr><td style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e8e5dc;">
-      <div style="background:${isFinal ? '#fef3c7' : '#f0fdf4'};border:1px solid ${isFinal ? '#fde68a' : '#bbf7d0'};border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:13px;font-weight:600;color:${isFinal ? '#92400e' : '#166534'};">
-        ${isFinal ? '⏳' : '🕐'} ${isEl ? `Η δοκιμή λήγει σε ${daysStr}` : `Trial ends in ${daysStr}`}
-      </div>
-      <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">${heading}</h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">${body}</p>
-      <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
-        <tr><td style="background:#194121;border-radius:12px;padding:14px 32px;">
-          <a href="${APP_URL}/profile" style="color:#fff;text-decoration:none;font-weight:600;font-size:15px;">${cta}</a>
-        </td></tr>
-      </table>
-      <p style="margin:0;font-size:12px;color:#999;line-height:1.5;">${footer}</p>
-    </td></tr>
-    <tr><td style="text-align:center;padding-top:24px;">
-      <p style="font-size:12px;color:#999;">
-        ${isEl ? "Αυτό το email στάλθηκε από το Oli" : "This email was sent by Oli"}
-        · <a href="${APP_URL}/legal/privacy" style="color:#999;">Privacy</a>
-      </p>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    subject: isEl ? `Είσαι πλέον στο Oli ${tierLabel}! 🌿` : `You're on Oli ${tierLabel}. 🌿`,
+    html: base(lang, {
+      label: isEl ? "ΕΠΙΒΕΒΑΙΩΣΗ" : "CONFIRMED",
+      headline: isEl ? `Είσαι στο Oli ${tierLabel}.` : `You're on Oli ${tierLabel}.`,
+      preheader: isEl ? `Η συνδρομή σου ενεργοποιήθηκε.` : `Your ${tierLabel} subscription is now active.`,
+      body: [
+        ep(isEl ? `<b>${name}</b>, ευχαριστούμε!` : `<b>${name}</b>, thank you!`),
+        ep(isEl
+          ? `Η συνδρομή σου στο <b>Oli ${tierLabel}</b> ενεργοποιήθηκε. Ιδού τι έχεις τώρα στη διάθεσή σου:`
+          : `Your <b>Oli ${tierLabel}</b> subscription is active. Here's what you now have:`),
+        `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 20px;background:#F7F5F0;border-radius:10px;padding:4px 16px;">${featureRows}</table>`,
+        ep(isEl
+          ? `Για οποιαδήποτε ερώτηση, επικοινώνησε μαζί μας στο <a href="mailto:hello@ask-oli.com" style="color:${TERRA};text-decoration:none;">hello@ask-oli.com</a>.`
+          : `For any questions, reach us at <a href="mailto:hello@ask-oli.com" style="color:${TERRA};text-decoration:none;">hello@ask-oli.com</a>.`),
+      ].join(""),
+      ctaText: isEl ? "Ξεκίνα τον Oli →" : "Start using Oli →",
+      ctaUrl: `${APP_URL}/chat`,
+    }),
   };
 }
 
@@ -881,23 +810,27 @@ serve(async (req) => {
         const cropLine = crop ? (isEl ? ` για <b>${crop}</b>` : ` for <b>${crop}</b>`) : "";
 
         const subject = isEl
-          ? `Oli: Καλή εβδομάδα, ${name}! Ξεκίνα τον εβδομαδιαίο σου πρόγραμμα`
+          ? `Oli: Καλή εβδομάδα, ${name}! Ξεκίνα το εβδομαδιαίο σου πρόγραμμα`
           : `Oli: Good week, ${name}! Start your weekly agronomy plan`;
 
-        const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:24px">
-<svg width="22" height="22" viewBox="0 0 24 24" fill="#194121"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-13 6 0 0 .93-.98 2-2z"/></svg>
-<span style="font-size:18px;font-weight:700;color:#194121">Oli</span>
-</div>
-<p style="font-size:15px;margin-bottom:12px">${isEl ? "Γεια σου" : "Hi"} <b>${name}</b>,</p>
-<p style="font-size:14px;color:#333;line-height:1.6;margin-bottom:24px">
-${isEl
-  ? `Καλή εβδομάδα! Ρώτα τον Oli${cropLine} για το εβδομαδιαίο σου αγρονομικό πρόγραμμα — τι να ελέγξεις, τι να ψεκάσεις, τι να ετοιμάσεις.`
-  : `Happy Monday! Ask Oli${cropLine} for your weekly agronomy plan — what to inspect, spray, or prepare this week.`}
-</p>
-<a href="https://ask-oli.com" style="display:inline-block;background:#194121;color:#fff;text-decoration:none;padding:12px 28px;border-radius:24px;font-size:14px;font-weight:600">${isEl ? "Άνοιξε το Oli →" : "Open Oli →"}</a>
-<p style="margin-top:32px;font-size:11px;color:#999">${isEl ? "Για να σταματήσεις αυτά τα μηνύματα, άνοιξε Προφίλ → Ειδοποιήσεις." : "To stop these messages, open Profile → Notifications."}</p>
-</div>`;
+        const html = base(u.lang ?? "en", {
+          label: isEl ? "ΕΒΔΟΜΑΔΙΑΙΟ ΠΡΟΓΡΑΜΜΑ" : "WEEKLY PLAN",
+          headline: isEl ? "Τι σε περιμένει αυτή την εβδομάδα;" : "What's ahead this week?",
+          preheader: isEl
+            ? "Ρώτα τον Oli για το εβδομαδιαίο σου αγρονομικό πρόγραμμα."
+            : "Ask Oli for your weekly agronomy plan.",
+          body: [
+            ep(isEl ? `Γεια σου <b>${name}</b>,` : `Hi <b>${name}</b>,`),
+            ep(isEl
+              ? `Καλή εβδομάδα! Ρώτα τον Oli${cropLine} για το εβδομαδιαίο σου αγρονομικό πρόγραμμα — τι να ελέγξεις, τι να ψεκάσεις, τι να ετοιμάσεις.`
+              : `Happy Monday! Ask Oli${cropLine} for your weekly agronomy plan — what to inspect, spray, or prepare this week.`),
+            esmall(isEl
+              ? "Για να σταματήσεις αυτά τα μηνύματα, άνοιξε Προφίλ → Ειδοποιήσεις."
+              : "To stop these messages, open Profile → Notifications."),
+          ].join(""),
+          ctaText: isEl ? "Άνοιξε τον Oli →" : "Open Oli →",
+          ctaUrl: `${APP_URL}/chat`,
+        });
 
         const ok = await sendEmail(authUser.email, subject, html);
         if (ok) sent++;
@@ -906,8 +839,24 @@ ${isEl
       return new Response(JSON.stringify({ sent, total: users.length }), { headers });
     }
 
+    // Mode: subscription_confirmation — send on successful Stripe subscription
+    if (body.mode === "subscription_confirmation") {
+      const authedUser = await verifyBearerUser();
+      if (!authedUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+      }
+      const email = authedUser.email ?? "";
+      if (!email || !isValidEmail(email)) {
+        return new Response(JSON.stringify({ error: "no verified email on account" }), { status: 400, headers });
+      }
+      const { name, tier, lang } = body;
+      const tpl = subscriptionConfirmationEmail(name || "Farmer", tier || "pro", lang || "en");
+      const ok = await sendEmail(email, tpl.subject, tpl.html);
+      return new Response(JSON.stringify({ sent: ok }), { headers });
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron, expiry_warning_cron, weekly_plan_cron" }),
+      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron, expiry_warning_cron, weekly_plan_cron, subscription_confirmation" }),
       { status: 400, headers }
     );
   } catch (e) {
