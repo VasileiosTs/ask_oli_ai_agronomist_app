@@ -24,19 +24,13 @@
     </script>
     <!-- Clickio CMP — will call gtag('consent','update',...) after user interaction -->
     <script async type="text/javascript" src="//clickiocmp.com/t/consent_248737.js"></script>
-    <!-- Hide Clickio's persistent re-open button on mobile.
-         The consent banner appears correctly on first visit; after acceptance the floating
-         privacy-trigger widget blocks app UI on small screens. GDPR compliance is maintained
-         via the Privacy page (/legal/privacy) which links to consent management.
-         On desktop (>768px) the widget is allowed to remain visible. -->
+    <!-- Hide Clickio's persistent privacy-settings re-open widget.
+         It appears (bottom-left, 42px, z-index 10M) on scroll after consent is collected
+         and blocks app UI on mobile. Consent management is available via /legal/privacy.
+         The first-visit consent banner (.cl-consent) is unaffected — only the post-accept
+         floating trigger (.cl-consent-settings) is suppressed. -->
     <style>
-      @media (max-width: 768px) {
-        #cmpbox, #cmpbox2, .cmpboxbtn, .cmpboxopener,
-        [id^="cmp-"], [class*="cmp-btn"],
-        iframe[src*="clickio"], iframe[src*="cmpbox"] {
-          display: none !important;
-        }
-      }
+      .cl-consent-settings { display: none !important; }
     </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9P6QEPCD2C"></script>
