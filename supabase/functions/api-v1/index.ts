@@ -18,7 +18,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com';
+const ALLOWED_ORIGINS = new Set([
+  Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com',
+  'https://www.ask-oli.com',
+  'https://ask-oli.com',
+]);
 
 function getCorsOrigin(req: Request): string {
   const origin = req.headers.get('origin') || '';
@@ -30,7 +34,7 @@ function getCorsOrigin(req: Request): string {
 function json(body: unknown, status = 200, req?: Request, restrictOrigin = false) {
   const origin = req ? getCorsOrigin(req) : '*';
   const allowedOrigin = restrictOrigin
-    ? (origin === ALLOWED_ORIGIN || origin.startsWith('http://localhost') ? origin : ALLOWED_ORIGIN)
+    ? (ALLOWED_ORIGINS.has(origin) || origin.startsWith('http://localhost') ? origin : 'https://ask-oli.com')
     : '*';
   return new Response(JSON.stringify(body), {
     status,
@@ -111,7 +115,7 @@ Deno.serve(async (req: Request) => {
     const origin = req.headers.get('origin') || '';
     const isKeyMgmt = req.url.includes('/keys');
     const allowedOrigin = isKeyMgmt
-      ? (origin === ALLOWED_ORIGIN || origin.startsWith('http://localhost') ? origin : ALLOWED_ORIGIN)
+      ? (ALLOWED_ORIGINS.has(origin) || origin.startsWith('http://localhost') ? origin : 'https://ask-oli.com')
       : '*';
     return new Response(null, {
       headers: {

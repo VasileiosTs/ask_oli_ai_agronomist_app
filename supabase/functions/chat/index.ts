@@ -122,18 +122,22 @@ interface ChatRequestBody {
 }
 
 // C1: Restrict CORS to production domain (was wildcard *)
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com';
+const ALLOWED_ORIGINS = new Set([
+  Deno.env.get('ALLOWED_ORIGIN') || 'https://ask-oli.com',
+  'https://www.ask-oli.com',
+  'https://ask-oli.com',
+]);
 
 function getCorsHeaders(req?: Request) {
   const origin = req?.headers.get('Origin') || '';
   // Allow the configured production domain and localhost for dev
   const isAllowed =
-    origin === ALLOWED_ORIGIN ||
+    ALLOWED_ORIGINS.has(origin) ||
     origin.startsWith('http://localhost:') ||
     origin.startsWith('http://127.0.0.1:');
 
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGIN,
+    'Access-Control-Allow-Origin': isAllowed ? origin : 'https://ask-oli.com',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Vary': 'Origin',
