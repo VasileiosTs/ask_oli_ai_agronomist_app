@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
@@ -94,12 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const setProfileState = (nextProfile: UserProfile | null) => {
+  // Track whether initial auth has resolved so onAuthStateChange never
+  // touches the loading spinner after the first paint.
+  const initDoneRef = useRef(false);
+
+  // Stable ref to current user so memoized callbacks can read it without
+  // being listed as deps (which would break memoization).
+  const userRef = useRef<User | null>(null);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  const setProfileState = useCallback((nextProfile: UserProfile | null) => {
     setProfile(nextProfile);
     persistProfile(nextProfile);
-  };
+  }, []);
 
-  const fetchProfile = async (
+  const fetchProfile = useCallback(async (
     authUserId: string,
     options: RefreshProfileOptions = {},
   ): Promise<UserProfile | null> => {
@@ -152,9 +161,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return null;
-  };
+  }, [setProfileState]);
 
-  const fetchProfileWithTimeout = async (
+  const fetchProfileWithTimeout = useCallback(async (
     authUserId: string,
     options: RefreshProfileOptions = {},
   ) => {
@@ -166,9 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.setTimeout(() => resolve(cachedProfile), PROFILE_FETCH_TIMEOUT_MS);
       }),
     ]);
-  };
+  }, [fetchProfile]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setProfileState(null);
     setUser(null);
     setSession(null);
@@ -178,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // previous user's fields, messages, or other cached responses.
     queryClient.clear();
     await supabase.auth.signOut();
-  };
+  }, [setProfileState, queryClient]);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
       initialResolved = true;
+      initDoneRef.current = true;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -238,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Even on failure, unblock the UI — hydrateFromStoredSession already
       // populated state so the user won't see a broken screen.
       initialResolved = true;
+      initDoneRef.current = true;
       if (!cancelled) setLoading(false);
     });
 
@@ -250,6 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // If getSession() hasn't resolved yet, handle it here as fallback
           if (!initialResolved) {
             initialResolved = true;
+            initDoneRef.current = true;
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
@@ -264,6 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!initialResolved) {
           initialResolved = true;
+          initDoneRef.current = true;
         }
 
         setSession(session);
@@ -284,7 +297,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfileState(null);
           resetAnalytics();
         }
-        setLoading(false);
+
+        // Fix 2: only touch loading during init. Post-init events (TOKEN_REFRESHED,
+        // USER_UPDATED, etc.) must NOT call setLoading — it triggers a re-render of
+        // AppRoutes → new refreshProfile reference → Chat useEffect fires → fetchProfile
+        // runs → another re-render → AbortController abort race kills the SSE POST.
+        if (!initDoneRef.current) {
+          if (!cancelled) setLoading(false);
+        }
       }
     );
 
@@ -296,6 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedSession?.user) {
           console.warn('Auth init timed out — using persisted session fallback');
           initialResolved = true;
+          initDoneRef.current = true;
           setSession(storedSession);
           setUser(storedSession.user);
           const cachedProfile = readStoredProfile(storedSession.user.id);
@@ -315,6 +336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         console.warn('Auth init timed out — forcing loading=false');
         initialResolved = true;
+        initDoneRef.current = true;
         setLoading(false);
       }
     }, 5000);
@@ -324,18 +346,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfileWithTimeout, setProfileState]);
 
-  const refreshProfile = async (options?: RefreshProfileOptions) => {
-    if (!user) {
+  // Fix 1: stable reference — only recreated if user changes (via userRef, not user directly).
+  // Without useCallback, every AuthProvider render gave Chat a new refreshProfile reference,
+  // which triggered Chat's useEffect([appUserId, refreshProfile]) → fetchProfile → re-render
+  // → new reference → loop. This caused multiple fetchProfile calls and re-renders that
+  // reset the AbortController mid-fetch, killing the SSE stream before the POST fired.
+  const refreshProfile = useCallback(async (options?: RefreshProfileOptions) => {
+    if (!userRef.current) {
       return null;
     }
 
-    return await fetchProfile(user.id, {
+    return await fetchProfile(userRef.current.id, {
       preserveExisting: true,
       ...options,
     });
-  };
+  }, [fetchProfile]);
 
   return (
     <AuthContext.Provider value={{
