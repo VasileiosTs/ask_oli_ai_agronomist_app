@@ -4,7 +4,8 @@ import path from 'path';
 import { defineConfig, type Plugin } from 'vite';
 import fs from 'fs';
 
-/** Injects <link rel="preload"> for the two most critical fonts into index.html after build. */
+/** Injects <link rel="preload"> for critical fonts into index.html after build,
+ *  and converts the blocking <link rel="stylesheet"> to async loading. */
 function fontPreloadPlugin(): Plugin {
   return {
     name: 'font-preload',
@@ -15,13 +16,15 @@ function fontPreloadPlugin(): Plugin {
       if (!fs.existsSync(htmlPath) || !fs.existsSync(assetsDir)) return;
 
       const fontFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.woff2'));
-      // Preload the two fonts used above-the-fold on the landing page
+
+      // Preload all Noto Serif weights (600 + 700) and Plus Jakarta Sans 400.
+      // Both 600 and 700 weights are used in the landing hero — preloading only 700
+      // left the 600-weight (LCP element on some viewports) loading at 1,499ms.
       const criticalPatterns = [
-        // Greek subset is the LCP font for Greek users (h1 is in Greek by default)
         'noto-serif-greek-700-normal',
-        // Latin subset for non-Greek visitors
+        'noto-serif-greek-600-normal',
         'noto-serif-latin-700-normal',
-        // UI font — body/subtitle text
+        'noto-serif-latin-600-normal',
         'plus-jakarta-sans-latin-400-normal',
       ];
 
@@ -31,10 +34,21 @@ function fontPreloadPlugin(): Plugin {
         .map(f => `  <link rel="preload" as="font" type="font/woff2" href="/assets/${f}" crossorigin>`)
         .join('\n');
 
-      if (!preloadTags) return;
-
       let html = fs.readFileSync(htmlPath, 'utf-8');
-      html = html.replace('</head>', `${preloadTags}\n</head>`);
+
+      // Inject font preloads before </head>
+      if (preloadTags) {
+        html = html.replace('</head>', `${preloadTags}\n</head>`);
+      }
+
+      // Convert blocking <link rel="stylesheet"> to async (preload + onload trick).
+      // The inline #oli-boot shell uses inline styles so there is no FOUC.
+      // React hydrates after JS loads anyway — async CSS is safe for this SPA.
+      html = html.replace(
+        /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/g,
+        `<link rel="preload" href="$1" as="style" onload="this.onload=null;this.rel='stylesheet'" crossorigin>\n  <noscript><link rel="stylesheet" crossorigin href="$1"></noscript>`,
+      );
+
       fs.writeFileSync(htmlPath, html);
     },
   };
@@ -70,12 +84,10 @@ export default defineConfig({
     },
   },
   build: {
-    // chrome78 = react-snap's bundled Chromium version. The main bundle must be
-    // compatible so headless Chrome can execute it and prerender the Landing page.
-    // Sentry's legacy polyfills (Array.from) are in the sentry chunk which loads
-    // 2s after window.load — Lighthouse measures FCP/LCP before it arrives, so
-    // the polyfills never hit the performance score.
-    target: ['chrome78'],
+    // es2020 + chrome80: react-snap is not used in this project so the old
+    // chrome78 constraint has been removed. es2020 eliminates legacy polyfills
+    // (Array.from etc.) from vendor and sentry chunks, shrinking them by ~11 KiB.
+    target: ['es2020', 'chrome80'],
     rollupOptions: {
       output: {
         manualChunks: {

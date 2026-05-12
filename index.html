@@ -32,13 +32,21 @@
     <style>
       .cl-consent-settings { display: none !important; }
     </style>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9P6QEPCD2C"></script>
+    <!-- Google tag (gtag.js) — dataLayer pushes are synchronous (required for Consent Mode v2),
+         but the actual 155 KiB GTM library loads after window.load so it never blocks LCP/FCP. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-9P6QEPCD2C');
+    </script>
+    <script>
+      window.addEventListener('load', function() {
+        var s = document.createElement('script');
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-9P6QEPCD2C';
+        s.async = true;
+        document.head.appendChild(s);
+      });
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
