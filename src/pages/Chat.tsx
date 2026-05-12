@@ -217,8 +217,10 @@ export default function Chat() {
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
   // Stores fieldId passed via router state before fields have loaded (race condition fix)
   const pendingNavFieldIdRef = useRef<string | null>(null);
-  // True when the user navigated here from a field page — suppresses the generic welcome screen
+  // True when the user navigated here from a field page — triggers auto-send of field intro message
   const fromFieldNavRef = useRef(false);
+  // Prevents double-sending the field intro message on re-renders
+  const fieldNavSentRef = useRef(false);
 
   // Hydrate ?grower= / ?field= URL params (e.g. when navigating from a client's profile).
   useEffect(() => {
@@ -306,13 +308,6 @@ export default function Chat() {
     const cleaned = rawText
       .replace(/^\[The user attached[^\]]*\]\n?/i, '')
       .trim();
-
-    // When chatting from a field, title is "FieldName — DD Mon" so history is always identifiable
-    if (activeField?.name) {
-      const date = new Date().toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-US', { day: 'numeric', month: 'short' });
-      return `${activeField.name} — ${date}`;
-    }
-
     return cleaned.slice(0, 80) || 'New conversation';
   };
 
@@ -684,6 +679,7 @@ export default function Chat() {
     if (state?.fieldId) {
       pendingNavFieldIdRef.current = state.fieldId;
       fromFieldNavRef.current = true;
+      fieldNavSentRef.current = false; // allow auto-send for this new navigation
     }
     if (state?.conversationId) {
       setActiveConversationId(state.conversationId);
@@ -1479,6 +1475,25 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appUserId]);
 
+  // Auto-send field intro message when the user navigates to chat from a field page.
+  // Fires once activeField + appUserId are both ready; uses fieldNavSentRef to prevent double-send.
+  useEffect(() => {
+    if (!fromFieldNavRef.current || fieldNavSentRef.current) return;
+    if (!activeField || !appUserId) return;
+
+    fieldNavSentRef.current = true;
+    fromFieldNavRef.current = false;
+
+    const text = lang === 'el'
+      ? `Θέλω να μιλήσω για το χωράφι μου «${activeField.name}»${activeField.crop_type ? ` (${activeField.crop_type})` : ''}.`
+      : `I want to discuss my field "${activeField.name}"${activeField.crop_type ? ` (${activeField.crop_type})` : ''}.`;
+
+    // Defer to next tick so handleSendRef is up-to-date with current closure
+    const t = setTimeout(() => { void handleSendRef.current?.(text); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeField?.id, appUserId]);
+
   // Disambiguation removed, field context detected silently from AI response metadata.
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1505,7 +1520,8 @@ export default function Chat() {
     setActiveConversationId(undefined);
     setActiveFieldId(undefined); // Reset field context, each chat starts fresh
     setActiveGrowerId(undefined); // Reset grower context too (advisors)
-    fromFieldNavRef.current = false; // Back to generic welcome for next new chat
+    fromFieldNavRef.current = false;
+    fieldNavSentRef.current = false;
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -1757,26 +1773,6 @@ export default function Chat() {
 
         {/* Desktop: no top header, sidebar owns all navigation */}
 
-        {/* ── DESKTOP ACTIVE FIELD INDICATOR ── */}
-        {!isGuestMode && activeField && (
-          <div className="hidden md:flex h-9 flex-shrink-0 items-center gap-2 border-b border-border/40 bg-surface/60 px-6 backdrop-blur-sm">
-            <OliLogo size={14} bg="#161C23" />
-            <span className="text-xs text-muted">{lang === 'el' ? 'Ενεργό χωράφι:' : 'Active field:'}</span>
-            <span className="text-xs font-semibold text-foreground">{activeField.name}</span>
-            {activeField.crop_type && (
-              <span className="text-xs text-muted">· {activeField.crop_type}</span>
-            )}
-            {fields.length > 1 && (
-              <FieldSelector
-                fields={fields}
-                activeFieldId={activeFieldId}
-                onSelectField={setActiveFieldId}
-                lang={lang}
-              />
-            )}
-          </div>
-        )}
-
         {/* ── OFFLINE BANNER ── */}
         {!isOnline && (
           <div className="flex items-center justify-center gap-2 bg-amber-500/15 px-4 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -1835,8 +1831,8 @@ export default function Chat() {
           </div>
         )}
 
-        {/* ── DESKTOP WELCOME (no messages, no field navigation) ── */}
-        {messages.length === 0 && !fromFieldNavRef.current && (
+        {/* ── DESKTOP WELCOME (no messages) ── */}
+        {messages.length === 0 && (
           <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
             <div className="w-full max-w-2xl">
               <div className="mb-3 flex items-center justify-center gap-3">
@@ -1874,30 +1870,8 @@ export default function Chat() {
           </div>
         )}
 
-        {/* ── DESKTOP FIELD CHAT READY STATE (navigated from a field, no messages yet) ── */}
-        {messages.length === 0 && fromFieldNavRef.current && activeField && (
-          <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
-            <div className="w-full max-w-2xl">
-              <div className="mb-2 flex items-center justify-center gap-2">
-                <span className="text-3xl">🌿</span>
-                <h2 className="text-2xl font-semibold text-primary">{activeField.name}</h2>
-              </div>
-              {activeField.crop_type && (
-                <p className="mb-6 text-center text-sm text-muted">{activeField.crop_type}</p>
-              )}
-              <p className="mb-8 text-center text-sm text-muted">
-                {lang === 'el' ? 'Γράψε ό,τι βλέπεις στο χωράφι σου ή στείλε φωτογραφία.' : 'Describe what you see or send a photo of the problem.'}
-              </p>
-              <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
-                <ChatInputBar {...desktopInputBarProps} />
-              </div>
-              <p className="mt-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
-            </div>
-          </div>
-        )}
-
-        {/* ── MOBILE EMPTY STATE (no field navigation) ── */}
-        {messages.length === 0 && !fromFieldNavRef.current && (
+        {/* ── MOBILE EMPTY STATE ── */}
+        {messages.length === 0 && (
           <div className="md:hidden flex flex-1 flex-col">
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
               <OliLogo size={40} bg="#0D1117" />
@@ -1926,24 +1900,6 @@ export default function Chat() {
                   </button>
                 ))}
               </div>
-            </div>
-            <ChatInputBar {...inputBarProps} />
-            <p className="px-4 pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
-          </div>
-        )}
-
-        {/* ── MOBILE FIELD CHAT READY STATE (navigated from a field, no messages yet) ── */}
-        {messages.length === 0 && fromFieldNavRef.current && activeField && (
-          <div className="md:hidden flex flex-1 flex-col">
-            <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
-              <span className="text-4xl mb-3">🌿</span>
-              <h2 className="text-xl font-semibold text-primary mb-1">{activeField.name}</h2>
-              {activeField.crop_type && (
-                <p className="text-xs text-muted mb-1">{activeField.crop_type}</p>
-              )}
-              <p className="text-sm text-muted mb-6 max-w-xs">
-                {lang === 'el' ? 'Γράψε ό,τι βλέπεις στο χωράφι σου ή στείλε φωτογραφία.' : 'Describe what you see or send a photo of the problem.'}
-              </p>
             </div>
             <ChatInputBar {...inputBarProps} />
             <p className="px-4 pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
