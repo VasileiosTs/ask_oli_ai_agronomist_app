@@ -73,6 +73,7 @@ All edge functions use `ALLOWED_ORIGIN` env var (not hardcoded arrays). Set this
 | Weekly or milestone check-in | `/retro` — what's working, what's not |
 | After deploying | `/canary` — confirm deploy is healthy |
 | Web research needed | `/browse` — use this, never `mcp__Claude_in_Chrome__*` |
+| Working on YC application | `/yc-application-coach` — iterative YC section coaching |
 
 When the user says "build X" or "fix Y": run `/autoplan` first if non-trivial, then implement, then `/qa`.
 
