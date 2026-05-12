@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './lib/LanguageContext';
+import ConsentBanner from './components/ConsentBanner';
 
 // AuthenticatedShell owns ALL routing — including the landing page redirect for
 // authenticated users. Keeping the "/" route here and doing a synchronous
@@ -36,6 +37,8 @@ export default function App() {
             </Routes>
           </Suspense>
           <Analytics />
+          {/* GDPR consent banner — shows once on first visit, dismissed permanently on choice */}
+          <ConsentBanner />
         </BrowserRouter>
       </LanguageProvider>
     </QueryClientProvider>
