@@ -236,18 +236,38 @@
     <!-- Inline shell: renders immediately, before any JS loads — makes FCP instant.
          React replaces this once the bundle executes. -->
     <div id="root">
-      <style>
-        #oli-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#0D1117;}
-        #oli-boot svg{animation:oli-spin 1.2s linear infinite;}
-        @keyframes oli-spin{to{transform:rotate(360deg)}}
-        #oli-boot p{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#6B7280;margin:0;}
-      </style>
-      <div id="oli-boot">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="20" cy="20" r="17" stroke="#1f3a23" stroke-width="3"/>
-          <path d="M20 3a17 17 0 0 1 17 17" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-        <p>Oli</p>
+      <!-- Static hero shell: painted immediately before any JS executes.
+           Fonts (Noto Serif 700, Plus Jakarta Sans 400) are preloaded above so text
+           renders in the correct typeface at first paint — LCP element visible instantly.
+           React replaces this via createRoot().render() once the bundle boots. -->
+      <div style="min-height:100vh;background:#fff;font-family:'Plus Jakarta Sans',system-ui,sans-serif;overflow-x:hidden;">
+        <!-- Nav — matches Landing nav: fixed, h-14 (56px), white/90, border-b -->
+        <nav style="position:fixed;top:0;left:0;right:0;z-index:50;height:56px;background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid #e8e8e3;display:flex;align-items:center;">
+          <div style="display:flex;justify-content:space-between;align-items:center;max-width:1024px;margin:0 auto;padding:0 16px;width:100%;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <img src="/favicon.svg" alt="" width="32" height="32" style="display:block;" aria-hidden="true" />
+              <span style="font-family:'Noto Serif',Georgia,serif;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:#194121;">Oli</span>
+            </div>
+            <a href="/auth" style="display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:9999px;font-weight:600;font-size:14px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#194121 0%,#305936 100%);">Δοκίμασε δωρεάν</a>
+          </div>
+        </nav>
+        <!-- Hero — bg-[#faf9f4], pt-20 (80px) clears the fixed nav, pb-12 (48px) -->
+        <section style="position:relative;background:#faf9f4;padding:80px 16px 48px;overflow:hidden;">
+          <div style="max-width:1024px;margin:0 auto;">
+            <!-- Badge -->
+            <div style="display:inline-flex;align-items:center;gap:6px;border-radius:9999px;background:rgba(25,65,33,0.1);padding:4px 12px;font-size:12px;font-weight:600;color:#194121;margin-bottom:20px;">
+              <span>🌿</span><span>Ο AI Γεωπόνος σου · 24/7</span>
+            </div>
+            <!-- LCP element: Noto Serif h1, matches text-4xl/5xl font-bold leading-[1.1] tracking-tight -->
+            <h1 style="font-family:'Noto Serif',Georgia,serif;font-size:clamp(2.25rem,5vw,3rem);font-weight:700;line-height:1.1;letter-spacing:-0.02em;color:#194121;margin:0 0 20px;max-width:600px;">
+              Ο γεωπόνος σου.<br>Πάντα μαζί σου.
+            </h1>
+            <!-- Subtitle: text-base, text-[#5a6053], max-w-md, leading-relaxed -->
+            <p style="font-size:1rem;color:#5a6053;max-width:448px;line-height:1.7;margin:0;">
+              Διάγνωση ασθενειών, σχεδιασμός φύτευσης, άρδευση, αναστήλωση χωραφιών. Από σπορά μέχρι συγκομιδή, ο Oli μαθαίνει τις καλλιέργειές σου.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
     <p style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
