@@ -26,6 +26,9 @@ function fontPreloadPlugin(): Plugin {
         'noto-serif-latin-700-normal',
         'noto-serif-latin-600-normal',
         'plus-jakarta-sans-latin-400-normal',
+        'plus-jakarta-sans-latin-500-normal',
+        'plus-jakarta-sans-latin-600-normal',
+        'plus-jakarta-sans-latin-700-normal',
       ];
 
       const preloadTags = criticalPatterns
@@ -34,11 +37,23 @@ function fontPreloadPlugin(): Plugin {
         .map(f => `  <link rel="preload" as="font" type="font/woff2" href="/assets/${f}" crossorigin>`)
         .join('\n');
 
+      // Modulepreload the two largest lazy entry chunks so the browser fetches
+      // them in parallel with the main bundle instead of waiting for React to
+      // boot and request them — saves ~400–600ms off the LCP render delay.
+      const chunkPatterns = ['Landing-', 'AuthenticatedShell-'];
+      const allAssets = fs.readdirSync(assetsDir);
+      const modulepreloadTags = chunkPatterns
+        .map(prefix => allAssets.find(f => f.startsWith(prefix) && f.endsWith('.js')))
+        .filter((f): f is string => Boolean(f))
+        .map(f => `  <link rel="modulepreload" crossorigin href="/assets/${f}">`)
+        .join('\n');
+
       let html = fs.readFileSync(htmlPath, 'utf-8');
 
-      // Inject font preloads before </head>
-      if (preloadTags) {
-        html = html.replace('</head>', `${preloadTags}\n</head>`);
+      // Inject font preloads + chunk modulepreloads before </head>
+      const injectTags = [preloadTags, modulepreloadTags].filter(Boolean).join('\n');
+      if (injectTags) {
+        html = html.replace('</head>', `${injectTags}\n</head>`);
       }
 
       // NOTE: CSS async loading (preload+onload trick) was tested and reverted.
