@@ -66,8 +66,8 @@ export default function ConsentBanner() {
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-[#606659]">
               {isEl
-                ? 'Χρησιμοποιούμε Google Analytics για να κατανοούμε πώς χρησιμοποιείται η εφαρμογή και να τη βελτιώνουμε. Δεν πουλάμε δεδομένα. '
-                : 'We use Google Analytics to understand how the app is used and improve it. We never sell data. '}
+                ? 'Χρησιμοποιούμε cookies ανάλυσης (Google Analytics) για να κατανοούμε πώς χρησιμοποιείται η εφαρμογή και να τη βελτιώνουμε. '
+                : 'We use analytics cookies (Google Analytics) to understand how the app is used and improve it. '}
               <a
                 href="/legal/privacy"
                 className="underline text-[#194121] hover:opacity-75 transition-opacity"
