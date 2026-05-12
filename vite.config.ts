@@ -41,13 +41,11 @@ function fontPreloadPlugin(): Plugin {
         html = html.replace('</head>', `${preloadTags}\n</head>`);
       }
 
-      // Convert blocking <link rel="stylesheet"> to async (preload + onload trick).
-      // The inline #oli-boot shell uses inline styles so there is no FOUC.
-      // React hydrates after JS loads anyway — async CSS is safe for this SPA.
-      html = html.replace(
-        /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/g,
-        `<link rel="preload" href="$1" as="style" onload="this.onload=null;this.rel='stylesheet'" crossorigin>\n  <noscript><link rel="stylesheet" crossorigin href="$1"></noscript>`,
-      );
+      // NOTE: CSS async loading (preload+onload trick) was tested and reverted.
+      // For a React SPA, async CSS causes the browser to recalculate styles on
+      // 500+ DOM elements when the sheet arrives after React has already rendered —
+      // tripling Style & Layout time (319ms → 971ms) and TBT (70ms → 600ms).
+      // Blocking CSS costs ~250ms once; async CSS costs ~971ms in recalculations.
 
       fs.writeFileSync(htmlPath, html);
     },
