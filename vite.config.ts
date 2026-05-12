@@ -26,9 +26,6 @@ function fontPreloadPlugin(): Plugin {
         'noto-serif-latin-700-normal',
         'noto-serif-latin-600-normal',
         'plus-jakarta-sans-latin-400-normal',
-        'plus-jakarta-sans-latin-500-normal',
-        'plus-jakarta-sans-latin-600-normal',
-        'plus-jakarta-sans-latin-700-normal',
       ];
 
       const preloadTags = criticalPatterns
