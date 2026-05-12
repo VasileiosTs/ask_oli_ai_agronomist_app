@@ -678,7 +678,7 @@ ${intentHint ? '\n' + intentHint : ''}${depthHint ? '\n' + depthHint : ''}
 
 You are Oli, an expert AI agronomist. You help farmers with disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
 
-SCOPE: If unrelated to agriculture, decline in one sentence: "That's outside my area. If you have a question about crops, plants, or fields, I'm ready."
+SCOPE: If unrelated to agriculture, decline in one sentence: "That's outside my area. If you have a question about crops, plants, or fields, I'm ready." Exception: requests for a grower/farmer overview, field summary, or crop status ARE agricultural — answer from the field context provided.
 
 ${activeType}
 
@@ -2811,12 +2811,13 @@ Return ONLY the greeting text, nothing else.`;
       }
     }
 
-    // Advisor → grower ownership check
+    // Advisor → grower ownership check + profile fetch (name/location/notes for system prompt)
     let effectiveGrowerId: string | null = body.growerId ?? null;
+    let growerProfile: { name: string | null; location: string | null; notes: string | null } | null = null;
     if (effectiveGrowerId) {
       const { data: growerRecord, error: growerError } = await supabaseAdmin
         .from('growers')
-        .select('id')
+        .select('id, name, location, notes')
         .eq('id', effectiveGrowerId)
         .eq('advisor_id', appUser.id)
         .maybeSingle();
@@ -2824,6 +2825,8 @@ Return ONLY the greeting text, nothing else.`;
       if (growerError || !growerRecord) {
         // Don't 403, just drop the link silently. Non-advisors won't have access.
         effectiveGrowerId = null;
+      } else {
+        growerProfile = { name: growerRecord.name ?? null, location: growerRecord.location ?? null, notes: growerRecord.notes ?? null };
       }
     }
 
@@ -2874,7 +2877,9 @@ Return ONLY the greeting text, nothing else.`;
     }
     shouldRefundMessageCount = true;
 
-    const fields = effectiveFieldId ? await fetchFieldContextRows(supabaseAdmin, appUser.id) : [];
+    // Load fields whenever a specific field OR a grower is active so the AI
+    // has agricultural context even for grower-level (no specific field) chats.
+    const fields = (effectiveFieldId || effectiveGrowerId) ? await fetchFieldContextRows(supabaseAdmin, appUser.id) : [];
 
     // Seasonal context injection, lets Gemini give month-relevant advice
     const tz = body.timezone || 'UTC';
@@ -2934,14 +2939,42 @@ Return ONLY the greeting text, nothing else.`;
       ? await fetchWeather(userLat, userLon, queryIntent === 'planning')
       : null;
 
-    const growerContext = [
-      appUser.name ? `Grower name: ${appUser.name}` : '',
-      appUser.location ? `Location: ${appUser.location}` : '',
-      appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
-      `Current month: ${nowLocale} (${season}, ${hemisphere} hemisphere)`,
-      `Language preference: ${userLang}`,
-      weatherSnapshot ? formatWeatherContext(weatherSnapshot) : '',
-    ].filter(Boolean).join('\n');
+    // When advisor chats about a specific grower, use the grower's profile data.
+    // Otherwise use appUser (which IS the farmer in the non-advisor flow).
+    const growerContext = growerProfile
+      ? [
+          growerProfile.name ? `Grower: ${growerProfile.name}` : '',
+          growerProfile.location ? `Location: ${growerProfile.location}` : '',
+          growerProfile.notes ? `Notes: ${growerProfile.notes}` : '',
+          `Current month: ${nowLocale} (${season}, ${hemisphere} hemisphere)`,
+          `Language preference: ${userLang}`,
+          weatherSnapshot ? formatWeatherContext(weatherSnapshot) : '',
+        ].filter(Boolean).join('\n')
+      : [
+          appUser.name ? `Grower name: ${appUser.name}` : '',
+          appUser.location ? `Location: ${appUser.location}` : '',
+          appUser.primary_crop ? `Primary crop(s): ${appUser.primary_crop}` : '',
+          `Current month: ${nowLocale} (${season}, ${hemisphere} hemisphere)`,
+          `Language preference: ${userLang}`,
+          weatherSnapshot ? formatWeatherContext(weatherSnapshot) : '',
+        ].filter(Boolean).join('\n');
+
+    // For grower-level chat (no specific field), build an overview of ALL linked fields
+    // so the AI has agricultural context to answer with rather than declining scope.
+    let growerFieldsFallback = '';
+    if (effectiveGrowerId && !effectiveFieldId && fields.length > 0) {
+      const { data: links } = await supabaseAdmin
+        .from('grower_links')
+        .select('field_id')
+        .eq('grower_id', effectiveGrowerId);
+      const linkedIds = new Set((links ?? []).map((l: { field_id: string }) => l.field_id));
+      const growerFields = fields.filter(f => linkedIds.has(f.id));
+      if (growerFields.length > 0) {
+        growerFieldsFallback =
+          `All fields for this grower:\n` +
+          growerFields.map(f => formatFieldContextBlock(f)).join('\n');
+      }
+    }
 
     try {
       if (!effectiveConversationId) {
@@ -3093,7 +3126,7 @@ Return ONLY the greeting text, nothing else.`;
         appUser.id,
         fields,
         effectiveFieldId,
-        body.fieldContext ?? '',
+        body.fieldContext ?? growerFieldsFallback,
       );
 
       effectiveFieldId = serverContext.activeFieldId;
