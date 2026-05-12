@@ -147,8 +147,16 @@ export default function ClientDetail() {
 
   const openChat = (fieldId?: string) => {
     const q = new URLSearchParams({ grower: growerId! });
-    if (fieldId) q.set('field', fieldId);
-    navigate(`/chat?${q.toString()}`);
+    if (fieldId) {
+      // Pass fieldId via location.state so Chat.tsx triggers the field auto-send message.
+      // (Query-param approach only sets the active field silently without the intro message.)
+      navigate(`/chat?${q.toString()}`, { state: { fieldId } });
+    } else {
+      // Client-level chat — pass grower name so Chat.tsx can open with a context message.
+      navigate(`/chat?${q.toString()}`, {
+        state: grower?.name ? { growerName: grower.name } : undefined,
+      });
+    }
   };
 
   const severityColor = (s: string | null) => {

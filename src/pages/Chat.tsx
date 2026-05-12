@@ -221,6 +221,11 @@ export default function Chat() {
   const fromFieldNavRef = useRef(false);
   // Prevents double-sending the field intro message on re-renders
   const fieldNavSentRef = useRef(false);
+  // True when the user navigated from a client card (no specific field) — triggers grower intro message
+  const fromGrowerNavRef = useRef(false);
+  const growerNavSentRef = useRef(false);
+  // Grower name passed via state for the grower-level auto-send message
+  const pendingNavGrowerNameRef = useRef<string | null>(null);
 
   // Hydrate ?grower= / ?field= URL params (e.g. when navigating from a client's profile).
   useEffect(() => {
@@ -672,19 +677,28 @@ export default function Chat() {
     setFields([]);
   }, [appUserId]);
 
-  // Phase 1: capture incoming fieldId / conversationId from router state immediately,
+  // Phase 1: capture incoming fieldId / growerName / conversationId from router state immediately,
   // before fields have loaded (fixes race condition where fields.length === 0 on navigation).
   useEffect(() => {
-    const state = routeLocation.state as { fieldId?: string; conversationId?: string } | null;
+    const state = routeLocation.state as {
+      fieldId?: string;
+      conversationId?: string;
+      growerName?: string; // set when navigating from a client card (no specific field)
+    } | null;
     if (state?.fieldId) {
       pendingNavFieldIdRef.current = state.fieldId;
       fromFieldNavRef.current = true;
       fieldNavSentRef.current = false; // allow auto-send for this new navigation
     }
+    if (state?.growerName) {
+      pendingNavGrowerNameRef.current = state.growerName;
+      fromGrowerNavRef.current = true;
+      growerNavSentRef.current = false;
+    }
     if (state?.conversationId) {
       setActiveConversationId(state.conversationId);
     }
-    if (state?.fieldId || state?.conversationId) {
+    if (state?.fieldId || state?.conversationId || state?.growerName) {
       window.history.replaceState({}, '');
     }
   }, [routeLocation.state]);
@@ -1494,6 +1508,27 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeField?.id, appUserId]);
 
+  // Auto-send grower intro message when navigating from a client card (no specific field).
+  // Fires once activeGrowerId + appUserId are both ready; growerNavSentRef prevents double-send.
+  useEffect(() => {
+    if (!fromGrowerNavRef.current || growerNavSentRef.current) return;
+    if (!activeGrowerId || !appUserId) return;
+    const name = pendingNavGrowerNameRef.current;
+    if (!name) return;
+
+    growerNavSentRef.current = true;
+    fromGrowerNavRef.current = false;
+    pendingNavGrowerNameRef.current = null;
+
+    const text = lang === 'el'
+      ? `Θέλω να συζητήσω για τον πελάτη μου «${name}».`
+      : `I want to discuss my client "${name}".`;
+
+    const t = setTimeout(() => { void handleSendRef.current?.(text); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGrowerId, appUserId]);
+
   // Disambiguation removed, field context detected silently from AI response metadata.
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1522,6 +1557,9 @@ export default function Chat() {
     setActiveGrowerId(undefined); // Reset grower context too (advisors)
     fromFieldNavRef.current = false;
     fieldNavSentRef.current = false;
+    fromGrowerNavRef.current = false;
+    growerNavSentRef.current = false;
+    pendingNavGrowerNameRef.current = null;
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
