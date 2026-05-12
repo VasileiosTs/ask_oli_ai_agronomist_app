@@ -217,6 +217,8 @@ export default function Chat() {
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
   // Stores fieldId passed via router state before fields have loaded (race condition fix)
   const pendingNavFieldIdRef = useRef<string | null>(null);
+  // True when the user navigated here from a field page — suppresses the generic welcome screen
+  const fromFieldNavRef = useRef(false);
 
   // Hydrate ?grower= / ?field= URL params (e.g. when navigating from a client's profile).
   useEffect(() => {
@@ -304,6 +306,12 @@ export default function Chat() {
     const cleaned = rawText
       .replace(/^\[The user attached[^\]]*\]\n?/i, '')
       .trim();
+
+    // When chatting from a field, title is "FieldName — DD Mon" so history is always identifiable
+    if (activeField?.name) {
+      const date = new Date().toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-US', { day: 'numeric', month: 'short' });
+      return `${activeField.name} — ${date}`;
+    }
 
     return cleaned.slice(0, 80) || 'New conversation';
   };
@@ -675,6 +683,7 @@ export default function Chat() {
     const state = routeLocation.state as { fieldId?: string; conversationId?: string } | null;
     if (state?.fieldId) {
       pendingNavFieldIdRef.current = state.fieldId;
+      fromFieldNavRef.current = true;
     }
     if (state?.conversationId) {
       setActiveConversationId(state.conversationId);
@@ -1496,6 +1505,7 @@ export default function Chat() {
     setActiveConversationId(undefined);
     setActiveFieldId(undefined); // Reset field context, each chat starts fresh
     setActiveGrowerId(undefined); // Reset grower context too (advisors)
+    fromFieldNavRef.current = false; // Back to generic welcome for next new chat
     setShowAttachmentSheet(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -1748,7 +1758,7 @@ export default function Chat() {
         {/* Desktop: no top header, sidebar owns all navigation */}
 
         {/* ── DESKTOP ACTIVE FIELD INDICATOR ── */}
-        {!isGuestMode && activeField && messages.length > 0 && (
+        {!isGuestMode && activeField && (
           <div className="hidden md:flex h-9 flex-shrink-0 items-center gap-2 border-b border-border/40 bg-surface/60 px-6 backdrop-blur-sm">
             <OliLogo size={14} bg="#161C23" />
             <span className="text-xs text-muted">{lang === 'el' ? 'Ενεργό χωράφι:' : 'Active field:'}</span>
@@ -1825,8 +1835,8 @@ export default function Chat() {
           </div>
         )}
 
-        {/* ── DESKTOP WELCOME (no messages) ── */}
-        {messages.length === 0 && (
+        {/* ── DESKTOP WELCOME (no messages, no field navigation) ── */}
+        {messages.length === 0 && !fromFieldNavRef.current && (
           <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
             <div className="w-full max-w-2xl">
               <div className="mb-3 flex items-center justify-center gap-3">
@@ -1864,8 +1874,30 @@ export default function Chat() {
           </div>
         )}
 
-        {/* ── MOBILE EMPTY STATE ── */}
-        {messages.length === 0 && (
+        {/* ── DESKTOP FIELD CHAT READY STATE (navigated from a field, no messages yet) ── */}
+        {messages.length === 0 && fromFieldNavRef.current && activeField && (
+          <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
+            <div className="w-full max-w-2xl">
+              <div className="mb-2 flex items-center justify-center gap-2">
+                <span className="text-3xl">🌿</span>
+                <h2 className="text-2xl font-semibold text-primary">{activeField.name}</h2>
+              </div>
+              {activeField.crop_type && (
+                <p className="mb-6 text-center text-sm text-muted">{activeField.crop_type}</p>
+              )}
+              <p className="mb-8 text-center text-sm text-muted">
+                {lang === 'el' ? 'Γράψε ό,τι βλέπεις στο χωράφι σου ή στείλε φωτογραφία.' : 'Describe what you see or send a photo of the problem.'}
+              </p>
+              <div className="rounded-[28px] border border-border/40 bg-surface/70 p-2">
+                <ChatInputBar {...desktopInputBarProps} />
+              </div>
+              <p className="mt-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── MOBILE EMPTY STATE (no field navigation) ── */}
+        {messages.length === 0 && !fromFieldNavRef.current && (
           <div className="md:hidden flex flex-1 flex-col">
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
               <OliLogo size={40} bg="#0D1117" />
@@ -1894,6 +1926,24 @@ export default function Chat() {
                   </button>
                 ))}
               </div>
+            </div>
+            <ChatInputBar {...inputBarProps} />
+            <p className="px-4 pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
+          </div>
+        )}
+
+        {/* ── MOBILE FIELD CHAT READY STATE (navigated from a field, no messages yet) ── */}
+        {messages.length === 0 && fromFieldNavRef.current && activeField && (
+          <div className="md:hidden flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
+              <span className="text-4xl mb-3">🌿</span>
+              <h2 className="text-xl font-semibold text-primary mb-1">{activeField.name}</h2>
+              {activeField.crop_type && (
+                <p className="text-xs text-muted mb-1">{activeField.crop_type}</p>
+              )}
+              <p className="text-sm text-muted mb-6 max-w-xs">
+                {lang === 'el' ? 'Γράψε ό,τι βλέπεις στο χωράφι σου ή στείλε φωτογραφία.' : 'Describe what you see or send a photo of the problem.'}
+              </p>
             </div>
             <ChatInputBar {...inputBarProps} />
             <p className="px-4 pb-2 text-center text-[11px] text-muted/80">{t.aiDisclaimer}</p>
