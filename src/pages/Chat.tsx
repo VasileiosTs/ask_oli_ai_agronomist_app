@@ -1521,8 +1521,8 @@ export default function Chat() {
     pendingNavGrowerNameRef.current = null;
 
     const text = lang === 'el'
-      ? `Θέλω να συζητήσω για τον πελάτη μου «${name}».`
-      : `I want to discuss my client "${name}".`;
+      ? `Δώσε μου μια σύνοψη για τον παραγωγό «${name}» — τι καλλιέργειες και χωράφια έχει και αν υπάρχει κάτι που χρειάζεται την προσοχή μου.`
+      : `Give me a summary for farmer "${name}" — what crops and fields they have, and if there's anything that needs my attention.`;
 
     const t = setTimeout(() => { void handleSendRef.current?.(text); }, 0);
     return () => clearTimeout(t);
