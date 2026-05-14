@@ -247,6 +247,7 @@ export default function Chat() {
   const [shareModalData, setShareModalData] = useState<{ url: string; text?: string } | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
   const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
+  const [reminderChip, setReminderChip] = useState<{ task: string; due_days: number } | null>(null);
   const [inlineLogMsgId, setInlineLogMsgId] = useState<string | null>(null);
   const [pendingVioFollowUp, setPendingVioFollowUp] = useState<{
     id: string;
@@ -1137,6 +1138,12 @@ export default function Chat() {
       if (detected && typeof detected === 'object' && 'action_type' in detected && 'confidence' in detected) {
         setPendingAutoLog(detected as ActionDetected);
       }
+
+      // Reminder chip: show confirmation when AI created a scheduled reminder
+      if (completion.scheduleReminder) {
+        setReminderChip({ task: completion.scheduleReminder.task, due_days: completion.scheduleReminder.due_days });
+        setTimeout(() => setReminderChip(null), 6000);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setIsTyping(false);
@@ -1993,6 +2000,20 @@ export default function Chat() {
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+                {/* Reminder set confirmation chip */}
+                {reminderChip && (
+                  <div className="mx-4 mb-2 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-2.5 animate-fade-in">
+                    <span className="text-base">🔔</span>
+                    <p className="flex-1 text-xs text-foreground leading-snug">
+                      {lang === 'el'
+                        ? `Υπενθύμιση ορίστηκε: ${reminderChip.task} — σε ${reminderChip.due_days} μέρες`
+                        : `Reminder set: ${reminderChip.task} — in ${reminderChip.due_days} day${reminderChip.due_days === 1 ? '' : 's'}`}
+                    </p>
+                    <button onClick={() => setReminderChip(null)} className="text-muted hover:text-foreground">
+                      <span className="text-xs">✕</span>
+                    </button>
                   </div>
                 )}
                 {pendingAutoLog && (

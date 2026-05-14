@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, MessageCircle, Sprout, Droplets, Sun,
   Calendar, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronUp,
-  Pill, Pencil, Plus, X, Loader2, Trash2,
+  Pill, Pencil, Plus, X, Loader2, Trash2, Bell, BellRing,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -69,6 +69,50 @@ export default function FieldDetail() {
     },
     enabled: !!fieldId && !!appUserId,
   });
+
+  // ── Fetch scheduled treatments (upcoming reminders) ──
+  const { data: scheduledTreatments = [] } = useQuery({
+    queryKey: ['field-scheduled', fieldId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('scheduled_treatments')
+        .select('id, task, notes, due_at, crop_type, status')
+        .eq('field_id', fieldId!)
+        .eq('user_id', appUserId!)
+        .eq('status', 'pending')
+        .order('due_at', { ascending: true })
+        .limit(5);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!fieldId && !!appUserId,
+  });
+
+  // ── Fetch unread proactive field alerts ──
+  const { data: fieldAlerts = [], refetch: refetchAlerts } = useQuery({
+    queryKey: ['field-alerts', fieldId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('field_alerts')
+        .select('id, message, severity, created_at')
+        .eq('field_id', fieldId!)
+        .eq('user_id', appUserId!)
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!fieldId && !!appUserId,
+  });
+
+  const dismissAlert = async (alertId: string) => {
+    await supabase
+      .from('field_alerts')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', alertId);
+    await refetchAlerts();
+  };
 
   // ── Fetch pending follow-ups ──
   const { data: pendingFollowUps = [] } = useQuery({
@@ -309,6 +353,85 @@ export default function FieldDetail() {
             </div>
           ))}
         </div>
+
+        {/* ── Proactive Field Alerts ── */}
+        {fieldAlerts.length > 0 && (
+          <div className="mx-4 mt-4">
+            {fieldAlerts.map(alert => (
+              <div
+                key={alert.id}
+                className={clsx(
+                  'mb-2 rounded-xl border p-3',
+                  alert.severity === 'high'
+                    ? 'border-red-500/30 bg-red-500/8'
+                    : 'border-amber-500/30 bg-amber-500/8',
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <BellRing className={clsx(
+                    'mt-0.5 h-4 w-4 flex-shrink-0',
+                    alert.severity === 'high' ? 'text-red-400' : 'text-amber-400',
+                  )} />
+                  <p className="flex-1 text-sm text-foreground leading-snug">{alert.message}</p>
+                  <button
+                    onClick={() => dismissAlert(alert.id)}
+                    className="ml-1 flex-shrink-0 rounded-full p-0.5 text-muted hover:text-foreground"
+                    title={lang === 'el' ? 'Απόρριψη' : 'Dismiss'}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 pl-6 text-[11px] text-muted">
+                  {new Date(alert.created_at).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short' })}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Upcoming Scheduled Treatments ── */}
+        {scheduledTreatments.length > 0 && (
+          <div className="mx-4 mt-4">
+            <h3 className="mb-2 text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <Bell className="h-3.5 w-3.5 text-primary" />
+              {lang === 'el' ? 'Προγραμματισμένες Εργασίες' : 'Upcoming Treatments'}
+            </h3>
+            <div className="space-y-2">
+              {scheduledTreatments.map(st => {
+                const due = new Date(st.due_at);
+                const daysLeft = Math.ceil((due.getTime() - Date.now()) / 86400000);
+                const isOverdue = daysLeft < 0;
+                const isDueSoon = daysLeft <= 2 && daysLeft >= 0;
+                return (
+                  <div key={st.id} className={clsx(
+                    'rounded-xl border p-3',
+                    isOverdue
+                      ? 'border-red-500/20 bg-red-500/5'
+                      : isDueSoon
+                        ? 'border-amber-500/20 bg-amber-500/5'
+                        : 'border-border/50 bg-surface',
+                  )}>
+                    <p className="text-sm font-medium text-foreground">{st.task}</p>
+                    <p className={clsx(
+                      'text-xs mt-0.5',
+                      isOverdue ? 'text-red-400' : isDueSoon ? 'text-amber-400' : 'text-muted',
+                    )}>
+                      {isOverdue
+                        ? (lang === 'el' ? `Εκπρόθεσμο κατά ${Math.abs(daysLeft)} μέρες` : `Overdue by ${Math.abs(daysLeft)} days`)
+                        : daysLeft === 0
+                          ? (lang === 'el' ? 'Σήμερα' : 'Today')
+                          : daysLeft === 1
+                            ? (lang === 'el' ? 'Αύριο' : 'Tomorrow')
+                            : `${lang === 'el' ? 'Σε' : 'In'} ${daysLeft} ${lang === 'el' ? 'μέρες' : 'days'}`}
+                      {' · '}
+                      {due.toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Pending Follow-ups ── */}
         {pendingFollowUps.length > 0 && (

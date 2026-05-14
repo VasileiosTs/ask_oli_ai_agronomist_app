@@ -334,7 +334,66 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid request. Provide user_id+title or mode=vio_cron" }), {
+    // Mode 3: Scheduled treatment cron — find due reminders and notify users
+    if (body.mode === "scheduled_cron") {
+      const now = new Date().toISOString();
+      // Only pick up reminders due within the last 7 days (avoid firing very stale ones)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: dueReminders } = await supabase
+        .from("scheduled_treatments")
+        .select("id, user_id, task, field_id")
+        .lte("due_at", now)
+        .gte("due_at", sevenDaysAgo)
+        .eq("status", "pending")
+        .is("push_sent_at", null);
+
+      if (!dueReminders || dueReminders.length === 0) {
+        return new Response(JSON.stringify({ processed: 0 }), {
+          headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
+
+      let processed = 0;
+      const pushNow = new Date().toISOString();
+      for (const reminder of dueReminders) {
+        const { data: subs } = await supabase
+          .from("push_subscriptions")
+          .select("*")
+          .eq("user_id", reminder.user_id);
+
+        let notificationSent = 0;
+        for (const sub of (subs || [])) {
+          const ok = await sendPushNotification(sub);
+          if (ok) {
+            notificationSent++;
+          } else {
+            await logOperationalEvent(supabase, {
+              userId: reminder.user_id,
+              eventType: "push_delivery_failed",
+              severity: "warning",
+              message: "Scheduled treatment push delivery failed",
+              metadata: { reminderId: reminder.id, subscriptionId: sub.id },
+            });
+            await supabase.from("push_subscriptions").delete().eq("id", sub.id);
+          }
+        }
+
+        if (notificationSent > 0) {
+          // Mark push sent so we don't re-notify
+          await supabase
+            .from("scheduled_treatments")
+            .update({ push_sent_at: pushNow })
+            .eq("id", reminder.id);
+        }
+        processed++;
+      }
+
+      return new Response(JSON.stringify({ processed }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid request. Provide user_id+title or mode=vio_cron or mode=scheduled_cron" }), {
       status: 400,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });

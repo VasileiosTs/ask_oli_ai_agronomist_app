@@ -35,6 +35,12 @@ interface ActionDetected {
   confidence: number;
 }
 
+interface ScheduleReminder {
+  task: string;
+  due_days: number;
+  confidence: number;
+}
+
 interface AiResponseJson {
   response_text: string;
   intent: 'diagnosis' | 'advice' | 'followup' | 'general' | 'unclear';
@@ -44,6 +50,7 @@ interface AiResponseJson {
   has_banned_opener: boolean;
   diagnosis_data: DiagnosisData | null;
   action_detected: ActionDetected | null;
+  schedule_reminder: ScheduleReminder | null;
 }
 
 interface ExtractionResult {
@@ -656,6 +663,8 @@ ${growerContext ? 'GROWER CONTEXT:\n' + growerContext : ''}
 
 AUTO-LOG: When farmer mentions past action, populate action_detected (action_type, product, quantity, date_mentioned, confidence 0-1).
 
+SCHEDULE REMINDER: When the user explicitly asks to be reminded about a future task (e.g. "remind me in 10 days to spray", "set a reminder to check in 2 weeks", "schedule a treatment for next month"), populate schedule_reminder with task (short, action-oriented description), due_days (integer days from today), and confidence (0.0–1.0). ONLY populate for explicit scheduling requests — not for general advice or recommendations. Do not populate if the user did not ask to be reminded.
+
 JSON RULES:
 - diagnosis_data.problem: farmer's language ONLY, no English in parentheses.
 - missing_pillars: ONLY "THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE".
@@ -1016,6 +1025,16 @@ function buildResponseSchema() {
           confidence: { type: 'NUMBER' },
         },
         required: ['action_type', 'confidence'],
+      },
+      schedule_reminder: {
+        type: 'OBJECT',
+        nullable: true,
+        properties: {
+          task: { type: 'STRING' },
+          due_days: { type: 'INTEGER' },
+          confidence: { type: 'NUMBER' },
+        },
+        required: ['task', 'due_days', 'confidence'],
       },
     },
     required: ['response_text', 'intent', 'field_scope', 'question_count', 'has_banned_opener'],
@@ -3362,6 +3381,36 @@ Return ONLY the greeting text, nothing else.`;
             console.error('chat function post-save tasks failed', postSaveError);
           }
 
+          // Create scheduled reminder if AI detected explicit scheduling request
+          let confirmedReminder: ScheduleReminder | null = null;
+          if (
+            aiResponse.schedule_reminder &&
+            aiResponse.schedule_reminder.confidence >= 0.7 &&
+            aiResponse.schedule_reminder.due_days > 0
+          ) {
+            try {
+              const dueAt = new Date(
+                Date.now() + aiResponse.schedule_reminder.due_days * 24 * 60 * 60 * 1000,
+              ).toISOString();
+              const { error: reminderError } = await supabaseAdmin
+                .from('scheduled_treatments')
+                .insert({
+                  user_id: appUser.id,
+                  field_id: finalFieldId ?? null,
+                  crop_type: aiResponse.crop_mentioned ?? null,
+                  task: aiResponse.schedule_reminder.task,
+                  due_at: dueAt,
+                  source: 'chat',
+                  conversation_id: effectiveConversationId ?? null,
+                });
+              if (!reminderError) {
+                confirmedReminder = aiResponse.schedule_reminder;
+              }
+            } catch (reminderInsertError) {
+              console.error('Failed to insert scheduled reminder:', reminderInsertError);
+            }
+          }
+
           sendEvent('done', {
             conversationId: effectiveConversationId,
             assistantMessageId: insertedAssistantMessage.id,
@@ -3370,6 +3419,7 @@ Return ONLY the greeting text, nothing else.`;
             metadata: finalAssistantMetadata,
             userMessageId,
             fieldId: finalFieldId,
+            scheduleReminder: confirmedReminder,
           });
           closeController();
         } catch (error) {

@@ -43,6 +43,12 @@ export interface ChatFunctionMetadata {
   [key: string]: unknown;
 }
 
+export interface ScheduleReminderPayload {
+  task: string;
+  due_days: number;
+  confidence: number;
+}
+
 export interface ChatFunctionDonePayload {
   conversationId: string | null;
   assistantMessageId: string | null;
@@ -51,6 +57,7 @@ export interface ChatFunctionDonePayload {
   metadata?: ChatFunctionMetadata;
   userMessageId?: string | null;
   fieldId?: string | null;
+  scheduleReminder?: ScheduleReminderPayload | null;
 }
 
 type StreamCallbacks = {
@@ -202,6 +209,7 @@ export async function streamChatCompletion(
           metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
           userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : metaUserMessageId,
           fieldId: typeof payload.fieldId === 'string' ? payload.fieldId : null,
+          scheduleReminder: (payload.scheduleReminder as ScheduleReminderPayload | null | undefined) ?? null,
         };
       }
     };

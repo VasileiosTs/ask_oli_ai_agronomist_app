@@ -56,6 +56,8 @@ Photo or description of a problem → diagnosis in seconds → treatment protoco
 | Upload any file type | Photos, PDFs, audio — same interface, no separate app |
 | Generate field reports | Agronomist-ready PDF reports of field history and interventions |
 | Manage multiple clients | Agronomist tier: manage multiple farmer profiles under one account |
+| Set chat reminders | Ask Oli to remind you about a future task — "remind me in 10 days to spray copper" — Oli creates a timed reminder with push notification |
+| Get smart field alerts (Pro+) | Daily AI-powered weather analysis per field — if rain is coming and your lemons need protection, Oli alerts you before it's too late |
 
 ---
 
@@ -98,6 +100,7 @@ Oli is not a simple chatbot. Every message flows through a multi-stage AI agent 
       → update monthly message count
       → if diagnosis with intervention detected: schedule follow_up_at = now + 7 days
       → set vio_step = 1 (VIO loop opened)
+      → if schedule_reminder detected: create entry in scheduled_treatments table
 12. Post-save tasks (fire-and-forget):
       → field memory snapshot update (rolling log of problems + outcomes per field)
       → conversation title generation
@@ -200,7 +203,7 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 
 **It remembers.** Every field, crop, past problem, and treatment outcome is stored and injected into every future conversation as context. The AI knows your farm.
 
-**It follows up.** Oli records whether treatments worked. This is the data no one else has.
+**It follows up.** Oli records whether treatments worked. It also watches the weather and warns you before problems happen — proactively, not reactively. This is the data no one else has.
 
 **It's a real agent, not a chatbot.** Image pre-extraction, modular intent routing, structured JSON output with confidence scoring, field memory snapshots, automated follow-up scheduling — the pipeline is what makes the advice reliable.
 
@@ -221,6 +224,8 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 - ✅ Modular intent routing — TYPE A–F system prompt modules loaded per query
 - ✅ Five-Pillar confidence scoring — structured JSON confidence_score + missing_pillars
 - ✅ VIO follow-up loop — push + email reminders, vio_step 1–3, outcome recording
+- ✅ Chat-triggered reminders — "remind me in 10 days" creates a timed reminder with push notification on due date
+- ✅ Proactive weather alerts (Pro+) — daily Gemini-powered field scan: crop + GPS + 7-day forecast → alert if action needed within 48h
 - ✅ Field management — named fields, crop type, soil, GPS, historical context
 - ✅ Field memory snapshots — rolling log of problems and outcomes per field
 - ✅ Intervention logging — inline in chat or modal, public shareable links + OG cards
@@ -271,7 +276,7 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 │  ├── Storage      chat_uploads (photos, audio, PDFs)     │
 │  ├── RLS          row-level security on all tables       │
 │  └── Edge Functions (Deno runtime)                       │
-│      ├── chat/index.ts   ← core AI agent (~3,100 lines)  │
+│      ├── chat/index.ts   ← core AI agent (~3,200 lines)  │
 │      │   auth → rate limit → image pre-extraction →      │
 │      │   intent classify → system prompt assembly →       │
 │      │   Gemini → validate → SSE stream → DB write →     │
@@ -279,6 +284,7 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 │      ├── og-image        OG card generation              │
 │      ├── send-email      drip + VIO emails (Resend)      │
 │      ├── send-push       web push (VAPID)                │
+│      ├── proactive-alerts  daily AI field scan: weather + crop → smart push alerts (Pro+) │
 │      ├── kpi-snapshot    daily analytics pipeline        │
 │      ├── greeting        personalised chat greeting      │
 │      ├── delete-account  GDPR account deletion           │
@@ -317,6 +323,8 @@ guest_rate_limits — ip, request_count, window_start (DB-backed, cold-start saf
 kpi_snapshots     — daily metrics: DAU/WAU/MAU, retention D1/D7/D30, VIO funnel, MRR
 promo_codes       — code, grants_tier, duration_days, max_redemptions, redemptions_count
 promo_redemptions — user_id, code, granted_tier, granted_until, redeemed_at
+scheduled_treatments — task, due_at, push_sent_at, status, field_id, conversation_id (chat-triggered reminders)
+field_alerts        — message, severity, field_id, read_at (proactive AI-generated alerts)
 operational_events— source, event_type, severity, message, metadata (AI monitoring)
 admin_users       — auth_id whitelist for admin dashboard access
 ```
@@ -358,13 +366,14 @@ src/
     └── i18n.ts                 typed 6-language string dictionary
 
 supabase/functions/
-├── chat/index.ts              ⭐ core AI agent function (~3,100 lines)
+├── chat/index.ts              ⭐ core AI agent function (~3,200 lines)
 │   ├── lib/fieldContext.ts    server-side field context assembly
 │   ├── lib/imageExtraction.ts image pre-extraction agent
 │   └── lib/systemPrompt.ts   modular prompt assembly (TYPE A–F)
 ├── og-image/index.ts
 ├── send-email/index.ts
 ├── send-push/index.ts
+├── proactive-alerts/index.ts
 ├── kpi-snapshot/index.ts
 ├── greeting/index.ts
 ├── delete-account/index.ts
