@@ -79,7 +79,10 @@ const TIERS = (lang: string, currentTier?: string | null, period: Period = 'year
           'Απεριόριστες PDF αναφορές χωραφιών',
         ],
       },
-      cta: { en: 'Upgrade to Pro', el: 'Αναβάθμιση σε Pro' },
+      cta: {
+        en: (!currentTier || currentTier === 'free') ? 'Try free for 30 days' : 'Upgrade to Pro',
+        el: (!currentTier || currentTier === 'free') ? 'Δοκίμασε δωρεάν για 30 μέρες' : 'Αναβάθμιση σε Pro',
+      },
       contactOnly: false,
       isCurrent: isCurrent('pro'),
       forRoles: ['farmer', 'hobbyist', ''],
@@ -109,7 +112,10 @@ const TIERS = (lang: string, currentTier?: string | null, period: Period = 'year
           'Επώνυμες PDF αναφορές για πελάτες',
         ],
       },
-      cta: { en: 'Upgrade to Master', el: 'Αναβάθμιση σε Master' },
+      cta: {
+        en: (!currentTier || currentTier === 'free') ? 'Try free for 30 days' : 'Upgrade to Master',
+        el: (!currentTier || currentTier === 'free') ? 'Δοκίμασε δωρεάν για 30 μέρες' : 'Αναβάθμιση σε Master',
+      },
       contactOnly: false,
       isCurrent: isCurrent('master'),
       forRoles: ['agronomist', 'farmer', ''],
