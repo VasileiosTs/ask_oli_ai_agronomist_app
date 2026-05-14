@@ -24,7 +24,6 @@ import { LogInterventionModal } from '../components/LogInterventionModal';
 import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
 import ChatInputBar from '../components/ChatInputBar';
 import MessageList, { Message } from '../components/MessageList';
-import FieldSelector from '../components/FieldSelector';
 import type { HistoryDiagnosis } from '../components/HistoryCard';
 import ShareModal from '../components/ShareModal';
 import { enqueueMessage, drainQueue, type QueuedMessage } from '../lib/offlineQueue';
@@ -1793,19 +1792,9 @@ export default function Chat() {
               {lang === 'el' ? 'Σύνδεση' : 'Sign in'}
             </button>
           ) : (
-            <>
-              {fields.length > 0 && (
-                <FieldSelector
-                  fields={fields}
-                  activeFieldId={activeFieldId}
-                  onSelectField={setActiveFieldId}
-                  lang={lang}
-                />
-              )}
-              <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
-                <SquarePen className="h-5 w-5" />
-              </button>
-            </>
+            <button onClick={clearChat} aria-label="New chat" className="text-muted hover:text-foreground transition-colors">
+              <SquarePen className="h-5 w-5" />
+            </button>
           )}
         </header>
 

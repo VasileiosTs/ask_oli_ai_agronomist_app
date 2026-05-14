@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, MessageSquare, ClipboardList, Leaf, Phone, MapPin, Sprout, Plus, Check, X } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageCircle, ClipboardList, Leaf, Phone, MapPin, Sprout, Plus, Check, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -324,7 +324,7 @@ export default function ClientDetail() {
                         className="rounded-full border border-primary/30 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
                         title={lang === 'el' ? 'Συνομιλία για αυτό το χωράφι' : 'Chat about this field'}
                       >
-                        <MessageSquare className="h-3.5 w-3.5" />
+                        <MessageCircle className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => toggleLink(f.id, true)}

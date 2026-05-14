@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock, FileDown, Users, ArrowLeft } from 'lucide-react';
+import { Sprout, Plus, X, ChevronRight, AlertTriangle, CheckCircle, Clock, FileDown, Users, ArrowLeft, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -237,10 +237,9 @@ export default function Fields() {
               const status = getFieldStatus(field);
               const cfg = STATUS_CONFIG[status];
               return (
-                <button key={field.id} onClick={() => navigate(`/fields/${field.id}`)}
-                  className="w-full rounded-2xl border border-border/50 bg-surface p-4 text-left transition-colors hover:bg-surface/80 active:scale-[0.99]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
+                <div key={field.id} className="rounded-2xl border border-border/50 bg-surface transition-colors hover:bg-surface/80">
+                  <div className="flex items-center gap-2 p-4">
+                    <button onClick={() => navigate(`/fields/${field.id}`)} className="flex-1 min-w-0 text-left active:scale-[0.99]">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate font-semibold text-foreground">{field.name}</h3>
                         <span className={clsx('flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', cfg.color)}>
@@ -252,10 +251,21 @@ export default function Fields() {
                         {field.size_ha && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{formatArea(field.size_ha, areaUnit, lang)}</span>}
                         {field.growing_medium && <span className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted border border-border/50">{t.fieldOptionLabels[field.growing_medium] || field.growing_medium}</span>}
                       </div>
+                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => navigate('/chat', { state: { fieldId: field.id } })}
+                        className="rounded-full border border-primary/30 bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
+                        title={lang === 'el' ? 'Συνομιλία για αυτό το χωράφι' : 'Chat about this field'}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => navigate(`/fields/${field.id}`)} className="p-2 text-muted">
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted flex-shrink-0 mt-1" />
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
