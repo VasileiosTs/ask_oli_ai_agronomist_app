@@ -16,16 +16,13 @@ const APP_URL = Deno.env.get("APP_URL") || "https://ask-oli.com";
 const SUPPORT_EMAIL = Deno.env.get("SUPPORT_EMAIL") || "hello@ask-oli.com";
 
 // ── CORS ──
-const ALLOWED_ORIGINS = new Set([
-  Deno.env.get("ALLOWED_ORIGIN") || "https://ask-oli.com",
-  "https://www.ask-oli.com",
-  "https://ask-oli.com",
-]);
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") || "https://ask-oli.com";
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "";
   const isAllowed =
     origin === ALLOWED_ORIGIN ||
+    origin === "https://www.ask-oli.com" ||
     origin === "http://localhost:5173" ||
     origin === "http://localhost:3000" ||
     origin === "http://127.0.0.1:3000";
