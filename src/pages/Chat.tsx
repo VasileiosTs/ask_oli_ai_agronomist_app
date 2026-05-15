@@ -1108,9 +1108,11 @@ export default function Chat() {
 
       if (typeof completion.messageCountMonth === 'number') {
         setMessageCount(completion.messageCountMonth);
-        const remaining = FREE_LIMIT - completion.messageCountMonth;
-        if (remaining > 0 && remaining <= PAYWALL_WARNING_MESSAGES_REMAINING) {
-          setShowPaywallWarning(true);
+        if (!hasUnlimitedMessages) {
+          const remaining = FREE_LIMIT - completion.messageCountMonth;
+          if (remaining > 0 && remaining <= PAYWALL_WARNING_MESSAGES_REMAINING) {
+            setShowPaywallWarning(true);
+          }
         }
       }
 

@@ -116,6 +116,139 @@ export async function readErrorPayload(response: Response): Promise<{ message: s
   return { message: text || `Chat request failed with status ${response.status}` };
 }
 
+// Returns true for transient network/timeout failures worth retrying.
+// HTTP-level errors (4xx/5xx) carry a .status property and are never retried.
+function isRetryableStreamError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof TypeError) return true; // Failed to fetch, ECONNRESET, etc.
+  const err = error as { message?: string; status?: number };
+  // Server crash mid-stream — stream ended before the done event
+  if (err.message === 'Chat stream ended before a completion payload was received.') return true;
+  // Any error with an HTTP status came from the server explicitly — don't retry
+  return false;
+}
+
+// Core SSE streaming attempt — extracted so the outer function can retry it.
+async function doStreamAttempt(
+  request: ChatFunctionRequest,
+  callbacks: StreamCallbacks,
+  accessToken: string,
+): Promise<ChatFunctionDonePayload> {
+  // Use raw fetch for SSE streaming — supabase.functions.invoke buffers the
+  // entire response body before returning, which breaks real-time token streaming.
+  const functionUrl = `${supabaseUrl}/functions/v1/chat`;
+  const streamResponse = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+      'apikey': supabasePublicKey,
+    },
+    body: JSON.stringify(request),
+    signal: callbacks.signal && typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([AbortSignal.timeout(70000), callbacks.signal])
+      : callbacks.signal ?? AbortSignal.timeout(70000),
+  });
+
+  if (!streamResponse.ok) {
+    const { message, code } = await readErrorPayload(streamResponse);
+    throw createStreamError(message, streamResponse.status, code);
+  }
+
+  if (!streamResponse.body) {
+    throw createStreamError('Chat function did not return a readable stream.');
+  }
+
+  const reader = streamResponse.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let donePayload: ChatFunctionDonePayload | null = null;
+  let metaConversationId: string | null = null;
+  let metaUserMessageId: string | null = null;
+
+  const handleEvent = (rawEvent: string) => {
+    const parsed = parseSseEvent(rawEvent);
+    if (!parsed) {
+      return;
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(parsed.data) as Record<string, unknown>;
+    } catch {
+      console.warn('Failed to parse SSE data:', parsed.data);
+      return;
+    }
+
+    if (parsed.event === 'meta') {
+      metaConversationId = typeof payload.conversationId === 'string' ? payload.conversationId : null;
+      metaUserMessageId = typeof payload.userMessageId === 'string' ? payload.userMessageId : null;
+      return;
+    }
+
+    if (parsed.event === 'token') {
+      const token = typeof payload.text === 'string' ? payload.text : '';
+      if (token) {
+        callbacks.onToken?.(token);
+      }
+      return;
+    }
+
+    if (parsed.event === 'error') {
+      const message = typeof payload.message === 'string' ? payload.message : 'Unknown chat streaming error';
+      const code = typeof payload.code === 'string' ? payload.code : undefined;
+      // Map known codes to HTTP-equivalent status so Chat.tsx catch block
+      // shows the right UI (503 → capacity message, etc.)
+      const status = code === 'ai_quota' ? 503 : undefined;
+      throw createStreamError(message, status, code);
+    }
+
+    if (parsed.event === 'done') {
+      donePayload = {
+        conversationId: typeof payload.conversationId === 'string' ? payload.conversationId : metaConversationId,
+        assistantMessageId: typeof payload.assistantMessageId === 'string' ? payload.assistantMessageId : null,
+        assistantText: typeof payload.assistantText === 'string' ? payload.assistantText : '',
+        messageCountMonth: typeof payload.messageCountMonth === 'number' ? payload.messageCountMonth : null,
+        metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
+        userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : metaUserMessageId,
+        fieldId: typeof payload.fieldId === 'string' ? payload.fieldId : null,
+        scheduleReminder: (payload.scheduleReminder as ScheduleReminderPayload | null | undefined) ?? null,
+      };
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+    let separatorIndex = buffer.indexOf('\n\n');
+    while (separatorIndex !== -1) {
+      const rawEvent = buffer.slice(0, separatorIndex).trim();
+      buffer = buffer.slice(separatorIndex + 2);
+
+      if (rawEvent) {
+        handleEvent(rawEvent);
+      }
+
+      separatorIndex = buffer.indexOf('\n\n');
+    }
+
+    if (done) {
+      const remaining = buffer.trim();
+      if (remaining) {
+        handleEvent(remaining);
+      }
+      break;
+    }
+  }
+
+  if (!donePayload) {
+    throw createStreamError('Chat stream ended before a completion payload was received.');
+  }
+
+  return donePayload;
+}
+
 export async function streamChatCompletion(
   request: ChatFunctionRequest,
   callbacks: StreamCallbacks = {}
@@ -130,126 +263,41 @@ export async function streamChatCompletion(
     throw createStreamError('You need to sign in to use chat.', 401);
   }
 
-  try {
-    // Use raw fetch for SSE streaming — supabase.functions.invoke buffers the
-    // entire response body before returning, which breaks real-time token streaming.
-    const functionUrl = `${supabaseUrl}/functions/v1/chat`;
-    const streamResponse = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-        'apikey': supabasePublicKey,
-      },
-      body: JSON.stringify(request),
-      signal: callbacks.signal && typeof AbortSignal.any === 'function'
-        ? AbortSignal.any([AbortSignal.timeout(70000), callbacks.signal])
-        : callbacks.signal ?? AbortSignal.timeout(70000),
-    });
+  // One silent retry on transient network/timeout errors.
+  // The backend refunds the message count on failure via cleanupFailedChatAttempt,
+  // so retrying is safe and does not double-count messages for free-tier users.
+  const MAX_ATTEMPTS = 2;
+  let lastError: unknown;
 
-    if (!streamResponse.ok) {
-      const { message, code } = await readErrorPayload(streamResponse);
-      throw createStreamError(message, streamResponse.status, code);
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      // Brief pause before retry — lets transient network issues clear
+      await new Promise(r => setTimeout(r, 2000));
     }
 
-    if (!streamResponse.body) {
-      throw createStreamError('Chat function did not return a readable stream.');
+    try {
+      return await doStreamAttempt(request, callbacks, accessToken);
+    } catch (error) {
+      lastError = error;
+
+      // User intentionally cancelled — never retry
+      if (callbacks.signal?.aborted) break;
+
+      // Final attempt — stop
+      if (attempt === MAX_ATTEMPTS - 1) break;
+
+      // Only retry transient errors, not HTTP-level rejections (4xx/5xx)
+      if (!isRetryableStreamError(error)) break;
+
+      // Silently retry
     }
-
-    const reader = streamResponse.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let donePayload: ChatFunctionDonePayload | null = null;
-    let metaConversationId: string | null = null;
-    let metaUserMessageId: string | null = null;
-
-    const handleEvent = (rawEvent: string) => {
-      const parsed = parseSseEvent(rawEvent);
-      if (!parsed) {
-        return;
-      }
-
-      let payload: Record<string, unknown>;
-      try {
-        payload = JSON.parse(parsed.data) as Record<string, unknown>;
-      } catch {
-        console.warn('Failed to parse SSE data:', parsed.data);
-        return;
-      }
-
-      if (parsed.event === 'meta') {
-        metaConversationId = typeof payload.conversationId === 'string' ? payload.conversationId : null;
-        metaUserMessageId = typeof payload.userMessageId === 'string' ? payload.userMessageId : null;
-        return;
-      }
-
-      if (parsed.event === 'token') {
-        const token = typeof payload.text === 'string' ? payload.text : '';
-        if (token) {
-          callbacks.onToken?.(token);
-        }
-        return;
-      }
-
-      if (parsed.event === 'error') {
-        const message = typeof payload.message === 'string' ? payload.message : 'Unknown chat streaming error';
-        const code = typeof payload.code === 'string' ? payload.code : undefined;
-        // Map known codes to HTTP-equivalent status so Chat.tsx catch block
-        // shows the right UI (503 → capacity message, etc.)
-        const status = code === 'ai_quota' ? 503 : undefined;
-        throw createStreamError(message, status, code);
-      }
-
-      if (parsed.event === 'done') {
-        donePayload = {
-          conversationId: typeof payload.conversationId === 'string' ? payload.conversationId : metaConversationId,
-          assistantMessageId: typeof payload.assistantMessageId === 'string' ? payload.assistantMessageId : null,
-          assistantText: typeof payload.assistantText === 'string' ? payload.assistantText : '',
-          messageCountMonth: typeof payload.messageCountMonth === 'number' ? payload.messageCountMonth : null,
-          metadata: (payload.metadata as ChatFunctionMetadata | undefined) ?? undefined,
-          userMessageId: typeof payload.userMessageId === 'string' ? payload.userMessageId : metaUserMessageId,
-          fieldId: typeof payload.fieldId === 'string' ? payload.fieldId : null,
-          scheduleReminder: (payload.scheduleReminder as ScheduleReminderPayload | null | undefined) ?? null,
-        };
-      }
-    };
-
-    while (true) {
-      const { value, done } = await reader.read();
-      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-
-      let separatorIndex = buffer.indexOf('\n\n');
-      while (separatorIndex !== -1) {
-        const rawEvent = buffer.slice(0, separatorIndex).trim();
-        buffer = buffer.slice(separatorIndex + 2);
-
-        if (rawEvent) {
-          handleEvent(rawEvent);
-        }
-
-        separatorIndex = buffer.indexOf('\n\n');
-      }
-
-      if (done) {
-        const remaining = buffer.trim();
-        if (remaining) {
-          handleEvent(remaining);
-        }
-        break;
-      }
-    }
-
-    if (!donePayload) {
-      throw createStreamError('Chat stream ended before a completion payload was received.');
-    }
-
-    return donePayload;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw createStreamError('Chat request timed out.');
-    }
-    throw error;
   }
+
+  // Normalize timeout/abort to a readable message
+  if (lastError instanceof DOMException && (lastError as DOMException).name === 'AbortError') {
+    throw createStreamError('Chat request timed out.');
+  }
+  throw lastError ?? createStreamError('Unexpected error in chat stream.');
 }
 
 // ── Guest chat (unauthenticated, single message, no streaming) ──

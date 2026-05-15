@@ -531,10 +531,13 @@ AREA: 1 stremma = 0.1 ha = 0.247 ac. Yield = density × fruit weight × % market
 ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total costs / price per unit.`;
 
   const TYPE_C_PLANNING = `BEHAVIOUR FOR PLANNING (TYPE C):
-1. ANSWER-FIRST: give concrete, complete plan immediately.
-2. Broad questions: give FULL seasonal plan covering all major scenarios.
-3. Structure as numbered steps with actions, timings, quantities.
-4. ONE question at END only if it meaningfully changes the recommendation.`;
+1. ANSWER-FIRST: deliver the complete plan immediately — no preamble.
+2. Every action MUST include: active ingredient + commercial product name + dose per ha or per 100 L + timing (month or growth stage). No vague "apply fungicide" — name it.
+3. For disease/pest management: always give DUAL treatment — (a) biological option (e.g. Bacillus subtilis, copper hydroxide, neem oil) AND (b) chemical option (e.g. azoxystrobin, tebuconazole). Both with dosages.
+4. For seasonal/spray calendars: include a PREVENTIVE schedule (pre-symptom applications) not just reactive treatment. State spray intervals in days.
+5. Broad questions: give FULL seasonal plan covering all major threats for that crop and climate.
+6. Structure: numbered steps → action | timing | product + dose | interval/repeat.
+7. ONE question at END only if it meaningfully changes the recommendation (e.g. organic certification status).`;
 
   const TYPE_D_GENERAL = `BEHAVIOUR FOR GENERAL KNOWLEDGE (TYPE D):
 1. Answer directly and completely.
@@ -617,7 +620,7 @@ PHOTO REQUEST GUIDE:
 
 HARD LIMITS:
 - Max ONE question mark per response. The photo ask counts as that question — never ask a second question in the same response.
-- Under 150 words for care/planning. Under 200 for diagnosis. Be clinical and direct.
+- Under 150 words for care (TYPE A/B). Under 350 words for planning (TYPE C) — planning requires product names, dosages, and schedules. Under 200 for diagnosis. Be clinical and direct.
 - No "it depends on many factors". Commit to most likely scenario.
 - Max 3 treatments. Pick best, mention 1 alternative.
 - No explaining WHY unless asked.

@@ -1343,9 +1343,6 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <div className="mb-3 rounded-xl bg-[#f0f7f0] border border-[#c8e0c8] px-3 py-2.5 text-center">
-                <p className="text-xs font-semibold text-[#194121]">{lt.trialBadge}</p>
-              </div>
               <Link to="/auth" className="block w-full text-center py-3 rounded-full text-sm font-semibold text-[#194121] border-2 border-[#194121] hover:bg-[#194121] hover:text-white transition-all">
                 {lt.getStartedFree}
               </Link>
@@ -1372,7 +1369,10 @@ export default function Landing() {
                   <p className="text-xs text-white/50 mb-1">€4,08 {lt.perMonth}</p>
                 </>
               )}
-              <p className="text-xs text-white/40 mb-1">{lt.trialBadge}</p>
+              <div className="inline-flex items-center gap-1.5 mb-3 px-3 py-1 rounded-full bg-white/15 border border-white/30 text-white text-xs font-semibold">
+                <span>🎁</span>
+                <span>{lt.trialBadge}</span>
+              </div>
               <p className="text-xs text-white/70 font-medium mb-5 italic">{lt.proTagline}</p>
               <ul className="flex-1 space-y-2.5 mb-6">
                 {lt.proFeatures.map((item, i) => (
@@ -1414,7 +1414,6 @@ export default function Landing() {
                   <p className="text-xs text-[#606659] mb-1">€40,83 {lt.perMonth}</p>
                 </>
               )}
-              <p className="text-xs text-[#8a9280] mb-1">{lt.trialBadge}</p>
               <p className="text-xs text-[#4a6b50] font-medium mb-5 italic">
                 {lt.agronomistTagline}
               </p>

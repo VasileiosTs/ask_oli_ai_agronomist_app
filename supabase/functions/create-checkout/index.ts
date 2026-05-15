@@ -80,8 +80,8 @@ Deno.serve(async (req) => {
 
     const appUrl = Deno.env.get('APP_URL') ?? 'https://ask-oli.com';
 
-    // Give a 30-day free trial only to first-time paid subscribers (free tier users).
-    // Existing paid users upgrading tiers (e.g. pro → master) skip the trial.
+    // Give a 30-day free trial only to first-time Pro subscribers (free tier → pro).
+    // Master/Enterprise upgrades never get a trial; neither do pro → master upgrades.
     const isFirstTimeUpgrade = !profile?.tier || profile.tier === 'free';
 
     const session = await stripe.checkout.sessions.create({
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       success_url: success_url ?? `${appUrl}/profile?upgraded=1`,
       cancel_url: cancel_url ?? `${appUrl}/profile`,
       subscription_data: {
-        trial_period_days: isFirstTimeUpgrade ? 30 : undefined,
+        trial_period_days: (isFirstTimeUpgrade && tier === 'pro') ? 30 : undefined,
         metadata: { supabase_user_id: user.id, tier, period },
       },
       metadata: { supabase_user_id: user.id, tier, period },
