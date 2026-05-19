@@ -45,16 +45,24 @@ Deno.serve(async (req) => {
           ? session.subscription
           : session.subscription?.id;
 
-        // Fetch subscription to get period end
+        // Fetch subscription to get period end + billing interval
         let periodEnd: Date | null = null;
+        let billingPeriod: 'monthly' | 'yearly' | null = null;
         if (subId) {
           const sub = await stripe.subscriptions.retrieve(subId);
           periodEnd = new Date(sub.current_period_end * 1000);
+          const interval = sub.items.data[0]?.price.recurring?.interval;
+          billingPeriod = interval === 'year' ? 'yearly' : 'monthly';
+        }
+        // Fallback: use period from checkout metadata if sub fetch failed
+        if (!billingPeriod && session.metadata?.period) {
+          billingPeriod = session.metadata.period === 'yearly' ? 'yearly' : 'monthly';
         }
 
         await db.from('users').update({
           tier,
           tier_source: 'stripe',
+          billing_period: billingPeriod,
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: subId ?? null,
           subscription_period_end: periodEnd?.toISOString() ?? null,
@@ -69,14 +77,17 @@ Deno.serve(async (req) => {
         const userId = sub.metadata?.supabase_user_id;
         if (!userId) break;
 
-        // Determine new tier from price
+        // Determine new tier and billing period from price
         const priceId = sub.items.data[0]?.price.id;
         const newTier = priceId ? PRICE_TO_TIER[priceId] : undefined;
         const periodEnd = new Date(sub.current_period_end * 1000);
+        const interval = sub.items.data[0]?.price.recurring?.interval;
+        const billingPeriod = interval === 'year' ? 'yearly' : 'monthly';
 
         const update: Record<string, unknown> = {
           subscription_period_end: periodEnd.toISOString(),
           stripe_subscription_id: sub.id,
+          billing_period: billingPeriod,
         };
         if (newTier) update.tier = newTier;
 
@@ -93,6 +104,7 @@ Deno.serve(async (req) => {
         await db.from('users').update({
           tier: 'free',
           tier_source: null,
+          billing_period: null,
           stripe_subscription_id: null,
           subscription_period_end: null,
         }).eq('id', userId);

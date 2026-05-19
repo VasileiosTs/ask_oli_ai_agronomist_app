@@ -71,12 +71,15 @@ interface PromoRedemption {
 interface TierBreakdown {
   free: number;
   trial: number;
-  pro: number;
-  master: number;
+  pro_monthly: number;
+  pro_yearly: number;
+  master_monthly: number;
+  master_yearly: number;
   enterprise: number;
   promo: number;
   manual: number;
   total: number;
+  mrr_cents: number; // calculated from actual billing periods
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -208,24 +211,41 @@ export default function AdminMetrics() {
   const loadTierBreakdown = useCallback(async () => {
     const { data } = await supabase
       .from('users')
-      .select('tier, tier_source');
+      .select('tier, tier_source, billing_period');
     if (!data) return;
 
-    const bd: TierBreakdown = { free: 0, trial: 0, pro: 0, master: 0, enterprise: 0, promo: 0, manual: 0, total: data.length };
+    const bd: TierBreakdown = {
+      free: 0, trial: 0,
+      pro_monthly: 0, pro_yearly: 0,
+      master_monthly: 0, master_yearly: 0,
+      enterprise: 0, promo: 0, manual: 0,
+      total: data.length, mrr_cents: 0,
+    };
+
     for (const u of data) {
-      const tier = u.tier as string | null;
-      const src  = u.tier_source as string | null;
-      if (!tier || tier === 'free') { bd.free++; continue; }
-      if (src === 'trial')          { bd.trial++; continue; }
+      const tier    = u.tier as string | null;
+      const src     = u.tier_source as string | null;
+      const period  = u.billing_period as string | null;
+      const yearly  = period === 'yearly';
+
+      if (!tier || tier === 'free') { bd.free++;    continue; }
+      if (src === 'trial')          { bd.trial++;   continue; }
+      if (src === 'promo')          { bd.promo++;   continue; }
+      if (src === 'manual')         { bd.manual++;  continue; }
+
       if (src === 'stripe') {
-        if (tier === 'pro')         bd.pro++;
-        else if (tier === 'master') bd.master++;
-        else                        bd.enterprise++;
+        if (tier === 'pro') {
+          if (yearly) { bd.pro_yearly++;    bd.mrr_cents += 408; } // €49/yr ÷ 12
+          else        { bd.pro_monthly++;   bd.mrr_cents += 499; } // €4.99/mo
+        } else if (tier === 'master') {
+          if (yearly) { bd.master_yearly++; bd.mrr_cents += 4083; } // €490/yr ÷ 12
+          else        { bd.master_monthly++;bd.mrr_cents += 4900; } // €49/mo
+        } else {
+          bd.enterprise++; // custom pricing — not counted in MRR
+        }
         continue;
       }
-      if (src === 'promo')  { bd.promo++;  continue; }
-      if (src === 'manual') { bd.manual++; continue; }
-      bd.free++; // fallback for any unrecognised state
+      bd.free++; // fallback
     }
     setTierBreakdown(bd);
   }, []);
@@ -516,38 +536,54 @@ export default function AdminMetrics() {
                     <MetricCard icon={Activity} label="Churned 30d" value={today.churned_users_30d} />
                   </div>
 
-                  {/* Live user breakdown — always fresh, not from daily snapshot */}
+                  {/* Subscription breakdown — monthly vs yearly split */}
                   <div className="rounded-xl border border-border/30 overflow-hidden">
                     <div className="px-4 py-2.5 bg-surface/60 border-b border-border/30 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-foreground">Live user breakdown</span>
-                      <button
-                        onClick={loadTierBreakdown}
-                        className="text-[10px] text-muted hover:text-foreground flex items-center gap-1"
-                      >
-                        <RefreshCw className="h-2.5 w-2.5" /> refresh
-                      </button>
+                      <span className="text-xs font-semibold text-foreground">Subscription breakdown</span>
+                      <div className="flex items-center gap-3">
+                        {tierBreakdown && (
+                          <span className="text-[10px] text-primary font-semibold">
+                            MRR €{(tierBreakdown.mrr_cents / 100).toFixed(2)}
+                          </span>
+                        )}
+                        <button
+                          onClick={loadTierBreakdown}
+                          className="text-[10px] text-muted hover:text-foreground flex items-center gap-1"
+                        >
+                          <RefreshCw className="h-2.5 w-2.5" /> refresh
+                        </button>
+                      </div>
                     </div>
                     {tierBreakdown ? (
                       <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-border/20 text-muted">
+                            <th className="px-4 py-2 text-left font-medium">Segment</th>
+                            <th className="px-4 py-2 text-right font-medium">Users</th>
+                            <th className="px-4 py-2 text-right font-medium">% total</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {[
-                            { label: 'Free',             value: tierBreakdown.free,        color: 'text-muted' },
-                            { label: 'Trial (Pro 30d)',  value: tierBreakdown.trial,       color: 'text-amber-400' },
-                            { label: 'Pro — Stripe',     value: tierBreakdown.pro,         color: 'text-emerald-400' },
-                            { label: 'Master — Stripe',  value: tierBreakdown.master,      color: 'text-emerald-400' },
-                            { label: 'Enterprise',       value: tierBreakdown.enterprise,  color: 'text-emerald-400' },
-                            { label: 'Promo',            value: tierBreakdown.promo,       color: 'text-blue-400' },
-                            { label: 'Manual',           value: tierBreakdown.manual,      color: 'text-muted' },
-                          ].map(({ label, value, color }) => value > 0 && (
+                            { label: 'Free',               value: tierBreakdown.free,           color: 'text-muted',        group: false },
+                            { label: 'Trial — Pro (30d)',   value: tierBreakdown.trial,          color: 'text-amber-400',    group: false },
+                            { label: 'Pro — Monthly',       value: tierBreakdown.pro_monthly,    color: 'text-emerald-400',  group: true  },
+                            { label: 'Pro — Yearly',        value: tierBreakdown.pro_yearly,     color: 'text-emerald-500',  group: true  },
+                            { label: 'Master — Monthly',    value: tierBreakdown.master_monthly, color: 'text-emerald-400',  group: true  },
+                            { label: 'Master — Yearly',     value: tierBreakdown.master_yearly,  color: 'text-emerald-500',  group: true  },
+                            { label: 'Enterprise',          value: tierBreakdown.enterprise,     color: 'text-emerald-400',  group: true  },
+                            { label: 'Promo code',          value: tierBreakdown.promo,          color: 'text-blue-400',     group: false },
+                            { label: 'Manual',              value: tierBreakdown.manual,         color: 'text-muted',        group: false },
+                          ].map(({ label, value, color, group }) => value > 0 && (
                             <tr key={label} className="border-b border-border/20 last:border-0">
-                              <td className="px-4 py-2 text-muted">{label}</td>
+                              <td className={`px-4 py-2 ${group ? 'pl-6' : ''} text-muted`}>{label}</td>
                               <td className={`px-4 py-2 text-right font-semibold tabular-nums ${color}`}>{value}</td>
-                              <td className="px-4 py-2 text-right text-muted">
+                              <td className="px-4 py-2 text-right text-muted tabular-nums">
                                 {tierBreakdown.total > 0 ? `${((value / tierBreakdown.total) * 100).toFixed(0)}%` : '—'}
                               </td>
                             </tr>
                           ))}
-                          <tr className="bg-surface/40">
+                          <tr className="bg-surface/40 border-t border-border/30">
                             <td className="px-4 py-2 font-semibold text-foreground">Total</td>
                             <td className="px-4 py-2 text-right font-bold text-foreground tabular-nums">{tierBreakdown.total}</td>
                             <td className="px-4 py-2 text-right text-muted">100%</td>
