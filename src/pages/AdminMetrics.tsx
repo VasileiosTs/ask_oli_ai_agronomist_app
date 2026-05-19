@@ -445,7 +445,7 @@ export default function AdminMetrics() {
                 </div>
 
                 {/* Live strip */}
-                <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
                   <div>
                     <p className="text-[11px] text-muted uppercase tracking-wide mb-1">Active Now</p>
                     <p className="text-2xl font-bold text-primary">{liveActiveUsers ?? '—'}</p>
@@ -455,6 +455,16 @@ export default function AdminMetrics() {
                     <p className="text-[11px] text-muted uppercase tracking-wide mb-1">Msgs Today</p>
                     <p className="text-2xl font-bold text-foreground">{today.total_messages_today}</p>
                     <p className="text-[10px] text-muted">+ {today.total_photos_today} photos</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted uppercase tracking-wide mb-1">New This Week</p>
+                    <p className="text-2xl font-bold text-foreground">{today.new_users_week}</p>
+                    <p className="text-[10px] text-muted">last 7 days</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted uppercase tracking-wide mb-1">New This Month</p>
+                    <p className="text-2xl font-bold text-foreground">{today.new_users_month}</p>
+                    <p className="text-[10px] text-muted">last 30 days</p>
                   </div>
                 </div>
 
