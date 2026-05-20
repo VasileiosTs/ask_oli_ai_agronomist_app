@@ -4,23 +4,23 @@
 
   <!-- Homepage / Landing -->
   <url>
-    <loc>https://ask-oli.com/</loc>
-    <xhtml:link rel="alternate" hreflang="el" href="https://ask-oli.com/" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://ask-oli.com/" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://ask-oli.com/" />
+    <loc>https://www.ask-oli.com/</loc>
+    <xhtml:link rel="alternate" hreflang="el" href="https://www.ask-oli.com/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.ask-oli.com/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.ask-oli.com/" />
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <!-- Legal pages -->
   <url>
-    <loc>https://ask-oli.com/legal/privacy</loc>
+    <loc>https://www.ask-oli.com/legal/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
-    <loc>https://ask-oli.com/legal/terms</loc>
+    <loc>https://www.ask-oli.com/legal/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
