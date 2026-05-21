@@ -2,12 +2,6 @@
 # https://www.ask-oli.com
 
 User-agent: *
-Allow: /
-Allow: /d/
-Allow: /legal/privacy
-Allow: /legal/terms
-
-# Block authenticated/private routes
 Disallow: /chat
 Disallow: /profile
 Disallow: /auth
