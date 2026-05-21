@@ -27,6 +27,46 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+type Lang = 'el' | 'ar' | 'en';
+
+function detectLang(text: string): Lang {
+  if (/[Ͱ-Ͽἀ-῿]/.test(text)) return 'el';
+  if (/[؀-ۿ]/.test(text)) return 'ar';
+  return 'en';
+}
+
+const LOCALE: Record<Lang, string> = {
+  el: 'el_GR',
+  ar: 'ar_SA',
+  en: 'en_US',
+};
+
+const T: Record<Lang, {
+  defaultTitle: string;
+  defaultDesc: string;
+  summaryDesc: (summary: string) => string;
+  problemDesc: (problem: string) => string;
+}> = {
+  el: {
+    defaultTitle: 'Διάγνωση Ασθένειας | Oli · AI Γεωπόνος',
+    defaultDesc: 'AI διάγνωση ασθενειών καλλιέργειας για μικρούς αγρότες. Βιολογικές και χημικές επεμβάσεις με ακριβείς δόσεις, 24/7.',
+    summaryDesc: (s) => `${s}. Διαγνώστηκε από τον Oli, τον AI γεωπόνο για αγρότες.`,
+    problemDesc: (p) => `${p}. Διάγνωση ασθένειας καλλιέργειας με AI, με βιολογικές και χημικές επεμβάσεις.`,
+  },
+  ar: {
+    defaultTitle: 'تشخيص مرض المحصول | Oli · مهندس زراعي AI',
+    defaultDesc: 'تشخيص أمراض المحاصيل بالذكاء الاصطناعي للمزارعين الصغار. علاجات عضوية وكيميائية بجرعات دقيقة، 24/7.',
+    summaryDesc: (s) => `${s}. تم التشخيص بواسطة Oli، المهندس الزراعي AI للمزارعين.`,
+    problemDesc: (p) => `${p}. تشخيص أمراض المحاصيل بالذكاء الاصطناعي مع علاجات عضوية وكيميائية.`,
+  },
+  en: {
+    defaultTitle: 'Crop Disease Diagnosis | Oli · AI Agronomist',
+    defaultDesc: 'AI crop disease diagnosis for small farmers. Organic and chemical treatments with exact dosages, 24/7.',
+    summaryDesc: (s) => `${s}. Diagnosed with Oli, the AI agronomist for farmers.`,
+    problemDesc: (p) => `${p}. AI-powered crop disease diagnosis with organic and chemical treatments.`,
+  },
+};
+
 export default async function middleware(request: Request): Promise<Response | void> {
   const ua = request.headers.get('user-agent') ?? '';
   if (!BOT_UA.test(ua)) return; // real user — let Vercel serve index.html via rewrite
@@ -71,26 +111,27 @@ export default async function middleware(request: Request): Promise<Response | v
     }
   }
 
+  const lang = detectLang(problem || summary || crop);
+  const t = T[lang];
+
   const title =
     problem && crop
-      ? `${problem} — ${crop} | Oli`
+      ? `${problem} · ${crop} | Oli`
       : problem
         ? `${problem} | Oli`
-        : 'Crop Disease Diagnosis | Oli — AI Agronomist';
+        : t.defaultTitle;
 
-  const description =
-    summary
-      ? `${summary} — Diagnosed with Oli, AI agronomist for farmers.`
-      : problem
-        ? `${problem}. AI-powered crop disease diagnosis with organic and chemical treatments.`
-        : 'AI crop disease diagnosis for small farmers. Organic and chemical treatments with exact dosages, 24/7.';
+  const description = summary
+    ? t.summaryDesc(summary)
+    : problem
+      ? t.problemDesc(problem)
+      : t.defaultDesc;
 
   const ogUrl = `${APP_URL}/d/${shareId}`;
-  // Dynamic OG image via Vercel Edge API route (returns 1200×630 PNG)
   const ogImage = `${APP_URL}/api/og?id=${shareId}`;
 
   const html = `<!DOCTYPE html>
-<html lang="el">
+<html lang="${LOCALE[lang].replace('_', '-').toLowerCase()}">
 <head>
 <meta charset="UTF-8">
 <title>${esc(title)}</title>
@@ -99,7 +140,7 @@ export default async function middleware(request: Request): Promise<Response | v
 
 <!-- Open Graph — WhatsApp, Viber, Facebook, LinkedIn, Telegram, Line, Reddit -->
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="Oli — AI Agronomist">
+<meta property="og:site_name" content="Oli · AI Agronomist">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(ogUrl)}">
@@ -108,8 +149,7 @@ export default async function middleware(request: Request): Promise<Response | v
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="${esc(title)}">
-<meta property="og:locale" content="el_GR">
-<meta property="og:locale:alternate" content="en_US">
+<meta property="og:locale" content="${esc(LOCALE[lang])}">
 
 <!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image">
@@ -119,7 +159,7 @@ export default async function middleware(request: Request): Promise<Response | v
 <meta name="twitter:image:alt" content="${esc(title)}">
 
 <!-- LinkedIn article tags -->
-<meta property="article:author" content="Oli — AI Agronomist">
+<meta property="article:author" content="Oli · AI Agronomist">
 <meta property="article:publisher" content="${esc(APP_URL)}">
 
 <!-- Redirect real browsers (e.g. Googlebot rendering) to the SPA -->
@@ -133,7 +173,6 @@ export default async function middleware(request: Request): Promise<Response | v
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      // Cache at CDN for 5 min; stale-while-revalidate for 24h so bots get fast responses
       'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400',
       'Vary': 'User-Agent',
     },
