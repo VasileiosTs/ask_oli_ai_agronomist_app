@@ -232,6 +232,23 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
+
+    <!-- Language-aware shell: runs synchronously before body paints so the
+         inline hero renders in the visitor's language with zero flash.
+         Priority: manual choice → navigator.language → default el. -->
+    <script>
+      (function(){
+        var s=localStorage.getItem('oli_lang_manual')||navigator.language||'el';
+        var l=s.toLowerCase().startsWith('el')?'el':'en';
+        document.documentElement.setAttribute('data-shell-lang',l);
+        document.documentElement.setAttribute('lang',l);
+      })();
+    </script>
+    <style>
+      .shell-en{display:none}
+      html[data-shell-lang=en] .shell-el{display:none}
+      html[data-shell-lang=en] .shell-en{display:inline}
+    </style>
   </head>
   <body>
     <!-- Inline shell: renders immediately, before any JS loads — makes FCP instant.
@@ -249,7 +266,7 @@
               <img src="/favicon.svg" alt="" width="32" height="32" style="display:block;" aria-hidden="true" />
               <span style="font-family:'Noto Serif',Georgia,serif;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:#194121;">Oli</span>
             </div>
-            <a href="/auth" style="display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:9999px;font-weight:600;font-size:14px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#194121 0%,#305936 100%);">Δοκίμασε δωρεάν</a>
+            <a href="/auth" style="display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:9999px;font-weight:600;font-size:14px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#194121 0%,#305936 100%);"><span class="shell-el">Δοκίμασε δωρεάν</span><span class="shell-en">Try for free</span></a>
           </div>
         </nav>
         <!-- Hero — bg-[#faf9f4], pt-20 (80px) clears the fixed nav, pb-12 (48px) -->
@@ -257,15 +274,15 @@
           <div style="max-width:1024px;margin:0 auto;">
             <!-- Badge -->
             <div style="display:inline-flex;align-items:center;gap:6px;border-radius:9999px;background:rgba(25,65,33,0.1);padding:4px 12px;font-size:12px;font-weight:600;color:#194121;margin-bottom:20px;">
-              <span>🌿</span><span>Ο AI Γεωπόνος σου · 24/7</span>
+              <span>🌿</span><span class="shell-el">Ο AI Γεωπόνος σου · 24/7</span><span class="shell-en">Your AI Agronomist · 24/7</span>
             </div>
             <!-- LCP element: Noto Serif h1, matches text-4xl/5xl font-bold leading-[1.1] tracking-tight -->
             <h1 style="font-family:'Noto Serif',Georgia,serif;font-size:clamp(2.25rem,5vw,3rem);font-weight:700;line-height:1.1;letter-spacing:-0.02em;color:#194121;margin:0 0 20px;max-width:600px;">
-              Ο γεωπόνος σου.<br>Πάντα μαζί σου.
+              <span class="shell-el">Ο γεωπόνος σου.<br>Πάντα μαζί σου.</span><span class="shell-en">Your personal agronomist.<br>With you 24/7.</span>
             </h1>
             <!-- Subtitle: text-base, text-[#5a6053], max-w-md, leading-relaxed -->
             <p style="font-size:1rem;color:#5a6053;max-width:448px;line-height:1.7;margin:0;">
-              Διάγνωση ασθενειών, σχεδιασμός φύτευσης, άρδευση, αναστήλωση χωραφιών. Από σπορά μέχρι συγκομιδή, ο Oli μαθαίνει τις καλλιέργειές σου.
+              <span class="shell-el">Διάγνωση ασθενειών, σχεδιασμός φύτευσης, άρδευση, αναστήλωση χωραφιών. Από σπορά μέχρι συγκομιδή, ο Oli μαθαίνει τις καλλιέργειές σου.</span><span class="shell-en">Diagnose diseases, plan your fields, set up irrigation, rehabilitate old groves. From planting to harvest, Oli learns your crops.</span>
             </p>
           </div>
         </section>

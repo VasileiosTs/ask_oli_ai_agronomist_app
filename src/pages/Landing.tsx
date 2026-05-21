@@ -274,7 +274,7 @@ const TESTIMONIALS = (lang: string) => {
       { quote: 'Πήγα στο αμπέλι το πρωί και είδα ύποπτα φύλλα. Έβγαλα φωτογραφία, την έστειλα στον Oli και πριν φύγω από το χωράφι είχα ήδη τη διάγνωση και τη θεραπεία.', name: 'Μαρία', crop: 'Αμπελοκαλλιεργήτρια, Νεμέα', initial: 'Μ' },
     ],
     en: [
-      { quote: 'I sent a photo to my agronomist and waited 2 days. Oli gave me a diagnosis in 10 seconds. It was exactly right.', name: 'Giorgis', crop: 'Olive farmer, Peloponnese', initial: 'G' },
+      { quote: 'I sent a photo to my agronomist and waited 2 days. Oli gave me a diagnosis in 10 seconds. It was exactly right.', name: 'George', crop: 'Olive farmer, Peloponnese', initial: 'G' },
       { quote: 'No more guessing which product to use. It tells me exactly what to buy and at what dose.', name: 'Nikos', crop: 'Vegetable farmer, Crete', initial: 'N' },
       { quote: 'I asked when to prune my citrus trees. In seconds I had a specific week-by-week plan. My agronomist charges €80 a visit for exactly that.', name: 'Stavros', crop: 'Citrus farmer, Laconia', initial: 'S' },
       { quote: 'I spotted suspicious leaves during my morning walk through the vineyard. I took a photo, sent it to Oli, and had a full diagnosis and treatment plan before I even got back to my truck.', name: 'Maria', crop: 'Vineyard owner, Nemea', initial: 'M' },
