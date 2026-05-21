@@ -73,7 +73,10 @@ export default function SharedDiagnosis() {
   useEffect(() => {
     if (!data || !shareId) return;
     const origin = window.location.origin;
-    const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image?id=${shareId}`;
+    // Use the static PNG — SVG is not supported by LinkedIn/Facebook/WhatsApp og:image.
+    // The Supabase og-image edge function returns SVG which is ignored by all major crawlers.
+    // The middleware.ts intercepts bot requests before they reach the SPA anyway.
+    const ogImageUrl = `${origin}/og-image-el.png`;
     const title = `${data.problem || data.diagnosis || 'Διάγνωση'} — ${data.crop_type || 'Καλλιέργεια'} | Oli`;
     const description = data.cause
       ? `Αιτία: ${data.cause}. Διαγνώστηκε με Oli — AI γεωπόνος.`
@@ -93,6 +96,7 @@ export default function SharedDiagnosis() {
     setMeta('og:title', title);
     setMeta('og:description', description);
     setMeta('og:image', ogImageUrl);
+    setMeta('og:image:type', 'image/png');
     setMeta('og:image:width', '1200');
     setMeta('og:image:height', '630');
     setMeta('og:url', `${origin}/d/${shareId}`);

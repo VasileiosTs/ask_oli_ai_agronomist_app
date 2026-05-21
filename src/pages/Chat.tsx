@@ -244,7 +244,7 @@ export default function Chat() {
   const [isListening, setIsListening] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [shareModalData, setShareModalData] = useState<{ url: string; text?: string } | null>(null);
+  const [shareModalData, setShareModalData] = useState<{ url: string; text?: string; title?: string } | null>(null);
   const [logModalData, setLogModalData] = useState<Record<string, unknown> | null>(null);
   const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
   const [reminderChip, setReminderChip] = useState<{ task: string; due_days: number } | null>(null);
@@ -589,18 +589,21 @@ export default function Chat() {
       return;
     }
 
-    const shareUrl = `${window.location.origin}/d/${publicShareId}?ref=${publicShareId}`;
-    const shareText = msg.metadata?.diagnosis_data?.problem || msg.content || t.shareDefaultText;
+    const shareUrl = `${window.location.origin}/d/${publicShareId}`;
+    const dd = msg.metadata?.diagnosis_data;
+    const problem = dd?.problem || '';
+    const crop = (msg.metadata?.crop_mentioned as string | undefined) || '';
+    const shareTitle =
+      problem && crop
+        ? `${problem} — ${crop}`
+        : problem || (lang === 'el' ? 'Διάγνωση από τον Oli' : 'Diagnosis from Oli');
+    const shareText = problem || msg.content || t.shareDefaultText;
     trackEvent(Events.SHARE_DIAGNOSIS, { shareId: publicShareId });
 
     // Try Web Share API first (native on mobile)
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: t.shareTitle,
-          text: shareText,
-          url: shareUrl,
-        });
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
         showToast(t.linkCopied);
         return;
       } catch (e) {
@@ -613,11 +616,10 @@ export default function Chat() {
       await navigator.clipboard.writeText(shareUrl);
       showToast(t.linkCopied);
     } catch {
-      // Clipboard blocked — always show the modal with the URL so user can copy manually
-      setShareModalData({ url: shareUrl, text: shareText });
+      setShareModalData({ url: shareUrl, text: shareText, title: shareTitle });
     }
 
-    setShareModalData({ url: shareUrl, text: shareText });
+    setShareModalData({ url: shareUrl, text: shareText, title: shareTitle });
   };
 
   useEffect(() => {
@@ -2095,7 +2097,7 @@ export default function Chat() {
         isOpen={!!shareModalData}
         onClose={() => setShareModalData(null)}
         url={shareModalData?.url ?? ''}
-        title={lang === 'el' ? 'Διάγνωση από τον Oli' : 'Diagnosis from Oli'}
+        title={shareModalData?.title ?? (lang === 'el' ? 'Διάγνωση από τον Oli' : 'Diagnosis from Oli')}
         text={shareModalData?.text}
         lang={lang}
       />
