@@ -91,7 +91,7 @@ function StepPreviewAsk({ lang }: { lang: string }) {
           <span style={{ fontSize: '8px' }}>🌿</span>
         </div>
         <span className="text-[10px] font-semibold text-[#194121]">Oli</span>
-        <span className="ml-auto flex items-center gap-0.5 text-[9px] text-emerald-600 font-medium">
+        <span className="ml-auto flex items-center gap-0.5 text-[9px] text-emerald-700 font-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
           Online
         </span>
@@ -496,7 +496,7 @@ function PhoneMockup({ lang }: { lang: string }) {
           <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#e8e8e3] bg-white">
             <OliLogo size={18} bg="#ffffff" />
             <span className="text-xs font-bold text-[#194121]" style={{ fontFamily: "'Noto Serif', serif" }}>Oli</span>
-            <span className="ml-auto flex items-center gap-1 text-[9px] text-emerald-600 font-medium">
+            <span className="ml-auto flex items-center gap-1 text-[9px] text-emerald-700 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
               Online
             </span>
