@@ -515,9 +515,10 @@ Confidence scoring (confidence_score in JSON):
 
 IMAGE ANALYSIS:
 - Always attempt analysis, even blurry images.
-- Affected area < 30% of frame: use your photo ask (from UNIVERSAL) to request a close-up.
+- Before diagnosing, observe systematically: (1) visible symptoms — color, size, shape, texture; (2) symptom pattern — uniform, scattered, edge-only, vein-following, one-sided; (3) tissue condition — dry, wet, sunken, raised, powdery, oily, necrotic; (4) color changes — yellowing, browning, blackening, chlorosis patterns; (5) pest signs — insects, eggs, frass, webbing, tunneling.
+- Affected area < 30% of frame: request a close-up as your one question.
 - Each new image is independent.
-- Poor quality lowers confidence.
+- Poor quality lowers confidence — very poor image = max confidence_score 40.
 - Non-plant photos: ask for plant close-up. Set confidence_score 0.`;
 
   const TYPE_B_CALCULATION = `BEHAVIOUR FOR CALCULATION (TYPE B):
@@ -1133,72 +1134,6 @@ interface GeminiCallResult {
 }
 
 // ── Image pre-extraction ──────────────────────────────────────────────
-// When a photo is attached, run a quick focused Gemini call to extract
-// structured observations BEFORE the main chat call. This gives the main
-// call structured data to work with instead of trying to both "see" and
-// "reason" in one step. Only runs when images are present.
-const IMAGE_EXTRACTION_PROMPT = `You are a plant pathology image analyst. Examine this image and extract structured observations. Return ONLY valid JSON with these exact keys:
-
-{
-  "plant_species": "best guess species name in English and Latin if confident, or 'unknown' if unclear",
-  "plant_part": "which part of the plant is shown (leaf, stem, fruit, root, whole plant, multiple parts)",
-  "visible_symptoms": ["list each distinct symptom you can see, be specific about color, size, shape, texture"],
-  "affected_area_percent": 0,
-  "symptom_pattern": "how symptoms are distributed: uniform, scattered, clustered, edge-only, vein-following, one-sided, or 'healthy/no symptoms'",
-  "tissue_condition": "are affected areas dry, wet, sunken, raised, powdery, oily, necrotic, or 'normal'",
-  "color_changes": "describe any discoloration: yellowing, browning, blackening, reddening, chlorosis patterns, or 'normal coloration'",
-  "pest_signs": "any visible insects, eggs, frass, webbing, tunneling, or 'none visible'",
-  "image_quality": "good, acceptable, or poor with reason"
-}
-
-Do NOT diagnose. Do NOT recommend treatment. Only describe what you see. Be precise and clinical. Return ONLY the JSON object, no markdown, no explanation.`;
-
-async function extractImageContext(
-  geminiApiKey: string,
-  attachments: InlineAttachment[],
-): Promise<string> {
-  try {
-    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
-      { text: IMAGE_EXTRACTION_PROMPT },
-    ];
-    for (const att of attachments) {
-      parts.push({ inlineData: { mimeType: att.mimeType, data: att.data } });
-    }
-
-    // flash-lite has no multimodal support; fall back to 2.0-flash for image extraction
-    const imageExtractionModel = GEMINI_MODEL === 'gemini-2.0-flash-lite' ? 'gemini-2.0-flash' : GEMINI_MODEL;
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(imageExtractionModel)}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 800 },
-        }),
-        signal: AbortSignal.timeout(15000),
-      },
-    );
-
-    if (!response.ok) {
-      console.warn(`Image pre-extraction failed (${response.status}), skipping`);
-      return '';
-    }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    // Clean markdown fences if present
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    // Validate it's parseable JSON
-    JSON.parse(cleaned);
-
-    return `\nIMAGE ANALYSIS (pre-extracted from attached photo):\n${cleaned}\n\nUse these observations to inform your diagnosis. You still have the original image for verification.`;
-  } catch (err) {
-    console.warn('Image pre-extraction error, skipping:', err);
-    return '';
-  }
-}
 
 async function callGemini(
   geminiApiKey: string,
