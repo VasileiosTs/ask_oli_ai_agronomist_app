@@ -3181,23 +3181,10 @@ Return ONLY the greeting text, nothing else.`;
       // re-classifying the same message twice per request.
       const convDepth = requestMessages.filter(m => m.role !== 'assistant').length;
 
-      // Image pre-extraction: run a focused Gemini call on actual image attachments only.
-      // PDFs are already processed as text; audio has no visual to extract from.
-      let imageContext = '';
-      if (hasActualImages) {
-        const imageAttachments = requestMessages
-          .flatMap(m => Array.isArray(m.attachments) ? m.attachments : [])
-          .filter(a => a.mimeType.startsWith('image/'))
-          .slice(-3); // max 3 images
-        if (imageAttachments.length > 0) {
-          imageContext = await extractImageContext(geminiApiKey, imageAttachments);
-        }
-      }
-
       const genResult = await generateValidatedResponse(
         geminiApiKey,
         requestMessages,
-        serverContext.fieldContext + imageContext,
+        serverContext.fieldContext,
         serverContext.hasActiveField,
         growerContext,
         userLang,

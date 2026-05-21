@@ -50,19 +50,19 @@ const T: Record<Lang, {
   el: {
     defaultTitle: 'Διάγνωση Ασθένειας | Oli · AI Γεωπόνος',
     defaultDesc: 'AI διάγνωση ασθενειών καλλιέργειας για μικρούς αγρότες. Βιολογικές και χημικές επεμβάσεις με ακριβείς δόσεις, 24/7.',
-    summaryDesc: (s) => `${s}. Διαγνώστηκε από τον Oli, τον AI γεωπόνο για αγρότες.`,
+    summaryDesc: (s) => `${s}. Διαγνώστηκε από τον Oli, τον AI γεωπόνο.`,
     problemDesc: (p) => `${p}. Διάγνωση ασθένειας καλλιέργειας με AI, με βιολογικές και χημικές επεμβάσεις.`,
   },
   ar: {
     defaultTitle: 'تشخيص مرض المحصول | Oli · مهندس زراعي AI',
     defaultDesc: 'تشخيص أمراض المحاصيل بالذكاء الاصطناعي للمزارعين الصغار. علاجات عضوية وكيميائية بجرعات دقيقة، 24/7.',
-    summaryDesc: (s) => `${s}. تم التشخيص بواسطة Oli، المهندس الزراعي AI للمزارعين.`,
+    summaryDesc: (s) => `${s}. تم التشخيص بواسطة Oli، المهندس الزراعي AI.`,
     problemDesc: (p) => `${p}. تشخيص أمراض المحاصيل بالذكاء الاصطناعي مع علاجات عضوية وكيميائية.`,
   },
   en: {
     defaultTitle: 'Crop Disease Diagnosis | Oli · AI Agronomist',
     defaultDesc: 'AI crop disease diagnosis for small farmers. Organic and chemical treatments with exact dosages, 24/7.',
-    summaryDesc: (s) => `${s}. Diagnosed with Oli, the AI agronomist for farmers.`,
+    summaryDesc: (s) => `${s}. Diagnosed with Oli, the AI agronomist.`,
     problemDesc: (p) => `${p}. AI-powered crop disease diagnosis with organic and chemical treatments.`,
   },
 };
