@@ -86,8 +86,8 @@ export default async function middleware(request: Request): Promise<Response | v
         : 'AI crop disease diagnosis for small farmers. Organic and chemical treatments with exact dosages, 24/7.';
 
   const ogUrl = `${APP_URL}/d/${shareId}`;
-  // Use the static 1200×630 PNG — SVG is not supported by LinkedIn/Facebook/WhatsApp
-  const ogImage = `${APP_URL}/og-image-el.png`;
+  // Dynamic OG image via Vercel Edge API route (returns 1200×630 PNG)
+  const ogImage = `${APP_URL}/api/og?id=${shareId}`;
 
   const html = `<!DOCTYPE html>
 <html lang="el">
