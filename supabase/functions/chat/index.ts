@@ -435,10 +435,13 @@ function buildSystemPrompt(
 - Use local agricultural terminology for the detected language.`;
 
   const unitName = areaUnit === 'ha' ? 'hectares (ha)' : areaUnit === 'ac' ? 'acres (ac)' : 'στρέμματα (στρ.)';
-  const dosageInstruction = `DOSAGE COMMUNICATION: After every technical dosage (e.g., "300g/100L"), add a practical conversion for common equipment:
-- 15L backpack sprayer: show grams or ml needed
-- 100L tractor tank: already covered by the /100L rate
-- THIS USER'S PREFERRED AREA UNIT: ${unitName}. Use ONLY this unit. 1 στρ. = 0.1 ha = 0.247 ac.`;
+  const dosageInstruction = `DOSAGE COMMUNICATION: Always include a specific dosage with every treatment recommendation. NEVER say "apply as per label" or omit dosage.
+- Express concentration as: g/100L, mL/100L, or g/L as appropriate for the product type.
+- After every technical dosage (e.g., "300g/100L"), add a practical conversion for common equipment:
+  • 15L backpack sprayer: show grams or ml needed
+  • 100L tractor tank: already covered by the /100L rate
+- Express area-based rates using THIS USER'S PREFERRED AREA UNIT: ${unitName}. Use ONLY this unit. 1 στρ. = 0.1 ha = 0.247 ac.
+- NEVER use a different area unit than the user's preference.`;
 
   const weatherRules = `WEATHER CONTEXT RULES:
 - Humidity > 75%: flag fungal pressure. >85%: high urgency, inspect within 24h.
@@ -532,16 +535,16 @@ ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total 
 
   const TYPE_C_PLANNING = `BEHAVIOUR FOR PLANNING (TYPE C):
 1. ANSWER-FIRST: deliver the complete plan immediately — no preamble.
-2. Every action MUST include: active ingredient + commercial product name + dose per ha or per 100 L + timing (month or growth stage). No vague "apply fungicide" — name it.
+2. Every action MUST include: active ingredient (prefixed with "Δραστική ουσία:" in Greek, "Active ingredient:" in English) + dose per ha or per 100 L + timing (month or growth stage). NEVER use commercial product names or brand names. No vague "apply fungicide" — name the active ingredient.
 3. For disease/pest management: always give DUAL treatment — (a) biological option (e.g. Bacillus subtilis, copper hydroxide, neem oil) AND (b) chemical option (e.g. azoxystrobin, tebuconazole). Both with dosages.
 4. For seasonal/spray calendars: include a PREVENTIVE schedule (pre-symptom applications) not just reactive treatment. State spray intervals in days.
 5. Broad questions: give FULL seasonal plan covering all major threats for that crop and climate.
-6. Structure: numbered steps → action | timing | product + dose | interval/repeat.
+6. Structure: numbered steps → action | timing | active ingredient + dose | interval/repeat.
 7. ONE question at END only if it meaningfully changes the recommendation (e.g. organic certification status).`;
 
   const TYPE_D_GENERAL = `BEHAVIOUR FOR GENERAL KNOWLEDGE (TYPE D):
 1. Answer directly and completely.
-2. Active ingredient first, then brand examples. Format: "Azoxystrobin (e.g., Amistar), 0.75-1.5 L/ha."
+2. Use active ingredient names only. Prefix with "Δραστική ουσία:" in Greek responses, "Active ingredient:" in English responses. NEVER mention brand or commercial product names. Format: "Δραστική ουσία: Azoxystrobin — 0.75-1.5 L/ha."
 3. Flag regional availability issues.
 4. Flag restricted/banned substances and redirect to alternatives.
 5. DIAGNOSTIC AWARENESS: If the question is about disease symptoms, pest appearance, or a visible problem on a specific plant — give the factual answer first, then apply the UNIVERSAL PHOTO REQUEST RULE from UNIVERSAL RULES.
@@ -640,7 +643,8 @@ PROFESSIONAL TONE:
 - NEVER use em dashes or en dashes. Use commas, periods, colons.
 
 TECHNICAL STANDARDS:
-- Exact product names, dosages, timings, concentrations.
+- ACTIVE INGREDIENTS ONLY: NEVER mention commercial product names or brand names. Always use the scientific active ingredient name, prefixed with "Δραστική ουσία:" in Greek responses and "Active ingredient:" in English responses.
+- Always include dosage with units. Use the user's preferred area unit (${unitName}). Concentration units: g/L, mL/L, g/100L, mL/100L as appropriate.
 - Check phytotoxicity before recommending.
 - Crop-specific accuracy: never suggest pest/disease that doesn't affect the crop.
 - DUAL TREATMENT: disease/pest/deficiency answers MUST include biological AND chemical with different active ingredients. If no bio option exists, say "Δεν υπάρχει βιολογική λύση" and give chemical only.
@@ -670,6 +674,7 @@ SCHEDULE REMINDER: When the user explicitly asks to be reminded about a future t
 
 JSON RULES:
 - diagnosis_data.problem: farmer's language ONLY, no English in parentheses.
+- diagnosis_data.product_applied: active ingredient name ONLY (e.g. "azoxystrobin", "copper hydroxide"). NEVER a commercial brand name.
 - missing_pillars: ONLY "THE VICTIM", "THE SYMPTOMS", "THE TIMELINE", "THE ENVIRONMENT", "THE EVIDENCE".
 - Return valid JSON. response_text = user-visible text.`;
 
@@ -2616,7 +2621,8 @@ Deno.serve(async (req) => {
       const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
       const crop = appUser.primary_crop || 'crops';
       const location = appUser.location || '';
-      const name = appUser.name ? appUser.name.split(' ')[0] : '';
+      const rawFirst = appUser.name ? appUser.name.split(' ')[0] : '';
+      const name = rawFirst.length >= 3 ? rawFirst : '';
       const cachedGreeting = typeof appUser.last_greeting === 'string' ? appUser.last_greeting.trim() : '';
 
       if (cachedGreeting && isGreetingCacheFresh(appUser.last_greeting_at ?? null, now)) {

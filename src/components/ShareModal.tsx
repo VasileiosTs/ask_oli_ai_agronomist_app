@@ -1,4 +1,4 @@
-import { X, Copy, Share2, Check, MessageCircle, Send, Mail, Facebook, Twitter } from 'lucide-react';
+import { X, Copy, Share2, Check, MessageCircle, Send, Mail, Facebook, Twitter, Instagram } from 'lucide-react';
 import { useState } from 'react';
 
 interface Props {
@@ -23,9 +23,11 @@ export default function ShareModal({ isOpen, onClose, url, title, text, lang }: 
     scanQR: { en: 'Scan QR code', el: 'Σαρώστε τον κωδικό QR' },
     nativeShare: { en: 'Share via...', el: 'Κοινοποίηση μέσω...' },
     whatsapp: { en: 'Share on WhatsApp', el: 'Κοινοποίηση στο WhatsApp' },
+    viber: { en: 'Share on Viber', el: 'Κοινοποίηση στο Viber' },
     telegram: { en: 'Share on Telegram', el: 'Κοινοποίηση στο Telegram' },
     facebook: { en: 'Share on Facebook', el: 'Κοινοποίηση στο Facebook' },
     x: { en: 'Share on X', el: 'Κοινοποίηση στο X' },
+    instagram: { en: 'Copy & open Instagram', el: 'Αντιγραφή & άνοιγμα Instagram' },
     email: { en: 'Share by email', el: 'Κοινοποίηση με email' },
   };
 
@@ -102,6 +104,15 @@ export default function ShareModal({ isOpen, onClose, url, title, text, lang }: 
           </button>
 
           <button
+            onClick={() => openShareLink(`viber://forward?text=${encodeURIComponent(shareText)}`)}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: '#7360F2' }}
+          >
+            <MessageCircle className="h-4 w-4" />
+            {labels.viber[l]}
+          </button>
+
+          <button
             onClick={() => openShareLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent([title, text].filter(Boolean).join('\n\n'))}`)}
             className="flex w-full items-center gap-3 rounded-xl bg-[#229ED9] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
           >
@@ -123,6 +134,18 @@ export default function ShareModal({ isOpen, onClose, url, title, text, lang }: 
           >
             <Twitter className="h-4 w-4" />
             {labels.x[l]}
+          </button>
+
+          <button
+            onClick={async () => {
+              try { await navigator.clipboard.writeText(shareText); } catch { /* fallback */ }
+              window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}
+          >
+            <Instagram className="h-4 w-4" />
+            {labels.instagram[l]}
           </button>
 
           <button

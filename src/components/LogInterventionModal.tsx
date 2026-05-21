@@ -210,7 +210,13 @@ export function LogInterventionModal({
   };
 
   const inputCls =
-    'w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary';
+    'w-full rounded-xl border border-border/50 bg-surface px-4 py-2.5 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none overflow-hidden leading-[1.4]';
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
 
   // ── Render: Form stage ──
   if (stage === 'form') {
@@ -228,10 +234,11 @@ export function LogInterventionModal({
           ).map(({ label, value, set }) => (
             <div key={label}>
               <label className="mb-1.5 block text-sm font-medium text-foreground">{label}</label>
-              <input
-                type="text"
+              <textarea
+                ref={autoResize}
+                rows={1}
                 value={value}
-                onChange={e => set(e.target.value)}
+                onChange={e => { set(e.target.value); autoResize(e.currentTarget); }}
                 className={inputCls}
               />
             </div>
@@ -364,10 +371,11 @@ export function LogInterventionModal({
                   ? "Why wasn't it applied? (optional)"
                   : 'What did you observe? (optional)'}
             </label>
-            <input
-              type="text"
+            <textarea
+              ref={autoResize}
+              rows={2}
               value={outcomeNote}
-              onChange={e => setOutcomeNote(e.target.value)}
+              onChange={e => { setOutcomeNote(e.target.value); autoResize(e.currentTarget); }}
               placeholder={
                 lang === 'el'
                   ? 'π.χ. Τα φύλλα έγιναν κίτρινα...'

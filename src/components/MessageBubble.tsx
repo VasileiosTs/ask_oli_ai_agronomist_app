@@ -283,7 +283,7 @@ function InlineLogForm({
       <div className="space-y-2">
         <div>
           <label className="mb-1 block text-[11px] font-medium text-muted">
-            {lang === 'el' ? 'Σκεύασμα' : 'Product'}
+            {lang === 'el' ? 'Δραστική ουσία' : 'Active ingredient'}
           </label>
           <input
             value={product}
