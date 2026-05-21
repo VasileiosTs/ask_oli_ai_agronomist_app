@@ -8,11 +8,59 @@ const CREAM  = '#F0EDE5';
 const BORDER = '#DDD6CB';
 const MUTED  = '#888077';
 
-const SEV: Record<string, { color: string; label: string }> = {
-  low:    { color: '#166534', label: 'Low severity' },
-  medium: { color: '#92400e', label: 'Medium severity' },
-  high:   { color: '#991b1b', label: 'High severity' },
+type Lang = 'el' | 'ar' | 'en';
+
+const T: Record<Lang, {
+  agronomist: string;
+  organicOnly: string;
+  chemicalOnly: string;
+  both: string;
+  fallback: string;
+  cta: string;
+  sevLow: string;
+  sevMedium: string;
+  sevHigh: string;
+}> = {
+  el: {
+    agronomist: 'AI ΓΕΩΠΟΝΟΣ',
+    organicOnly: 'ΒΙΟΛΟΓΙΚΕΣ ΕΠΙΛΟΓΕΣ',
+    chemicalOnly: 'ΧΗΜΙΚΕΣ ΕΠΙΛΟΓΕΣ',
+    both: 'ΒΙΟΛΟΓΙΚΑ · ΧΗΜΙΚΑ',
+    fallback: 'Διάγνωση από τον Oli · AI Γεωπόνο',
+    cta: 'Δοκίμασε Oli - AI Γεωπόνο ΔΩΡΕΑΝ',
+    sevLow: 'Χαμηλή σοβαρότητα',
+    sevMedium: 'Μέτρια σοβαρότητα',
+    sevHigh: 'Υψηλή σοβαρότητα',
+  },
+  ar: {
+    agronomist: 'مهندس زراعي AI',
+    organicOnly: 'خيارات عضوية',
+    chemicalOnly: 'خيارات كيميائية',
+    both: 'عضوي · كيميائي',
+    fallback: 'تشخيص من Oli · مهندس زراعي AI',
+    cta: 'جرّب Oli - تطبيق المهندس الزراعي مجاناً',
+    sevLow: 'خطورة منخفضة',
+    sevMedium: 'خطورة متوسطة',
+    sevHigh: 'خطورة عالية',
+  },
+  en: {
+    agronomist: 'AI AGRONOMIST',
+    organicOnly: 'ORGANIC OPTIONS',
+    chemicalOnly: 'CHEMICAL OPTIONS',
+    both: 'ORGANIC · CHEMICAL',
+    fallback: 'Diagnosis shared by Oli · AI Agronomist',
+    cta: 'Try Oli - AI Agronomist App FREE',
+    sevLow: 'Low severity',
+    sevMedium: 'Medium severity',
+    sevHigh: 'High severity',
+  },
 };
+
+function detectLang(text: string): Lang {
+  if (/[Ͱ-Ͽἀ-῿]/.test(text)) return 'el';
+  if (/[؀-ۿ]/.test(text)) return 'ar';
+  return 'en';
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,7 +72,7 @@ export default async function handler(req: Request): Promise<Response> {
   const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
 
   let cropRaw = '';
-  let problemRaw = 'Oli Diagnosis';
+  let problemRaw = '';
   let causeRaw = '';
   let severity: string | null = null;
   let organic: string[] = [];
@@ -46,7 +94,7 @@ export default async function handler(req: Request): Promise<Response> {
         const row = rows?.[0];
         if (row) {
           cropRaw    = (row.crop_type as string) ?? '';
-          problemRaw = (row.problem as string) || (row.diagnosis as string) || 'Oli Diagnosis';
+          problemRaw = (row.problem as string) || (row.diagnosis as string) || '';
           causeRaw   = (row.cause as string) ?? '';
           severity   = (row.severity as string) ?? null;
           organic    = Array.isArray(row.organic_treatments) ? row.organic_treatments as string[] : [];
@@ -58,15 +106,27 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
+  const lang = detectLang(problemRaw || causeRaw || cropRaw);
+  const t = T[lang];
+
   const crop = cropRaw.toUpperCase();
-  const sev  = severity ? SEV[severity] ?? null : null;
+  const displayProblem = problemRaw || 'Oli Diagnosis';
+
+  const sevLabel = severity === 'low' ? t.sevLow : severity === 'medium' ? t.sevMedium : severity === 'high' ? t.sevHigh : null;
 
   const pills = [
-    ...organic.slice(0, 2).map((t: string) => ({ label: t, color: GREEN, bg: '#dcfce7' })),
-    ...chemical.slice(0, 1).map((t: string) => ({ label: t, color: '#1d4ed8', bg: '#dbeafe' })),
+    ...organic.slice(0, 2).map((tx: string) => ({ label: tx, color: GREEN, bg: '#dcfce7' })),
+    ...chemical.slice(0, 1).map((tx: string) => ({ label: tx, color: '#1d4ed8', bg: '#dbeafe' })),
   ].slice(0, 3);
 
-  const probFontSize = problemRaw.length > 44 ? 46 : problemRaw.length > 28 ? 54 : 62;
+  const probFontSize = displayProblem.length > 44 ? 46 : displayProblem.length > 28 ? 54 : 62;
+
+  const treatmentLabel =
+    organic.length > 0
+      ? chemical.length > 0 ? t.both : t.organicOnly
+      : t.chemicalOnly;
+
+  const isArabic = lang === 'ar';
 
   return new ImageResponse(
     (
@@ -78,6 +138,7 @@ export default async function handler(req: Request): Promise<Response> {
           flexDirection: 'column',
           backgroundColor: CREAM,
           fontFamily: 'Georgia, serif',
+          direction: isArabic ? 'rtl' : 'ltr',
         }}
       >
         {/* Terracotta header */}
@@ -106,7 +167,7 @@ export default async function handler(req: Request): Promise<Response> {
                 fontWeight: 600,
               }}
             >
-              AI AGRONOMIST
+              {t.agronomist}
             </span>
           </div>
 
@@ -137,7 +198,7 @@ export default async function handler(req: Request): Promise<Response> {
               maxWidth: 900,
             }}
           >
-            {problemRaw.length > 80 ? problemRaw.slice(0, 80) + '…' : problemRaw}
+            {displayProblem.length > 80 ? displayProblem.slice(0, 80) + '…' : displayProblem}
           </span>
 
           {/* Cause */}
@@ -156,7 +217,7 @@ export default async function handler(req: Request): Promise<Response> {
           ) : null}
 
           {/* Severity badge */}
-          {sev ? (
+          {sevLabel ? (
             <div
               style={{
                 position: 'absolute',
@@ -177,7 +238,7 @@ export default async function handler(req: Request): Promise<Response> {
                   letterSpacing: '0.04em',
                 }}
               >
-                {sev.label.toUpperCase()}
+                {sevLabel.toUpperCase()}
               </span>
             </div>
           ) : null}
@@ -207,11 +268,11 @@ export default async function handler(req: Request): Promise<Response> {
                 marginBottom: 14,
               }}
             >
-              {organic.length > 0 ? (chemical.length > 0 ? 'ORGANIC · CHEMICAL' : 'ORGANIC OPTIONS') : 'CHEMICAL OPTIONS'}
+              {treatmentLabel}
             </span>
           ) : (
             <span style={{ color: MUTED, fontSize: 18, fontStyle: 'italic', marginBottom: 14 }}>
-              Diagnosis shared by Oli · AI Agronomist
+              {t.fallback}
             </span>
           )}
 
@@ -247,19 +308,7 @@ export default async function handler(req: Request): Promise<Response> {
               marginTop: 'auto',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ color: MUTED, fontSize: 15, fontStyle: 'italic' }}>ask-oli.com</span>
-              <span
-                style={{
-                  color: MUTED,
-                  fontSize: 12,
-                  fontFamily: 'Helvetica, sans-serif',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Free for the first 20 questions
-              </span>
-            </div>
+            <span style={{ color: MUTED, fontSize: 15, fontStyle: 'italic' }}>ask-oli.com</span>
             <div
               style={{
                 backgroundColor: GREEN,
@@ -271,13 +320,13 @@ export default async function handler(req: Request): Promise<Response> {
               <span
                 style={{
                   color: 'white',
-                  fontSize: 15,
+                  fontSize: 14,
                   fontFamily: 'Helvetica, sans-serif',
                   fontWeight: 700,
                   letterSpacing: '0.01em',
                 }}
               >
-                Try Oli free →
+                {t.cta}
               </span>
             </div>
           </div>
