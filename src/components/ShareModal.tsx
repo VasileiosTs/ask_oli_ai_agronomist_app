@@ -1,5 +1,21 @@
-import { X, Copy, Share2, Check, MessageCircle, Send, Mail, Facebook, Twitter, Instagram } from 'lucide-react';
+import { X, Copy, Share2, Check, MessageCircle, Send, Mail, Facebook, Twitter, Linkedin } from 'lucide-react';
 import { useState } from 'react';
+
+function RedditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+      <path d="M22 12a2 2 0 0 0-2-2 2 2 0 0 0-1.37.55C17.06 9.7 15.12 9.12 13 9l.9-4.1 2.83.6a1.5 1.5 0 1 0 1.52-1.5 1.5 1.5 0 0 0-1.35.84L14 4.22 12.79 9c-2.12.1-4.06.68-5.52 1.6A2 2 0 0 0 4 12a2 2 0 0 0 1 1.73 3.7 3.7 0 0 0 0 .44c0 2.72 3.13 4.93 7 4.93s7-2.21 7-4.93a3.7 3.7 0 0 0 0-.44A2 2 0 0 0 22 12zm-10 4.16c-1.19 0-2-.68-2-.68s.46.18 2 .18 2-.18 2-.18-.81.68-2 .68zm3.5-2.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm-7 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+    </svg>
+  );
+}
+
+function LineIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+      <path d="M19.95 12.06c0-3.86-3.87-7-8.63-7S2.69 8.2 2.69 12.06c0 3.46 3.07 6.36 7.21 6.91.28.06.66.18.76.42.09.22.06.56.03.78l-.12.74c-.04.22-.17.85.75.46.92-.39 4.96-2.92 6.77-5A6.23 6.23 0 0 0 19.95 12.06zM9.2 14.07H7.67a.44.44 0 0 1-.44-.44V9.9a.44.44 0 0 1 .88 0v3.29H9.2a.44.44 0 0 1 0 .88zm1.67-.44a.44.44 0 0 1-.88 0V9.9a.44.44 0 0 1 .88 0zm5.08 0a.44.44 0 0 1-.81.23l-1.8-2.46v2.23a.44.44 0 0 1-.88 0V9.9a.44.44 0 0 1 .81-.23l1.8 2.46V9.9a.44.44 0 0 1 .88 0zm2.03-2.67a.44.44 0 0 1 0 .88h-1.08v.67h1.08a.44.44 0 0 1 0 .88h-1.53a.44.44 0 0 1-.44-.44V9.9a.44.44 0 0 1 .44-.44h1.53a.44.44 0 0 1 0 .88h-1.08v.66z"/>
+    </svg>
+  );
+}
 
 interface Props {
   isOpen: boolean;
@@ -27,7 +43,9 @@ export default function ShareModal({ isOpen, onClose, url, title, text, lang }: 
     telegram: { en: 'Share on Telegram', el: 'Κοινοποίηση στο Telegram' },
     facebook: { en: 'Share on Facebook', el: 'Κοινοποίηση στο Facebook' },
     x: { en: 'Share on X', el: 'Κοινοποίηση στο X' },
-    instagram: { en: 'Copy & open Instagram', el: 'Αντιγραφή & άνοιγμα Instagram' },
+    linkedin: { en: 'Share on LinkedIn', el: 'Κοινοποίηση στο LinkedIn' },
+    reddit: { en: 'Share on Reddit', el: 'Κοινοποίηση στο Reddit' },
+    line: { en: 'Share on Line', el: 'Κοινοποίηση στο Line' },
     email: { en: 'Share by email', el: 'Κοινοποίηση με email' },
   };
 
@@ -137,15 +155,29 @@ export default function ShareModal({ isOpen, onClose, url, title, text, lang }: 
           </button>
 
           <button
-            onClick={async () => {
-              try { await navigator.clipboard.writeText(shareText); } catch { /* fallback */ }
-              window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
-            }}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
-            style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}
+            onClick={() => openShareLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`)}
+            className="flex w-full items-center gap-3 rounded-xl bg-[#0A66C2] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
           >
-            <Instagram className="h-4 w-4" />
-            {labels.instagram[l]}
+            <Linkedin className="h-4 w-4" />
+            {labels.linkedin[l]}
+          </button>
+
+          <button
+            onClick={() => openShareLink(`https://reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title || '')}`)}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: '#FF4500' }}
+          >
+            <RedditIcon />
+            {labels.reddit[l]}
+          </button>
+
+          <button
+            onClick={() => openShareLink(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}`)}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: '#00B900' }}
+          >
+            <LineIcon />
+            {labels.line[l]}
           </button>
 
           <button
