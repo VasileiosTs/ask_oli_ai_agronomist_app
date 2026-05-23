@@ -851,7 +851,11 @@ export default function Landing() {
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>Oli</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={() => setLangOpen(true)}
+              onMouseLeave={() => setLangOpen(false)}
+            >
               <button
                 onClick={() => setLangOpen(o => !o)}
                 className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-3 rounded-full bg-[#f0efea] flex items-center gap-1 min-h-[44px]">
@@ -859,21 +863,17 @@ export default function Landing() {
                 <span className="uppercase">{lang}</span>
               </button>
               {langOpen && (
-                <>
-                  {/* Invisible overlay to close dropdown on outside click */}
-                  <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg overflow-hidden z-50 min-w-[130px]">
-                    {LANG_OPTIONS.map(({ code, label, flag }) => (
-                      <button
-                        key={code}
-                        onClick={() => { setLang(code); setLangOpen(false); }}
-                        className={`flex items-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
-                        <span>{flag}</span>
-                        <span>{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div className="absolute right-0 top-full mt-1 flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg overflow-hidden z-50 min-w-[130px]">
+                  {LANG_OPTIONS.map(({ code, label, flag }) => (
+                    <button
+                      key={code}
+                      onClick={() => { setLang(code); setLangOpen(false); }}
+                      className={`flex items-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
+                      <span>{flag}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
             <Link
