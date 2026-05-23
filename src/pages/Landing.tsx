@@ -672,6 +672,7 @@ export default function Landing() {
   const [suggestionIdx, setSuggestionIdx] = useState(0);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('annual');
+  const [langOpen, setLangOpen] = useState(false);
   const imperial = useMemo(() => detectImperial(), []);
 
   // Exit-intent: show a sticky bottom banner once user scrolls past 75% of page
@@ -850,22 +851,30 @@ export default function Landing() {
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>Oli</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative group">
-              <button className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-3 rounded-full bg-[#f0efea] flex items-center gap-1 min-h-[44px]">
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen(o => !o)}
+                className="text-xs font-semibold text-[#606659] hover:text-[#194121] transition-colors px-2.5 py-3 rounded-full bg-[#f0efea] flex items-center gap-1 min-h-[44px]">
                 <span>{LANG_OPTIONS.find(o => o.code === lang)?.flag ?? '🌐'}</span>
                 <span className="uppercase">{lang}</span>
               </button>
-              <div className="absolute right-0 top-full mt-1 hidden group-hover:flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg overflow-hidden z-50 min-w-[130px]">
-                {LANG_OPTIONS.map(({ code, label, flag }) => (
-                  <button
-                    key={code}
-                    onClick={() => setLang(code)}
-                    className={`flex items-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
-                    <span>{flag}</span>
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
+              {langOpen && (
+                <>
+                  {/* Invisible overlay to close dropdown on outside click */}
+                  <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg overflow-hidden z-50 min-w-[130px]">
+                    {LANG_OPTIONS.map(({ code, label, flag }) => (
+                      <button
+                        key={code}
+                        onClick={() => { setLang(code); setLangOpen(false); }}
+                        className={`flex items-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${lang === code ? 'bg-[#194121] text-white' : 'text-[#3a4035] hover:bg-[#f0efea]'}`}>
+                        <span>{flag}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <Link
               to={isLoggedIn ? '/chat' : '/auth'}
