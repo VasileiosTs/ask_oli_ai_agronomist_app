@@ -68,6 +68,17 @@ interface PromoRedemption {
   user_id: string;
 }
 
+interface ManualGrant {
+  id: string;
+  granted_to_email: string;
+  granted_by_user_id: string;
+  tier: string;
+  days: number;
+  granted_until: string;
+  note: string | null;
+  created_at: string;
+}
+
 interface TierBreakdown {
   free: number;
   trial: number;
@@ -166,8 +177,15 @@ export default function AdminMetrics() {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkResult, setBulkResult] = useState<string[]>([]);
 
+  // Grant tier form
+  const [grantForm, setGrantForm] = useState({ email: '', tier: 'master', days: 30, note: '', open: false });
+  const [grantSaving, setGrantSaving] = useState(false);
+  const [grantError, setGrantError] = useState<string | null>(null);
+  const [grantSuccess, setGrantSuccess] = useState<string | null>(null);
+  const [manualGrants, setManualGrants] = useState<ManualGrant[]>([]);
+
   // Active tab
-  const [tab, setTab] = useState<'metrics' | 'promo'>('metrics');
+  const [tab, setTab] = useState<'metrics' | 'promo' | 'grant'>('metrics');
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -250,6 +268,25 @@ export default function AdminMetrics() {
     setTierBreakdown(bd);
   }, []);
 
+  const loadManualGrants = useCallback(async () => {
+    // Use service role not needed — we call via the edge function for writes,
+    // but for reads the admin page uses the anon client which reads via RLS.
+    // We pass the session token so the query runs as the admin user.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/grant-tier`,
+      {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      }
+    );
+    if (res.ok) {
+      const json = await res.json();
+      if (Array.isArray(json)) setManualGrants(json as ManualGrant[]);
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       loadSnapshots(),
@@ -257,6 +294,7 @@ export default function AdminMetrics() {
       loadRecentRedemptions(),
       loadLiveActiveUsers(),
       loadTierBreakdown(),
+      loadManualGrants(),
     ]);
   }, [loadSnapshots, loadPromoCodes, loadRecentRedemptions, loadLiveActiveUsers, loadTierBreakdown]);
 
@@ -349,6 +387,49 @@ export default function AdminMetrics() {
     URL.revokeObjectURL(url);
   };
 
+  // ── Grant tier action ────────────────────────────────────────────────────
+  const grantTier = async () => {
+    setGrantSaving(true);
+    setGrantError(null);
+    setGrantSuccess(null);
+    const email = grantForm.email.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      setGrantError('Enter a valid email address.');
+      setGrantSaving(false);
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/grant-tier`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            email,
+            tier: grantForm.tier,
+            days: grantForm.days,
+            note: grantForm.note || undefined,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setGrantError(data.error ?? 'Something went wrong.');
+      } else {
+        setGrantSuccess(`✓ Granted ${grantForm.tier.toUpperCase()} for ${data.days} days to ${data.email} (until ${new Date(data.granted_until).toLocaleDateString()})`);
+        setGrantForm(f => ({ ...f, email: '', note: '' }));
+        await loadManualGrants();
+      }
+    } catch (e) {
+      setGrantError('Network error. Try again.');
+    }
+    setGrantSaving(false);
+  };
+
   // ── Guard states ──────────────────────────────────────────────────────────
 
   if (loading) {
@@ -412,7 +493,7 @@ export default function AdminMetrics() {
 
         {/* Tab bar */}
         <div className="max-w-4xl mx-auto flex gap-1 mt-2">
-          {(['metrics', 'promo'] as const).map(t => (
+          {(['metrics', 'promo', 'grant'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -421,7 +502,7 @@ export default function AdminMetrics() {
                 tab === t ? 'bg-primary text-white' : 'text-muted hover:text-foreground'
               )}
             >
-              {t === 'metrics' ? 'KPIs' : 'Promo Codes'}
+              {t === 'metrics' ? 'KPIs' : t === 'promo' ? 'Promo Codes' : '🎁 Grant Tier'}
             </button>
           ))}
         </div>
@@ -899,6 +980,125 @@ export default function AdminMetrics() {
                           <td className="px-3 py-1.5 text-muted">
                             {new Date(r.redeemed_at).toLocaleDateString()}
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ═══ TAB: GRANT TIER ══════════════════════════════════════════════ */}
+        {tab === 'grant' && (
+          <>
+            <div className="rounded-2xl border border-border/30 bg-surface overflow-hidden">
+              <div className="px-4 py-3 border-b border-border/20">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-primary" /> Grant Manual Tier Access
+                </h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Grants access directly — no code needed. Logged for audit. Admin-only server-side verified.
+                </p>
+              </div>
+              <div className="px-4 py-4 space-y-3">
+                <div>
+                  <label className="text-[11px] text-muted mb-1 block">User Email *</label>
+                  <input
+                    type="email"
+                    value={grantForm.email}
+                    onChange={e => { setGrantForm(f => ({ ...f, email: e.target.value })); setGrantError(null); setGrantSuccess(null); }}
+                    placeholder="agronomist@email.com"
+                    className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-muted mb-1 block">Tier</label>
+                    <select
+                      value={grantForm.tier}
+                      onChange={e => setGrantForm(f => ({ ...f, tier: e.target.value }))}
+                      className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    >
+                      <option value="master">MASTER</option>
+                      <option value="pro">PRO</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted mb-1 block">Duration</label>
+                    <select
+                      value={grantForm.days}
+                      onChange={e => setGrantForm(f => ({ ...f, days: Number(e.target.value) }))}
+                      className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    >
+                      <option value={14}>14 days</option>
+                      <option value={30}>30 days (1 month)</option>
+                      <option value={60}>60 days</option>
+                      <option value={90}>90 days (3 months)</option>
+                      <option value={180}>180 days (6 months)</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted mb-1 block">Note (optional — for your records)</label>
+                  <input
+                    value={grantForm.note}
+                    onChange={e => setGrantForm(f => ({ ...f, note: e.target.value }))}
+                    placeholder="e.g. Met at Agrotica fair, wants to test Master"
+                    className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </div>
+                {grantError && (
+                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-400">
+                    {grantError}
+                  </div>
+                )}
+                {grantSuccess && (
+                  <div className="rounded-xl bg-green-500/10 border border-green-500/20 px-3 py-2 text-xs text-green-400">
+                    {grantSuccess}
+                  </div>
+                )}
+                <button
+                  onClick={grantTier}
+                  disabled={grantSaving || !grantForm.email}
+                  className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {grantSaving
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Granting...</>
+                    : `Grant ${grantForm.tier.toUpperCase()} for ${grantForm.days} days`
+                  }
+                </button>
+              </div>
+            </div>
+
+            {/* Audit log */}
+            {manualGrants.length > 0 && (
+              <div>
+                <SectionTitle icon={Users} title={`Grant History (${manualGrants.length})`} />
+                <div className="overflow-x-auto rounded-xl border border-border/30">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-surface border-b border-border/20">
+                        <th className="px-3 py-2 text-left text-muted font-medium">Email</th>
+                        <th className="px-3 py-2 text-left text-muted font-medium">Tier</th>
+                        <th className="px-3 py-2 text-left text-muted font-medium">Days</th>
+                        <th className="px-3 py-2 text-left text-muted font-medium">Until</th>
+                        <th className="px-3 py-2 text-left text-muted font-medium">Note</th>
+                        <th className="px-3 py-2 text-left text-muted font-medium">When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {manualGrants.map((g, i) => (
+                        <tr key={g.id} className={clsx('border-b border-border/10', i % 2 === 0 ? '' : 'bg-surface/30')}>
+                          <td className="px-3 py-1.5 text-foreground">{g.granted_to_email}</td>
+                          <td className="px-3 py-1.5">
+                            <span className="rounded-full bg-primary/10 text-primary text-[10px] px-2 py-0.5 uppercase">{g.tier}</span>
+                          </td>
+                          <td className="px-3 py-1.5 text-muted">{g.days}d</td>
+                          <td className="px-3 py-1.5 text-muted">{new Date(g.granted_until).toLocaleDateString()}</td>
+                          <td className="px-3 py-1.5 text-muted max-w-[140px] truncate">{g.note ?? '—'}</td>
+                          <td className="px-3 py-1.5 text-muted">{new Date(g.created_at).toLocaleDateString()}</td>
                         </tr>
                       ))}
                     </tbody>
