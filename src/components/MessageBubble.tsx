@@ -154,6 +154,18 @@ function normalisePillarKey(raw: string): string {
   return raw; // already canonical or unknown — pass through for PILLAR_LABELS fallback
 }
 
+
+// Strip dosage/concentration suffixes from treatment strings so cards show only product names.
+// Dosage detail is available on request via the "Get application rates" button.
+function stripDosage(tx: string): string {
+  return tx
+    .replace(/,?\s*\d+[\d.,]*\s*(?:g|ml|kg|L|cc|oz|lb)\/(?:\d+\s*)?(?:L|100L|ha|acre|m2)[^,]*/gi, '')
+    .replace(/,?\s*\d+[\d.,]*\s*%[^,]*/g, '')
+    .replace(/,?\s*(?:WP|EC|SC|WG|SL|DF|WDG|EW|OD|SE)\b[^,]*/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function MissingPillarsCard({ pillars, lang, onRequestPhoto }: { pillars: string[]; lang: string; onRequestPhoto?: () => void }) {
   if (!pillars || pillars.length === 0) return null;
   const isEl = lang === 'el';
@@ -425,36 +437,59 @@ export default function MessageBubble({
               )}
 
               {/* ── Treatment cards ── */}
-              {(dd?.organic_treatments?.length > 0 || dd?.chemical_treatments?.length > 0) && (
-                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-3">
-                  {dd?.organic_treatments?.length > 0 && (
-                    <div className="rounded-xl bg-green-500/5 border border-green-500/20 p-3">
-                      <p className="text-xs font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
-                      {(dd.organic_treatments as string[]).map((tx, i) => (
-                        <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {tx}</p>
-                      ))}
+              {(dd?.organic_treatments?.length > 0 || dd?.chemical_treatments?.length > 0) && (() => {
+                const crop = msg.metadata?.crop_mentioned ?? '';
+                const problem = dd?.problem ?? '';
+                const ratePrompt = lang === 'el'
+                  ? `Ποιες είναι οι δόσεις εφαρμογής για τις συνιστώμενες θεραπείες${crop ? ` στο ${crop}` : ''}${problem ? ` για ${problem}` : ''};`
+                  : `What are the application rates for the recommended treatments${crop ? ` on ${crop}` : ''}${problem ? ` for ${problem}` : ''}?`;
+                return (
+                  <div className="mt-3 border-t border-border/30 pt-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {dd?.organic_treatments?.length > 0 && (
+                        <div className="rounded-xl bg-green-500/5 border border-green-500/20 p-3">
+                          <p className="text-xs font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
+                          {(dd.organic_treatments as string[]).map((tx, i) => (
+                            <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {stripDosage(tx)}</p>
+                          ))}
+                        </div>
+                      )}
+                      {dd?.chemical_treatments?.length > 0 && (
+                        <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 p-3">
+                          <p className="text-xs font-semibold text-blue-400 mb-1.5">{t.chemicalTreatments}</p>
+                          {(dd.chemical_treatments as string[]).map((tx, i) => (
+                            <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {stripDosage(tx)}</p>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {dd?.chemical_treatments?.length > 0 && (
-                    <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 p-3">
-                      <p className="text-xs font-semibold text-blue-400 mb-1.5">
-                        {t.chemicalTreatments}
-                      </p>
-                      {(dd.chemical_treatments as string[]).map((tx, i) => (
-                        <p key={i} className="text-[12px] text-foreground/80 leading-snug">
-                          &bull; {tx}
-                          {/* Regulatory disclaimer on chemical treatments */}
-                          {i === (dd.chemical_treatments!.length - 1) && (
-                            <span className="ml-1 text-[10px] text-amber-400/70">
-                              {lang === 'el' ? '⚠ Ελέγξτε τοπικές άδειες' : '⚠ Check local regulations'}
-                            </span>
-                          )}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                    {/* Get application rates — gated behind explicit ask + disclaimer */}
+                    <button
+                      onClick={() => {
+                        const input = document.querySelector('textarea[data-chat-input], input[data-chat-input]') as HTMLTextAreaElement | HTMLInputElement | null;
+                        if (input) {
+                          const proto = input instanceof HTMLTextAreaElement
+                            ? window.HTMLTextAreaElement.prototype
+                            : window.HTMLInputElement.prototype;
+                          const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
+                          nativeSetter?.set?.call(input, ratePrompt);
+                          input.dispatchEvent(new Event('input', { bubbles: true }));
+                          input.focus();
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-amber-500/10 transition-colors"
+                    >
+                      <span>💊</span>
+                      {lang === 'el' ? 'Δόσεις εφαρμογής →' : 'Get application rates →'}
+                    </button>
+                    <p className="text-[10px] text-muted/60 text-center leading-snug">
+                      {lang === 'el'
+                        ? 'Πάντα να ακολουθείτε την ετικέτα του προϊόντος και να συμβουλεύεστε πιστοποιημένο γεωπόνο.'
+                        : 'Always follow the product label and consult a certified agronomist before applying.'}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* ── Missing pillars card ── */}
               {dd?.missing_pillars && dd.missing_pillars.length > 0 && (
