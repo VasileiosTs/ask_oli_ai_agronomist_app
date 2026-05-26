@@ -72,6 +72,7 @@ export interface T {
   outcomeBetter: string; outcomeSame: string; outcomeWorse: string;
   outcomeRecorded: string;
   organicTreatments: string; chemicalTreatments: string;
+  getApplicationRates: string; dosageDisclaimer: string; ratePromptText: string;
   // Log intervention modal
   logIt: string; logging: string;
   cropType: string; problem: string; product: string;
