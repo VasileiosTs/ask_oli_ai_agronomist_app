@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
       metadata: { supabase_user_id: user.id, tier, period },
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
+      tax_id_collection: { enabled: true },
       customer_update: { address: 'auto' },
       locale: 'auto',
     });
