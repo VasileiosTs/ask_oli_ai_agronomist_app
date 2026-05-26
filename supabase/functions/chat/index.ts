@@ -309,11 +309,11 @@ function classifyIntent(message: string, hasActualImages: boolean): QueryIntent 
   if (hasActualImages) return 'diagnosis'; // image attachment = always diagnostic intent
   const m = message.toLowerCase();
   // Calculation: numerical, dosage, rate, or unit questions
-  if (/\b(how much|calculate|dose|dosage|rate|l\/ha|kg\/ha|ml\/|ratio|concentration|how many litre|πόσο|δόση|υπολόγισε|αραίωσ|ποσότητα|λίτρα|κιλά ανά)\b/.test(m)) return 'calculation';
+  if (/\b(how much|calculate|dose|dosage|rate|l\/ha|kg\/ha|ml\/|ratio|concentration|how many litre|flow|pressure|pump|pipe|hydraulic|bernoulli|venturi|orifice|head loss|tank.*mix|mix.*tank|volume|break.?even|cost.*ha|profit|margin|economic|return on|roi|πόσο|δόση|υπολόγισε|αραίωσ|ποσότητα|λίτρα|κιλά ανά|παροχή|πίεση|αντλία|αγωγό|υδραυλ|ροή|κόστος|κέρδος|απόδοση|εκτίμηση|οικονομ)\b/.test(m)) return 'calculation';
   // Follow-up: reporting back on a past treatment or asking about progress
   if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|no change|no improvement|any better|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε|δεν βελτιώθηκε|συνεχίζει|τα ίδια|επανήλθε|αποτέλεσμα|πώς πήγε|δεν έγινε καλύτερα)\b/.test(m)) return 'followup';
   // Diagnosis: symptoms, visual problems, disease/pest mentions, and diagnostic questions
-  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|what.?s wrong|something wrong|doesn.?t look|look sick|attacked|infested|what is this|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη|χτυπήθηκε|προσβολή|αρρωστ|τι έχει|τι μπορεί να έχει|δεν φαίνεται καλά|κάτι δεν πάει)\b/.test(m)) return 'diagnosis';
+  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|what.?s wrong|something wrong|doesn.?t look|look sick|attacked|infested|what is this|identify this|what weed|weed id|what plant is|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη|χτυπήθηκε|προσβολή|αρρωστ|τι έχει|τι μπορεί να έχει|δεν φαίνεται καλά|κάτι δεν πάει|τι ζιζάνιο|ταυτοποίησ)\b/.test(m)) return 'diagnosis';
   // Indoor/container care: watering, repotting, light, position, drainage, care queries, not symptom queries
   // Specific care keywords (unambiguous): always indoor
   if (/\b(repot|repotting|overwater|overwatered|underwater|underwatered|root.?bound|drainage hole|pot.*size|outgrow.*pot|γλάστρα|ξαναφύτεμα|ξαναφυτεύ)\b/.test(m)) return 'indoor';
@@ -328,7 +328,7 @@ function classifyIntent(message: string, hasActualImages: boolean): QueryIntent 
   const hasSymptomContext = /\b(yellow|spot|dying|disease|pest|rot|symptom|brown|curl|wilt|infected|dead|decay|sticky|aphid|mite|κίτρινα|ασθένεια|μύκητ)\b/.test(m);
   if (hasIndoorContext && !hasSymptomContext) return 'indoor';
   // Planning: what/when to do, schedules, programs
-  if (/\b(when should|what should i|plan|schedule|program|calendar|next step|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο)\b/.test(m)) return 'planning';
+  if (/\b(when should|what should i|plan|schedule|program|calendar|next step|when to|how to|weed|herbicide|harvest|prun|irrigat|fertigation|fertili|rotation|sow|sowing|transplant|propagat|thinning|cover crop|intercrop|storage|post.?harvest|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο|ζιζάνι|ζιζανιοκτόν|συγκομιδή|κλάδεμα|άρδευσ|σπορά|φύτευσ|αποθήκευσ|εναλλαγή|συγκαλλιέργεια)\b/.test(m)) return 'planning';
   return 'general';
 }
 
@@ -354,12 +354,12 @@ async function classifyIntentLlm(
         parts: [{
           text:
             `Classify this farmer's message (${langName}) as ONE intent. Return JSON {"intent":"..."}.\n` +
-            `- diagnosis: symptoms, visual problems, "what's wrong with my plant"\n` +
-            `- calculation: dose, rate, dilution, units (l/ha, kg/ha)\n` +
-            `- followup: reporting back on a past treatment / progress\n` +
-            `- indoor: houseplant or container care\n` +
-            `- planning: when/what to do, schedules, spray programs\n` +
-            `- general: definitions, general knowledge, greetings\n\n` +
+            `- diagnosis: symptoms, visual problems, weed identification, "what's wrong with my plant", pest/disease/weed ID\n` +
+            `- calculation: any mathematical calculation — dose, rate, dilution, units (l/ha, kg/ha), hydraulics (flow, pressure, pipe sizing, pump, Bernoulli, Venturi, head loss), irrigation design, spray volume, tank mixing, area/volume/yield calculations, economic calculations (cost, margin, break-even, ROI)\n` +
+            `- followup: reporting back on a past treatment / progress update\n` +
+            `- indoor: houseplant or container/pot care\n` +
+            `- planning: when/what to do, schedules, spray programs, weed management, herbicide use, harvest timing, pruning, irrigation scheduling, sowing, transplanting, crop rotation, post-harvest, storage, propagation\n` +
+            `- general: definitions, general agronomy knowledge, weather interpretation, soil science, water quality, seed selection, mushroom cultivation, hydroponics, beekeeping, greenhouse, agricultural economics concepts, greetings — anything agricultural that does not fit the above\n\n` +
             `Message: ${message}`,
         }],
       }],
@@ -526,13 +526,17 @@ IMAGE ANALYSIS:
 2. If MISSING critical inputs, ask BEFORE calculating.
 3. Show formula, inputs, final result with units.
 4. Always provide practical ranges.
+5. Accept any calculation a farmer or agronomist would need — do not refuse on grounds of it being "engineering" or "mathematics". If it serves a farming decision, calculate it.
 
 CALCULATION GUIDE:
-IRRIGATION: ETc = ET0 × Kc. Convert mm to m³/ha (1mm = 10 m³/ha). Add drip efficiency (85-95%).
+IRRIGATION WATER DEMAND: ETc = ET0 × Kc. Convert mm to m³/ha (1mm = 10 m³/ha). Add drip efficiency (85-95%).
+HYDRAULICS & PIPE FLOW: Use Bernoulli equation, Venturi meter formula, orifice equations, Darcy-Weisbach for head loss. Show each step. Pipe sizing: Q = A × V. Unit conversions as needed (m³/s, L/s, L/h). Velocity formula from Pitot: V = √(2gΔh). Venturi/orifice flow: Q = K × E₂ × √(2gΔh).
+PUMP & SYSTEM DESIGN: Total dynamic head = static head + friction losses + pressure at emitters. Power (kW) = (Q × H × ρ × g) / (1000 × efficiency).
+SPRAY & TANK MIXING: Volume = nozzle output × nozzles × speed correction. Field 200-400 L/ha, orchard 500-1000 L/ha. Tank mix: show ml or g of each product per tank volume.
 FERTILIZER: NPK from yield target + soil analysis. Convert kg nutrient/ha to kg product/ha using %.
-SPRAY: Volume = nozzle output × nozzles × speed correction. Field 200-400 L/ha, orchard 500-1000 L/ha.
-AREA: 1 stremma = 0.1 ha = 0.247 ac. Yield = density × fruit weight × % marketable.
-ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total costs / price per unit.`;
+AREA & YIELD: 1 stremma = 0.1 ha = 0.247 ac. Yield = density × fruit weight × % marketable.
+ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total costs / price per unit. ROI = (net gain / cost) × 100.
+SOIL & WATER QUALITY: EC, pH adjustments, salinity impact on yield (FAO threshold + slope model). Leaching requirement = ECw / (5 × ECe_threshold - ECw).`;
 
   const TYPE_C_PLANNING = `BEHAVIOUR FOR PLANNING (TYPE C):
 1. ANSWER-FIRST: deliver the complete plan immediately — no preamble.
@@ -696,7 +700,7 @@ ${intentHint ? '\n' + intentHint : ''}${depthHint ? '\n' + depthHint : ''}
 
 You are Oli, an expert AI agronomist. You help farmers with disease diagnosis, pest management, nutrition plans, irrigation calculations, fertilizer programs, yield estimation, economic analysis, planting schedules, harvest timing, and any other farming question.
 
-SCOPE: If unrelated to agriculture, decline in one sentence: "That's outside my area. If you have a question about crops, plants, or fields, I'm ready." Exception: requests for a grower/farmer overview, field summary, or crop status ARE agricultural — answer from the field context provided.
+SCOPE: You cover ALL topics a professional agronomist handles, including but not limited to: crop production and protection; disease, pest and weed identification and management; nutrition, fertilization and fertigation; irrigation design and any related engineering or mathematical calculation (hydraulics, flow rates, pipe sizing, pump selection, pressure calculations, head loss, Venturi meters, Bernoulli equations, drip and sprinkler system design, and any formula needed to size or operate an irrigation system); spray programs and tank mixing; soil science, soil analysis, composting and organic matter; water quality for irrigation (salinity, pH, EC); weather interpretation and its agronomic implications (frost risk, spray windows, heat stress, rain effect on treatments); harvest timing, post-harvest handling and storage; seed selection, germination and propagation; cover crops, crop rotation and intercropping; weeds and weed management; mushroom and fungi cultivation; hydroponics and aquaponics; beekeeping and pollination management; greenhouse and protected cultivation; agricultural economics (input costs, break-even, margins, subsidies, ROI); and any other calculation, question or decision that a farmer or agronomist would face in the field. If a question is genuinely unrelated to farming, food production, or rural land management, decline in one sentence: "That's outside my area. If you have a question about crops, plants, or fields, I'm ready." Exception: requests for a grower/farmer overview, field summary, or crop status ARE agricultural — answer from the field context provided.
 
 ${activeType}
 
