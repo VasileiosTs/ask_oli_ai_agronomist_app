@@ -440,9 +440,7 @@ export default function MessageBubble({
               {(dd?.organic_treatments?.length > 0 || dd?.chemical_treatments?.length > 0) && (() => {
                 const crop = msg.metadata?.crop_mentioned ?? '';
                 const problem = dd?.problem ?? '';
-                const ratePrompt = lang === 'el'
-                  ? `Ποιες είναι οι δόσεις εφαρμογής για τις συνιστώμενες θεραπείες${crop ? ` στο ${crop}` : ''}${problem ? ` για ${problem}` : ''};`
-                  : `What are the application rates for the recommended treatments${crop ? ` on ${crop}` : ''}${problem ? ` for ${problem}` : ''}?`;
+                const ratePrompt = `${t.ratePromptText}${crop ? (lang === 'ar' ? ` على ${crop}` : lang === 'el' ? ` στο ${crop}` : lang === 'it' ? ` su ${crop}` : lang === 'es' ? ` en ${crop}` : lang === 'fr' ? ` sur ${crop}` : ` on ${crop}`) : ''}${problem ? (lang === 'ar' ? ` لـ ${problem}` : lang === 'el' ? ` για ${problem}` : lang === 'it' ? ` per ${problem}` : lang === 'es' || lang === 'fr' ? ` pour ${problem}` : ` for ${problem}`) : ''}?`;
                 return (
                   <div className="mt-3 border-t border-border/30 pt-3 space-y-2">
                     <div className="grid grid-cols-2 gap-2">
@@ -480,12 +478,10 @@ export default function MessageBubble({
                       className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-amber-500/10 transition-colors"
                     >
                       <span>💊</span>
-                      {lang === 'el' ? 'Δόσεις εφαρμογής →' : 'Get application rates →'}
+                      {t.getApplicationRates}
                     </button>
                     <p className="text-[10px] text-muted/60 text-center leading-snug">
-                      {lang === 'el'
-                        ? 'Πάντα να ακολουθείτε την ετικέτα του προϊόντος και να συμβουλεύεστε πιστοποιημένο γεωπόνο.'
-                        : 'Always follow the product label and consult a certified agronomist before applying.'}
+                      {t.dosageDisclaimer}
                     </p>
                   </div>
                 );
