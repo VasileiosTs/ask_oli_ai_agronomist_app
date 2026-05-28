@@ -68,12 +68,22 @@ export default function AuthCallback() {
         return;
       }
 
+      // Helper: resolve destination, preserving a typed question if present
+      const chatDest = () => {
+        const pending = sessionStorage.getItem('oli_pending_question');
+        if (pending) {
+          sessionStorage.removeItem('oli_pending_question');
+          return `/chat?q=${encodeURIComponent(pending)}`;
+        }
+        return '/chat';
+      };
+
       // OAuth flow: hash fragment (#access_token=...) — Supabase client
       // already processes this via detectSessionInUrl:true. onAuthStateChange
       // will fire with SIGNED_IN. Wait for a real session instead of a fixed timeout.
       if (hasHashTokens) {
         const session = await waitForSession();
-        navigate(session ? '/chat' : '/auth', { replace: true });
+        navigate(session ? chatDest() : '/auth', { replace: true });
         return;
       }
 
@@ -98,7 +108,7 @@ export default function AuthCallback() {
         }
         const session = await waitForSession();
         if (!session) { navigate('/auth', { replace: true }); return; }
-        navigate(capturedEvent === 'PASSWORD_RECOVERY' ? '/auth/update-password' : '/chat', { replace: true });
+        navigate(capturedEvent === 'PASSWORD_RECOVERY' ? '/auth/update-password' : chatDest(), { replace: true });
         return;
       }
 
@@ -106,7 +116,7 @@ export default function AuthCallback() {
       // Check if we already have a session
       const session = await waitForSession(1500);
       if (session) {
-        navigate('/chat', { replace: true });
+        navigate(chatDest(), { replace: true });
       } else {
         navigate('/auth', { replace: true });
       }

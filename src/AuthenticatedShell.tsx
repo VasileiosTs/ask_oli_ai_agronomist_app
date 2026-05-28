@@ -1,7 +1,8 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-import { Routes, Route, Navigate, Link, useSearchParams } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { useAuth } from './hooks/useAuth';
+import { supabase } from './lib/supabase';
 import { usePushSubscription } from './hooks/usePushSubscription';
 import { useLanguage } from './lib/LanguageContext';
 import AppLayout from './components/AppLayout';
@@ -45,20 +46,7 @@ const NotFound = () => {
   );
 };
 
-const GUEST_CHAT_ENTRY_KEY = 'oli_guest_chat_entry';
-
-function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boolean; needsOnboarding: boolean }) {
-  const [searchParams] = useSearchParams();
-  // Persist guest entry in sessionStorage so that Chat.tsx removing ?q= from
-  // the URL doesn't cause an unauthenticated user to be bounced back to landing.
-  const [guestEntry] = useState(() => {
-    if (typeof window === 'undefined') return searchParams.has('q');
-    const hasQuery = searchParams.has('q');
-    const stored = sessionStorage.getItem(GUEST_CHAT_ENTRY_KEY) === '1';
-    if (hasQuery) sessionStorage.setItem(GUEST_CHAT_ENTRY_KEY, '1');
-    return hasQuery || stored;
-  });
-
+function ChatRouteGuard({ authenticated }: { authenticated: boolean }) {
   if (authenticated) {
     return (
       <>
@@ -68,15 +56,7 @@ function ChatRouteGuard({ authenticated, needsOnboarding }: { authenticated: boo
     );
   }
 
-  if (needsOnboarding) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  if (guestEntry || searchParams.has('q')) {
-    return <Chat />;
-  }
-
-  return <Navigate to="/" replace />;
+  return <Navigate to="/auth" replace />;
 }
 
 function UpdateBanner() {
@@ -193,9 +173,38 @@ function TrialExpiryBanner() {
 }
 
 function AppRoutes() {
-  const { user, profile, loading, appUserId, isAdmin } = useAuth();
+  const { user, profile, loading, appUserId, isAdmin, refreshProfile } = useAuth();
   const { lang } = useLanguage();
   const push = usePushSubscription(appUserId ?? null);
+
+  // Auto-create a minimal profile for users who just completed OAuth/magic-link
+  // but have no row in public.users yet (skips onboarding entirely).
+  const [autoCreatingProfile, setAutoCreatingProfile] = useState(false);
+  useEffect(() => {
+    if (!user || profile !== null || loading || autoCreatingProfile) return;
+    setAutoCreatingProfile(true);
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const name = ((meta.full_name ?? meta.name ?? '') as string).trim();
+    const detectedLang = localStorage.getItem('oli_lang_manual') ?? 'en';
+    void (async () => {
+      try {
+        await supabase.from('users').upsert(
+          {
+            auth_id: user.id,
+            name,
+            language: detectedLang,
+            area_unit: detectedLang === 'el' ? 'stremma' : 'ha',
+            onboarding_complete: true,
+            notification_followup: true,
+          },
+          { onConflict: 'auth_id' }
+        );
+        await refreshProfile({ retries: 5, delayMs: 400, requireCompletedOnboarding: false });
+      } finally {
+        setAutoCreatingProfile(false);
+      }
+    })();
+  }, [user, profile, loading, autoCreatingProfile, refreshProfile]);
 
   // Auto-request push permission once the user is authenticated and hasn't been asked yet
   useEffect(() => {
@@ -209,7 +218,7 @@ function AppRoutes() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  if (loading) {
+  if (loading || autoCreatingProfile) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-background">
         <LoadingSpinner />
@@ -217,8 +226,7 @@ function AppRoutes() {
     );
   }
 
-  const authenticated = !!(user && profile && profile.onboarding_complete);
-  const needsOnboarding = !!(user && (!profile || !profile.onboarding_complete));
+  const authenticated = !!(user && profile);
 
   return (
     <Suspense fallback={<div className="flex h-[100dvh] items-center justify-center bg-background"><LoadingSpinner /></div>}>
@@ -245,43 +253,27 @@ function AppRoutes() {
         {/* Auth */}
         <Route
           path="/auth"
-          element={
-            authenticated ? <Navigate to="/chat" replace /> :
-            needsOnboarding ? <Navigate to="/onboarding" replace /> :
-            <Auth />
-          }
+          element={authenticated ? <Navigate to="/chat" replace /> : <Auth />}
         />
 
-        {/* Onboarding */}
+        {/* Onboarding — retired; redirect to auth or chat */}
         <Route
           path="/onboarding"
-          element={
-            authenticated ? <Navigate to="/chat" replace /> :
-            needsOnboarding ? <Onboarding /> :
-            <Navigate to="/auth" replace />
-          }
+          element={authenticated ? <Navigate to="/chat" replace /> : <Navigate to="/auth" replace />}
         />
 
         {/* Root — redirect authenticated users to chat, show landing for visitors */}
         <Route
           path="/"
-          element={
-            authenticated ? <Navigate to="/chat" replace /> :
-            needsOnboarding ? <Navigate to="/onboarding" replace /> :
-            <Landing />
-          }
+          element={authenticated ? <Navigate to="/chat" replace /> : <Landing />}
         />
 
-        {/* Chat — accessible in guest mode (?q=) without auth */}
-        <Route path="/chat" element={<ChatRouteGuard authenticated={authenticated} needsOnboarding={needsOnboarding} />} />
+        {/* Chat — requires auth */}
+        <Route path="/chat" element={<ChatRouteGuard authenticated={authenticated} />} />
 
         {/* Protected routes */}
         <Route
-          element={
-            authenticated ? <AppLayout /> :
-            needsOnboarding ? <Navigate to="/onboarding" replace /> :
-            <Navigate to="/" replace />
-          }
+          element={authenticated ? <AppLayout /> : <Navigate to="/" replace />}
         >
           <Route path="/history" element={<History />} />
           <Route path="/fields" element={<Fields />} />

@@ -241,8 +241,6 @@ const FEATURES = (lang: string): { icon: LucideIcon; title: string; body: string
   ];
 };
 
-const GUEST_CHAT_ENTRY_KEY = 'oli_guest_chat_entry';
-
 // ── Role-based showcase ──────────────────────────────────────────────────────
 const ROLES = (lang: string) => {
   type RoleT = { farmer: string; farmerHL: string; farmerQ: string; farmerA: string; farmerTag: string; agro: string; agroHL: string; agroQ: string; agroA: string; agroTag: string; assoc: string; assocHL: string; assocQ: string; assocA: string; assocTag: string; garden: string; gardenHL: string; gardenQ: string; gardenA: string; gardenTag: string; input: string; inputHL: string; inputQ: string; inputA: string; inputTag: string };
@@ -813,7 +811,9 @@ export default function Landing() {
 
     const openChatWithQuestion = (question: string) => {
       if (!isLoggedIn) {
-        sessionStorage.setItem(GUEST_CHAT_ENTRY_KEY, '1');
+        sessionStorage.setItem('oli_pending_question', question);
+        navigate('/auth');
+        return;
       }
       navigate(`/chat?q=${encodeURIComponent(question)}`);
     };
@@ -845,7 +845,9 @@ export default function Landing() {
 
   const sendQuestion = (q: string) => {
     if (!isLoggedIn) {
-      sessionStorage.setItem(GUEST_CHAT_ENTRY_KEY, '1');
+      sessionStorage.setItem('oli_pending_question', q);
+      navigate('/auth');
+      return;
     }
     navigate(`/chat?q=${encodeURIComponent(q)}`);
   };
@@ -1015,8 +1017,8 @@ export default function Landing() {
                 />
               </form>
 
-              {/* Rotating suggestion chip */}
-              <div className="flex flex-col items-center lg:items-start gap-2">
+              {/* Rotating suggestion chip + hero CTA */}
+              <div className="flex flex-col items-center lg:items-start gap-3">
                 <button
                   onClick={() => sendQuestion(rotatingQuestions[suggestionIdx])}
                   style={{ opacity: suggestionVisible ? 1 : 0, transition: 'opacity 0.35s ease' }}
@@ -1027,8 +1029,10 @@ export default function Landing() {
                 </button>
                 <Link
                   to={isLoggedIn ? '/chat' : '/auth'}
-                  className="inline-block rounded-full bg-[#194121] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity">
-                  {lt.trialBadge}
+                  className="w-full sm:w-auto inline-flex flex-col items-center justify-center rounded-2xl bg-[#194121] px-8 py-4 text-center hover:opacity-90 transition-opacity"
+                  style={{ boxShadow: '0 6px 24px rgba(25,65,33,0.28)' }}>
+                  <span className="text-base font-bold text-white">{lt.trialBadge}</span>
+                  {!isLoggedIn && <span className="text-xs text-white/70 mt-0.5">{lt.noCreditCard}</span>}
                 </Link>
               </div>
             </div>
