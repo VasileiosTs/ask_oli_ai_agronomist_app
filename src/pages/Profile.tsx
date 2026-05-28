@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, ChevronLeft, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3, ArrowLeft } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
@@ -28,6 +28,16 @@ export default function Profile() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [langDropOpen, setLangDropOpen] = useState(false);
+  const langDropRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!langDropOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (langDropRef.current && !langDropRef.current.contains(e.target as Node)) setLangDropOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [langDropOpen]);
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -366,15 +376,30 @@ export default function Profile() {
               <Globe className="h-5 w-5 text-muted" />
               <span className="text-sm text-foreground">{t.languageLabel}</span>
             </div>
-            <div className="flex flex-wrap gap-1 justify-end max-w-[200px]">
-              {LANG_OPTIONS.map(({ code, flag }) => (
-                <button key={code} onClick={() => setLang(code)}
-                  className={clsx('rounded-full px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1',
-                    lang === code ? 'bg-primary text-white' : 'bg-surface text-muted border border-border/50 hover:text-foreground')}>
-                  <span>{flag}</span>
-                  <span className="uppercase">{code}</span>
-                </button>
-              ))}
+            <div className="relative" ref={langDropRef}>
+              <button
+                onClick={() => setLangDropOpen(o => !o)}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold bg-surface border border-border/50 hover:border-primary hover:text-primary transition-colors"
+              >
+                <span>{LANG_OPTIONS.find(o => o.code === lang)?.flag ?? '🌐'}</span>
+                <span className="uppercase">{lang}</span>
+                <ChevronRight className={clsx('h-3 w-3 transition-transform', langDropOpen ? 'rotate-90' : '')} />
+              </button>
+              {langDropOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-border rounded-xl shadow-lg overflow-hidden min-w-[150px]">
+                  {LANG_OPTIONS.map(({ code, label, flag }) => (
+                    <button
+                      key={code}
+                      onClick={() => { setLang(code); setLangDropOpen(false); }}
+                      className={clsx('flex w-full items-center gap-2 px-3 py-2.5 text-xs font-medium transition-colors',
+                        lang === code ? 'bg-primary text-white' : 'text-foreground hover:bg-surface')}
+                    >
+                      <span>{flag}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           {/* Area unit preference */}

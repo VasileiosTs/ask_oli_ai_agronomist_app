@@ -673,6 +673,15 @@ export default function Landing() {
   const [suggestionVisible, setSuggestionVisible] = useState(true);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('annual');
   const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!langOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [langOpen]);
   const imperial = useMemo(() => detectImperial(), []);
 
   // Exit-intent: show a sticky bottom banner once user scrolls past 75% of page
@@ -853,8 +862,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <div
               className="relative"
-              onMouseEnter={() => setLangOpen(true)}
-              onMouseLeave={() => setLangOpen(false)}
+              ref={langRef}
             >
               <button
                 onClick={() => setLangOpen(o => !o)}
