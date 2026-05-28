@@ -27,6 +27,7 @@ function getInitialLang(): Lang {
   if (browserLang.startsWith('am')) return 'am';
   if (browserLang.startsWith('vi')) return 'vi';
   if (browserLang.startsWith('ha')) return 'ha';
+  if (browserLang.startsWith('ur')) return 'ur';
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz === 'Europe/Athens' || tz === 'Asia/Nicosia') return 'el';
@@ -46,6 +47,7 @@ function getInitialLang(): Lang {
     if (tz === 'Africa/Addis_Ababa') return 'am';
     if (tz === 'Asia/Ho_Chi_Minh' || tz === 'Asia/Hanoi') return 'vi';
     if (tz === 'Africa/Lagos' || tz === 'Africa/Kano') return 'ha';
+    if (tz === 'Asia/Karachi') return 'ur';
   } catch { /* ignore */ }
   return 'en';
 }

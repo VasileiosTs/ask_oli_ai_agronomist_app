@@ -43,26 +43,27 @@ const PHONE_DEMOS = (lang: string): PhoneDemo[] => {
 // ── Static data ───────────────────────────────────────────────────────────────
 
 const STATS = (lang: string) => {
-  const labels: Record<string, [string, string, string, string]> = {
-    el: ['Ασθένειες & παθογόνα', 'Είδη καλλιεργειών', 'Ελλείψεις θρεπτικών', 'Γλώσσες'],
-    en: ['Diseases & pathogens', 'Crop types', 'Nutrient deficiencies', 'Languages'],
-    it: ['Malattie e patogeni', 'Tipi di coltura', 'Carenze nutrizionali', 'Lingue'],
-    es: ['Enfermedades y patógenos', 'Tipos de cultivo', 'Deficiencias nutricionales', 'Idiomas'],
-    fr: ['Maladies et pathogènes', 'Types de culture', 'Carences nutritionnelles', 'Langues'],
-    ar: ['الأمراض والمسببات', 'أنواع المحاصيل', 'نقص العناصر الغذائية', 'اللغات'],
-    tr: ['Hastalıklar & patojenler', 'Ürün türleri', 'Besin eksiklikleri', 'Dil'],
-    ro: ['Boli și agenți patogeni', 'Tipuri de culturi', 'Deficiențe nutriționale', 'Limbi'],
-    bg: ['Болести и патогени', 'Видове култури', 'Хранителни дефицити', 'Езика'],
-    sq: ['Sëmundje & patogjenë', 'Lloje bimësh', 'Mungesa ushqyese', 'Gjuhë'],
-    pt: ['Doenças e patógenos', 'Tipos de culturas', 'Deficiências nutricionais', 'Idiomas'],
-    de: ['Krankheiten & Erreger', 'Kulturpflanzenarten', 'Nährstoffmängel', 'Sprachen'],
-    hi: ['रोग और रोगजनक', 'फसल के प्रकार', 'पोषण की कमी', 'भाषाएं'],
-    sw: ['Magonjwa na vimelea', 'Aina za mazao', 'Upungufu wa virutubisho', 'Lugha'],
-    bn: ['রোগ ও রোগজীবাণু', 'ফসলের ধরন', 'পুষ্টির ঘাটতি', 'ভাষা'],
-    id: ['Penyakit & patogen', 'Jenis tanaman', 'Defisiensi nutrisi', 'Bahasa'],
-    am: ['ሕመሞች እና ፓቶጀኖች', 'የሰብል ዓይነቶች', 'የንጥረ-ነገር እጥረቶች', 'ቋንቋዎች'],
-    vi: ['Bệnh & mầm bệnh', 'Loại cây trồng', 'Thiếu dinh dưỡng', 'Ngôn ngữ'],
-    ha: ['Cututtuka & ƙwayoyin cuta', 'Nau\'in amfanin gona', 'Ƙarancin abinci', 'Harsuna'],
+  const labels: Record<string, [string, string, string, string, string]> = {
+    el: ['Ασθένειες & παθογόνα', 'Είδη καλλιεργειών', 'Ελλείψεις θρεπτικών', 'Γλώσσες', 'Τεχνικοί υπολογισμοί'],
+    en: ['Diseases & pathogens', 'Crop types', 'Nutrient deficiencies', 'Languages', 'Technical calculations'],
+    it: ['Malattie e patogeni', 'Tipi di coltura', 'Carenze nutrizionali', 'Lingue', 'Calcoli tecnici'],
+    es: ['Enfermedades y patógenos', 'Tipos de cultivo', 'Deficiencias nutricionales', 'Idiomas', 'Cálculos técnicos'],
+    fr: ['Maladies et pathogènes', 'Types de culture', 'Carences nutritionnelles', 'Langues', 'Calculs techniques'],
+    ar: ['الأمراض والمسببات', 'أنواع المحاصيل', 'نقص العناصر الغذائية', 'اللغات', 'حسابات تقنية'],
+    tr: ['Hastalıklar & patojenler', 'Ürün türleri', 'Besin eksiklikleri', 'Dil', 'Teknik hesaplamalar'],
+    ro: ['Boli și agenți patogeni', 'Tipuri de culturi', 'Deficiențe nutriționale', 'Limbi', 'Calcule tehnice'],
+    bg: ['Болести и патогени', 'Видове култури', 'Хранителни дефицити', 'Езика', 'Технически изчисления'],
+    sq: ['Sëmundje & patogjenë', 'Lloje bimësh', 'Mungesa ushqyese', 'Gjuhë', 'Llogaritje teknike'],
+    pt: ['Doenças e patógenos', 'Tipos de culturas', 'Deficiências nutricionais', 'Idiomas', 'Cálculos técnicos'],
+    de: ['Krankheiten & Erreger', 'Kulturpflanzenarten', 'Nährstoffmängel', 'Sprachen', 'Technische Berechnungen'],
+    hi: ['रोग और रोगजनक', 'फसल के प्रकार', 'पोषण की कमी', 'भाषाएं', 'तकनीकी गणनाएं'],
+    sw: ['Magonjwa na vimelea', 'Aina za mazao', 'Upungufu wa virutubisho', 'Lugha', 'Hesabu za kiufundi'],
+    bn: ['রোগ ও রোগজীবাণু', 'ফসলের ধরন', 'পুষ্টির ঘাটতি', 'ভাষা', 'প্রযুক্তিগত গণনা'],
+    id: ['Penyakit & patogen', 'Jenis tanaman', 'Defisiensi nutrisi', 'Bahasa', 'Kalkulasi teknis'],
+    am: ['ሕመሞች እና ፓቶጀኖች', 'የሰብል ዓይነቶች', 'የንጥረ-ነገር እጥረቶች', 'ቋንቋዎች', 'ቴክኒካዊ ስሌቶች'],
+    vi: ['Bệnh & mầm bệnh', 'Loại cây trồng', 'Thiếu dinh dưỡng', 'Ngôn ngữ', 'Tính toán kỹ thuật'],
+    ha: ['Cututtuka & ƙwayoyin cuta', 'Nau\'in amfanin gona', 'Ƙarancin abinci', 'Harsuna', 'Ƙididdiga na fasaha'],
+    ur: ['بیماریاں اور جراثیم', 'فصلوں کی اقسام', 'غذائی کمیاں', 'زبانیں', 'تکنیکی حسابات'],
   };
   const l = labels[lang] ?? labels['en'];
   return [
@@ -70,6 +71,7 @@ const STATS = (lang: string) => {
     { n: '80+',  label: l[1] },
     { n: '20+',  label: l[2] },
     { n: '19',   label: l[3] },
+    { n: '50+',  label: l[4] },
   ];
 };
 
@@ -1061,7 +1063,7 @@ export default function Landing() {
       {/* ── STATS BAR ── */}
       <section className="py-8 bg-white border-y border-[#f0efea]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
             {STATS(lang).map((s, i) => (
               <div key={i} className="flex flex-col items-center">
                 <div className="text-2xl sm:text-3xl font-bold text-[#194121] mb-0.5" style={{ fontFamily: "'Noto Serif', serif" }}>

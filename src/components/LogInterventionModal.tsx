@@ -104,6 +104,9 @@ export function LogInterventionModal({
   const [stage, setStage]         = useState<'form' | 'follow_up' | 'outcome'>('form');
   const [interventionId, setInterventionId] = useState<string | null>(null);
 
+  // ── Product purchased (follow-up optional field) ──
+  const [productBought, setProductBought] = useState('');
+
   // ── Outcome note state ──
   // Shown after the user taps Better/Same/Worse/Didn't-apply
   const [selectedOutcome, setSelectedOutcome]   = useState<OutcomeChip | null>(null);
@@ -157,16 +160,26 @@ export function LogInterventionModal({
     }
   };
 
-  // ── Step 2: Set follow-up reminder ──
+  // ── Step 2: Set follow-up reminder (+ save bought product if provided) ──
   const handleFollowUp = async (wantsReminder: boolean) => {
-    if (wantsReminder && interventionId) {
-      const followUpAt = new Date();
-      followUpAt.setDate(followUpAt.getDate() + 3); // VIO Step 1: 3 days
-      const { error } = await supabase
-        .from('interventions')
-        .update({ follow_up_at: followUpAt.toISOString(), vio_step: 1 })
-        .eq('id', interventionId);
-      if (error) console.error('Failed to set follow-up:', error);
+    if (interventionId) {
+      const updates: Record<string, unknown> = {};
+      if (wantsReminder) {
+        const followUpAt = new Date();
+        followUpAt.setDate(followUpAt.getDate() + 3); // VIO Step 1: 3 days
+        updates.follow_up_at = followUpAt.toISOString();
+        updates.vio_step = 1;
+      }
+      if (productBought.trim()) {
+        updates.product_applied = productBought.trim();
+      }
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase
+          .from('interventions')
+          .update(updates)
+          .eq('id', interventionId);
+        if (error) console.error('Failed to update intervention:', error);
+      }
     }
     trackEvent(Events.INTERVENTION_LOGGED, { withFollowUp: wantsReminder });
     onSuccess(interventionId!);
@@ -300,6 +313,7 @@ export function LogInterventionModal({
 
   // ── Render: Follow-up reminder stage ──
   if (stage === 'follow_up') {
+    const isEl = lang === 'el';
     return (
       <ModalShell title={t.setReminder} onClose={onClose}>
         <div className="flex flex-col items-center py-6 text-center">
@@ -307,7 +321,28 @@ export function LogInterventionModal({
             <Check className="h-8 w-8 text-green-500" />
           </div>
           <h3 className="mb-2 text-xl font-semibold text-foreground">{t.interventionLogged}</h3>
-          <p className="mb-8 text-muted">{t.reminderQuestion}</p>
+          {/* Optional: which product did they buy? */}
+          <div className="w-full mb-5 text-left">
+            <label className="block text-sm font-medium text-foreground mb-1">
+              {isEl ? 'Ποιο προϊόν αγοράσατε;' : 'Which product did you buy?'}
+              <span className="ml-1 text-xs font-normal text-muted">
+                ({isEl ? 'προαιρετικό' : 'optional'})
+              </span>
+            </label>
+            <input
+              type="text"
+              value={productBought}
+              onChange={e => setProductBought(e.target.value)}
+              placeholder={isEl ? 'π.χ. Ortiva Top, Score 250 EC...' : 'e.g. Ortiva Top, Score 250 EC...'}
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <p className="mt-1 text-[11px] text-muted/60">
+              {isEl
+                ? 'Αυτό βοηθά τον Oli να δώσει ακριβείς δόσεις την επόμενη φορά.'
+                : 'This helps Oli give you accurate doses next time.'}
+            </p>
+          </div>
+          <p className="mb-5 text-sm text-muted">{t.reminderQuestion}</p>
           <div className="flex w-full gap-3">
             <button
               onClick={() => handleFollowUp(false)}

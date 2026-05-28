@@ -1,4 +1,4 @@
-export type Lang = 'el' | 'en' | 'it' | 'es' | 'fr' | 'ar' | 'tr' | 'ro' | 'bg' | 'sq' | 'pt' | 'de' | 'hi' | 'sw' | 'bn' | 'id' | 'am' | 'vi' | 'ha';
+export type Lang = 'el' | 'en' | 'it' | 'es' | 'fr' | 'ar' | 'tr' | 'ro' | 'bg' | 'sq' | 'pt' | 'de' | 'hi' | 'sw' | 'bn' | 'id' | 'am' | 'vi' | 'ha' | 'ur';
 
 export interface T {
   // Auth
@@ -166,9 +166,10 @@ export const LANG_OPTIONS: Array<{ code: Lang; label: string; flag: string }> = 
   { code: 'am', label: 'አማርኛ', flag: '🇪🇹' },
   { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
   { code: 'ha', label: 'Hausa', flag: '🇳🇬' },
+  { code: 'ur', label: 'اردو', flag: '🇵🇰' },
 ];
 
-const VALID_LANG_CODES: Lang[] = ['el', 'en', 'it', 'es', 'fr', 'ar', 'tr', 'ro', 'bg', 'sq', 'pt', 'de', 'hi', 'sw', 'bn', 'id', 'am', 'vi', 'ha'];
+const VALID_LANG_CODES: Lang[] = ['el', 'en', 'it', 'es', 'fr', 'ar', 'tr', 'ro', 'bg', 'sq', 'pt', 'de', 'hi', 'sw', 'bn', 'id', 'am', 'vi', 'ha', 'ur'];
 
 export async function detectLang(): Promise<Lang> {
   // User's explicit choice always wins
@@ -197,6 +198,7 @@ export async function detectLang(): Promise<Lang> {
   if (browserLang.startsWith('am')) return 'am';
   if (browserLang.startsWith('vi')) return 'vi';
   if (browserLang.startsWith('ha')) return 'ha';
+  if (browserLang.startsWith('ur')) return 'ur';
 
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (timezone === 'Europe/Athens' || timezone === 'Asia/Nicosia') return 'el';
@@ -216,6 +218,7 @@ export async function detectLang(): Promise<Lang> {
   if (timezone === 'Africa/Addis_Ababa') return 'am';
   if (timezone === 'Asia/Ho_Chi_Minh' || timezone === 'Asia/Hanoi') return 'vi';
   if (timezone === 'Africa/Lagos' || timezone === 'Africa/Kano') return 'ha';
+  if (timezone === 'Asia/Karachi') return 'ur';
 
   return 'en';
 }

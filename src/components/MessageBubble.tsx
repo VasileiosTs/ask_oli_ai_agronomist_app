@@ -448,7 +448,7 @@ export default function MessageBubble({
                         <div className="rounded-xl bg-green-500/5 border border-green-500/20 p-3">
                           <p className="text-xs font-semibold text-green-400 mb-1.5">{t.organicTreatments}</p>
                           {(dd.organic_treatments as string[]).map((tx, i) => (
-                            <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {stripDosage(tx)}</p>
+                            <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {tx}</p>
                           ))}
                         </div>
                       )}
@@ -456,7 +456,7 @@ export default function MessageBubble({
                         <div className="rounded-xl bg-blue-500/5 border border-blue-500/20 p-3">
                           <p className="text-xs font-semibold text-blue-400 mb-1.5">{t.chemicalTreatments}</p>
                           {(dd.chemical_treatments as string[]).map((tx, i) => (
-                            <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {stripDosage(tx)}</p>
+                            <p key={i} className="text-[12px] text-foreground/80 leading-snug">&bull; {tx}</p>
                           ))}
                         </div>
                       )}

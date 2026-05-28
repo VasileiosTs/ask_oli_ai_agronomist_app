@@ -214,7 +214,7 @@ function AppRoutes() {
   }, [user, push.isSupported, push.isSubscribed, push.permission]);
 
   useEffect(() => {
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.dir = (lang === 'ar' || lang === 'ur') ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
 
