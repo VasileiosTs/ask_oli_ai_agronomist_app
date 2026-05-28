@@ -1025,9 +1025,11 @@ export default function Landing() {
                   <span className="flex-shrink-0 text-[#194121]/60">→</span>
                   <span className="truncate">{rotatingQuestions[suggestionIdx]}</span>
                 </button>
-                <span className="inline-block rounded-full bg-[#194121]/10 px-4 py-1.5 text-xs font-medium text-[#194121]">
+                <Link
+                  to={isLoggedIn ? '/chat' : '/auth'}
+                  className="inline-block rounded-full bg-[#194121] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity">
                   {lt.trialBadge}
-                </span>
+                </Link>
               </div>
             </div>
 
