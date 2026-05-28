@@ -14,12 +14,24 @@ function getInitialLang(): Lang {
   if (browserLang.startsWith('es')) return 'es';
   if (browserLang.startsWith('fr')) return 'fr';
   if (browserLang.startsWith('ar')) return 'ar';
+  if (browserLang.startsWith('tr')) return 'tr';
+  if (browserLang.startsWith('ro')) return 'ro';
+  if (browserLang.startsWith('bg')) return 'bg';
+  if (browserLang.startsWith('sq')) return 'sq';
+  if (browserLang.startsWith('pt')) return 'pt';
+  if (browserLang.startsWith('de')) return 'de';
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz === 'Europe/Athens' || tz === 'Asia/Nicosia') return 'el';
     if (tz?.startsWith('Europe/Rome') || tz === 'Europe/Vatican') return 'it';
     if (tz?.startsWith('Europe/Madrid') || tz === 'Atlantic/Canary') return 'es';
     if (tz?.startsWith('Europe/Paris') || tz === 'Indian/Reunion') return 'fr';
+    if (tz === 'Europe/Istanbul') return 'tr';
+    if (tz === 'Europe/Bucharest') return 'ro';
+    if (tz === 'Europe/Sofia') return 'bg';
+    if (tz === 'Europe/Tirane') return 'sq';
+    if (tz?.startsWith('Europe/Lisbon') || tz === 'Atlantic/Azores') return 'pt';
+    if (tz?.startsWith('Europe/Berlin') || tz === 'Europe/Vienna' || tz === 'Europe/Zurich') return 'de';
   } catch { /* ignore */ }
   return 'en';
 }

@@ -1,4 +1,4 @@
-export type Lang = 'el' | 'en' | 'it' | 'es' | 'fr' | 'ar';
+export type Lang = 'el' | 'en' | 'it' | 'es' | 'fr' | 'ar' | 'tr' | 'ro' | 'bg' | 'sq' | 'pt' | 'de';
 
 export interface T {
   // Auth
@@ -153,12 +153,20 @@ export const LANG_OPTIONS: Array<{ code: Lang; label: string; flag: string }> = 
   { code: 'es', label: 'Español', flag: '🇪🇸' },
   { code: 'fr', label: 'Français', flag: '🇫🇷' },
   { code: 'ar', label: 'العربية', flag: '🇸🇦' },
+  { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
+  { code: 'ro', label: 'Română', flag: '🇷🇴' },
+  { code: 'bg', label: 'Български', flag: '🇧🇬' },
+  { code: 'sq', label: 'Shqip', flag: '🇦🇱' },
+  { code: 'pt', label: 'Português', flag: '🇵🇹' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
 ];
+
+const VALID_LANG_CODES: Lang[] = ['el', 'en', 'it', 'es', 'fr', 'ar', 'tr', 'ro', 'bg', 'sq', 'pt', 'de'];
 
 export async function detectLang(): Promise<Lang> {
   // User's explicit choice always wins
   const manual = localStorage.getItem('oli_lang_manual') as Lang | null;
-  if (manual && (manual === 'el' || manual === 'en' || manual === 'it' || manual === 'es' || manual === 'fr' || manual === 'ar')) return manual;
+  if (manual && VALID_LANG_CODES.includes(manual)) return manual;
   // Legacy key from older sessions
   const legacy = localStorage.getItem('oli_lang') as Lang | null;
   if (legacy === 'el' || legacy === 'en') return legacy;
@@ -169,12 +177,24 @@ export async function detectLang(): Promise<Lang> {
   if (browserLang.startsWith('es')) return 'es';
   if (browserLang.startsWith('fr')) return 'fr';
   if (browserLang.startsWith('ar')) return 'ar';
+  if (browserLang.startsWith('tr')) return 'tr';
+  if (browserLang.startsWith('ro')) return 'ro';
+  if (browserLang.startsWith('bg')) return 'bg';
+  if (browserLang.startsWith('sq')) return 'sq';
+  if (browserLang.startsWith('pt')) return 'pt';
+  if (browserLang.startsWith('de')) return 'de';
 
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (timezone === 'Europe/Athens' || timezone === 'Asia/Nicosia') return 'el';
   if (timezone?.startsWith('Europe/Rome') || timezone === 'Europe/Vatican') return 'it';
   if (timezone?.startsWith('Europe/Madrid') || timezone === 'Atlantic/Canary') return 'es';
   if (timezone?.startsWith('Europe/Paris') || timezone === 'Indian/Reunion') return 'fr';
+  if (timezone === 'Europe/Istanbul') return 'tr';
+  if (timezone === 'Europe/Bucharest') return 'ro';
+  if (timezone === 'Europe/Sofia') return 'bg';
+  if (timezone === 'Europe/Tirane') return 'sq';
+  if (timezone?.startsWith('Europe/Lisbon') || timezone === 'Atlantic/Azores') return 'pt';
+  if (timezone?.startsWith('Europe/Berlin') || timezone === 'Europe/Vienna' || timezone === 'Europe/Zurich') return 'de';
 
   return 'en';
 }

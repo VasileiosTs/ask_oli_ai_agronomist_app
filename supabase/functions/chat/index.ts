@@ -309,11 +309,11 @@ function classifyIntent(message: string, hasActualImages: boolean): QueryIntent 
   if (hasActualImages) return 'diagnosis'; // image attachment = always diagnostic intent
   const m = message.toLowerCase();
   // Calculation: numerical, dosage, rate, or unit questions
-  if (/\b(how much|calculate|dose|dosage|rate|l\/ha|kg\/ha|ml\/|ratio|concentration|how many litre|flow|pressure|pump|pipe|hydraulic|bernoulli|venturi|orifice|head loss|tank.*mix|mix.*tank|volume|break.?even|cost.*ha|profit|margin|economic|return on|roi|πόσο|δόση|υπολόγισε|αραίωσ|ποσότητα|λίτρα|κιλά ανά|παροχή|πίεση|αντλία|αγωγό|υδραυλ|ροή|κόστος|κέρδος|απόδοση|εκτίμηση|οικονομ)\b/.test(m)) return 'calculation';
+  if (/\b(how much|calculate|dose|dosage|rate|l\/ha|kg\/ha|ml\/|ratio|concentration|how many litre|flow|pressure|pump|pipe|hydraulic|bernoulli|venturi|orifice|head loss|tank.*mix|mix.*tank|volume|break.?even|cost.*ha|profit|margin|economic|return on|roi|πόσο|δόση|υπολόγισε|αραίωσ|ποσότητα|λίτρα|κιλά ανά|παροχή|πίεση|αντλία|αγωγό|υδραυλ|ροή|κόστος|κέρδος|απόδοση|εκτίμηση|οικονομ|dozaj|doz hesapla|ne kadar|doză|cât de mult|calcul|doza|колко|изчисли|doze|calcular|quanto|Dosierung|berechne|wie viel)\b/.test(m)) return 'calculation';
   // Follow-up: reporting back on a past treatment or asking about progress
-  if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|no change|no improvement|any better|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε|δεν βελτιώθηκε|συνεχίζει|τα ίδια|επανήλθε|αποτέλεσμα|πώς πήγε|δεν έγινε καλύτερα)\b/.test(m)) return 'followup';
+  if (/\b(still|still not|improved|worse|better|same|it worked|didn.t work|no change|no improvement|any better|ακόμα|βελτιώθηκε|χειρότερα|καλύτερα|δεν άλλαξε|δούλεψε|δεν βελτιώθηκε|συνεχίζει|τα ίδια|επανήλθε|αποτέλεσμα|πώς πήγε|δεν έγινε καλύτερα|hâlâ|iyileşti|kötüleşti|değişmedi|işe yaradı|mai bine|mai rău|la fel|nu s-a schimbat|подобри|влоши|не се промени|проработи|po mirë|po keq|nuk ndryshoi|melhorou|piorou|não mudou|verbessert|schlechter|gleich|hat geholfen)\b/.test(m)) return 'followup';
   // Diagnosis: symptoms, visual problems, disease/pest mentions, and diagnostic questions
-  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|what.?s wrong|something wrong|doesn.?t look|look sick|attacked|infested|what is this|identify this|what weed|weed id|what plant is|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη|χτυπήθηκε|προσβολή|αρρωστ|τι έχει|τι μπορεί να έχει|δεν φαίνεται καλά|κάτι δεν πάει|τι ζιζάνιο|ταυτοποίησ)\b/.test(m)) return 'diagnosis';
+  if (/\b(yellow|spot|dying|disease|pest|fungus|mold|rot|leaves|symptom|brown|black|white powder|curl|wilt|infected|droop|dropping|falling|eaten|hole|pale|fading|lesion|blister|canker|necrosis|tip.?burn|discolor|discolour|stunted|dead|decay|oozing|sticky|aphid|mite|thrip|caterpillar|scarring|cracking|what.?s wrong|something wrong|doesn.?t look|look sick|attacked|infested|what is this|identify this|what weed|weed id|what plant is|κίτρινα|κηλίδα|ασθένεια|έντομο|σκουρ|πέφτουν|μαραίν|μύκητ|ξηρ|κηλίδες|ζωύφιο|προνύμφη|χτυπήθηκε|προσβολή|αρρωστ|τι έχει|τι μπορεί να έχει|δεν φαίνεται καλά|κάτι δεν πάει|τι ζιζάνιο|ταυτοποίησ|sarı|leke|hastalık|zararlı|mantar|çürüme|yaprak|semptom|böcek|tırtıl|ne var|hasta|saldırıya|gal|galben|boală|dăunător|ciupercă|putregai|frunze|simptom|afidă|болест|жълти|петна|гъбичка|гниене|листа|симптом|въшки|sëmundje|njolla|kalbëzim|të zverdhura|doença|praga|fungo|podridão|folhas|sintoma|pulgão|ácaro|o que é isso|gelb|Fleck|Krankheit|Schädling|Pilz|Fäulnis|Blätter|Symptom|Blattlaus|Milbe|was ist das|krank)\b/.test(m)) return 'diagnosis';
   // Indoor/container care: watering, repotting, light, position, drainage, care queries, not symptom queries
   // Specific care keywords (unambiguous): always indoor
   if (/\b(repot|repotting|overwater|overwatered|underwater|underwatered|root.?bound|drainage hole|pot.*size|outgrow.*pot|γλάστρα|ξαναφύτεμα|ξαναφυτεύ)\b/.test(m)) return 'indoor';
@@ -328,7 +328,7 @@ function classifyIntent(message: string, hasActualImages: boolean): QueryIntent 
   const hasSymptomContext = /\b(yellow|spot|dying|disease|pest|rot|symptom|brown|curl|wilt|infected|dead|decay|sticky|aphid|mite|κίτρινα|ασθένεια|μύκητ)\b/.test(m);
   if (hasIndoorContext && !hasSymptomContext) return 'indoor';
   // Planning: what/when to do, schedules, programs
-  if (/\b(when should|what should i|plan|schedule|program|calendar|next step|when to|how to|weed|herbicide|harvest|prun|irrigat|fertigation|fertili|rotation|sow|sowing|transplant|propagat|thinning|cover crop|intercrop|storage|post.?harvest|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο|ζιζάνι|ζιζανιοκτόν|συγκομιδή|κλάδεμα|άρδευσ|σπορά|φύτευσ|αποθήκευσ|εναλλαγή|συγκαλλιέργεια)\b/.test(m)) return 'planning';
+  if (/\b(when should|what should i|plan|schedule|program|calendar|next step|when to|how to|weed|herbicide|harvest|prun|irrigat|fertigation|fertili|rotation|sow|sowing|transplant|propagat|thinning|cover crop|intercrop|storage|post.?harvest|πότε|πρόγραμμα|πλάνο|τι να κάνω|ψεκαστ|λίπανσ|σχέδιο|ζιζάνι|ζιζανιοκτόν|συγκομιδή|κλάδεμα|άρδευσ|σπορά|φύτευσ|αποθήκευσ|εναλλαγή|συγκαλλιέργεια|ne zaman|takvim|planlama|ilaçlama|gübre|ne yapmalı|când trebuie|tratament|fertilizare|кога трябва|пръскане|торене|kur duhet|orar|plani|trajtim|fertilizim|quando devo|calendário|tratamento|adubação|wann soll|Spritzung|Düngung)\b/.test(m)) return 'planning';
   return 'general';
 }
 
@@ -347,7 +347,7 @@ async function classifyIntentLlm(
   lang: string,
 ): Promise<QueryIntent | null> {
   try {
-    const langName = ({ el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic', pt: 'Portuguese' } as Record<string, string>)[lang] ?? 'English';
+    const langName = ({ el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', ro: 'Romanian', bg: 'Bulgarian', sq: 'Albanian', pt: 'Portuguese', de: 'German' } as Record<string, string>)[lang] ?? 'English';
     const payload = {
       contents: [{
         role: 'user',
@@ -426,7 +426,7 @@ function buildSystemPrompt(
   // Language, dosage, weather, seasonal, growth stage, universal rules
   // ══════════════════════════════════════════════════════════════════════
 
-  const LANG_NAMES: Record<string, string> = { el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic' };
+  const LANG_NAMES: Record<string, string> = { el: 'Greek', en: 'English', it: 'Italian', es: 'Spanish', fr: 'French', ar: 'Arabic', tr: 'Turkish', ro: 'Romanian', bg: 'Bulgarian', sq: 'Albanian', pt: 'Portuguese', de: 'German' };
   const langName = LANG_NAMES[lang] ?? 'English';
   const langInstruction = `LANGUAGE RULES:
 - Respond in the language of the user's most recent message. This is the primary rule — non-negotiable.
