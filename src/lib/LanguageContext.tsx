@@ -20,6 +20,13 @@ function getInitialLang(): Lang {
   if (browserLang.startsWith('sq')) return 'sq';
   if (browserLang.startsWith('pt')) return 'pt';
   if (browserLang.startsWith('de')) return 'de';
+  if (browserLang.startsWith('hi')) return 'hi';
+  if (browserLang.startsWith('sw')) return 'sw';
+  if (browserLang.startsWith('bn')) return 'bn';
+  if (browserLang.startsWith('id')) return 'id';
+  if (browserLang.startsWith('am')) return 'am';
+  if (browserLang.startsWith('vi')) return 'vi';
+  if (browserLang.startsWith('ha')) return 'ha';
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz === 'Europe/Athens' || tz === 'Asia/Nicosia') return 'el';
@@ -32,6 +39,13 @@ function getInitialLang(): Lang {
     if (tz === 'Europe/Tirane') return 'sq';
     if (tz?.startsWith('Europe/Lisbon') || tz === 'Atlantic/Azores') return 'pt';
     if (tz?.startsWith('Europe/Berlin') || tz === 'Europe/Vienna' || tz === 'Europe/Zurich') return 'de';
+    if (tz === 'Asia/Kolkata' || tz === 'Asia/Calcutta') return 'hi';
+    if (tz === 'Africa/Nairobi' || tz === 'Africa/Dar_es_Salaam' || tz === 'Africa/Kampala') return 'sw';
+    if (tz === 'Asia/Dhaka') return 'bn';
+    if (tz?.startsWith('Asia/Jakarta') || tz === 'Asia/Makassar' || tz === 'Asia/Jayapura') return 'id';
+    if (tz === 'Africa/Addis_Ababa') return 'am';
+    if (tz === 'Asia/Ho_Chi_Minh' || tz === 'Asia/Hanoi') return 'vi';
+    if (tz === 'Africa/Lagos' || tz === 'Africa/Kano') return 'ha';
   } catch { /* ignore */ }
   return 'en';
 }

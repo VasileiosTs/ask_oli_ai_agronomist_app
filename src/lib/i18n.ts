@@ -1,4 +1,4 @@
-export type Lang = 'el' | 'en' | 'it' | 'es' | 'fr' | 'ar' | 'tr' | 'ro' | 'bg' | 'sq' | 'pt' | 'de';
+export type Lang = 'el' | 'en' | 'it' | 'es' | 'fr' | 'ar' | 'tr' | 'ro' | 'bg' | 'sq' | 'pt' | 'de' | 'hi' | 'sw' | 'bn' | 'id' | 'am' | 'vi' | 'ha';
 
 export interface T {
   // Auth
@@ -159,9 +159,16 @@ export const LANG_OPTIONS: Array<{ code: Lang; label: string; flag: string }> = 
   { code: 'sq', label: 'Shqip', flag: '🇦🇱' },
   { code: 'pt', label: 'Português', flag: '🇵🇹' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'sw', label: 'Kiswahili', flag: '🇰🇪' },
+  { code: 'bn', label: 'বাংলা', flag: '🇧🇩' },
+  { code: 'id', label: 'Indonesia', flag: '🇮🇩' },
+  { code: 'am', label: 'አማርኛ', flag: '🇪🇹' },
+  { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'ha', label: 'Hausa', flag: '🇳🇬' },
 ];
 
-const VALID_LANG_CODES: Lang[] = ['el', 'en', 'it', 'es', 'fr', 'ar', 'tr', 'ro', 'bg', 'sq', 'pt', 'de'];
+const VALID_LANG_CODES: Lang[] = ['el', 'en', 'it', 'es', 'fr', 'ar', 'tr', 'ro', 'bg', 'sq', 'pt', 'de', 'hi', 'sw', 'bn', 'id', 'am', 'vi', 'ha'];
 
 export async function detectLang(): Promise<Lang> {
   // User's explicit choice always wins
@@ -183,6 +190,13 @@ export async function detectLang(): Promise<Lang> {
   if (browserLang.startsWith('sq')) return 'sq';
   if (browserLang.startsWith('pt')) return 'pt';
   if (browserLang.startsWith('de')) return 'de';
+  if (browserLang.startsWith('hi')) return 'hi';
+  if (browserLang.startsWith('sw')) return 'sw';
+  if (browserLang.startsWith('bn')) return 'bn';
+  if (browserLang.startsWith('id')) return 'id';
+  if (browserLang.startsWith('am')) return 'am';
+  if (browserLang.startsWith('vi')) return 'vi';
+  if (browserLang.startsWith('ha')) return 'ha';
 
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (timezone === 'Europe/Athens' || timezone === 'Asia/Nicosia') return 'el';
@@ -195,6 +209,13 @@ export async function detectLang(): Promise<Lang> {
   if (timezone === 'Europe/Tirane') return 'sq';
   if (timezone?.startsWith('Europe/Lisbon') || timezone === 'Atlantic/Azores') return 'pt';
   if (timezone?.startsWith('Europe/Berlin') || timezone === 'Europe/Vienna' || timezone === 'Europe/Zurich') return 'de';
+  if (timezone === 'Asia/Kolkata' || timezone === 'Asia/Calcutta') return 'hi';
+  if (timezone === 'Africa/Nairobi' || timezone === 'Africa/Dar_es_Salaam' || timezone === 'Africa/Kampala') return 'sw';
+  if (timezone === 'Asia/Dhaka') return 'bn';
+  if (timezone?.startsWith('Asia/Jakarta') || timezone === 'Asia/Makassar' || timezone === 'Asia/Jayapura') return 'id';
+  if (timezone === 'Africa/Addis_Ababa') return 'am';
+  if (timezone === 'Asia/Ho_Chi_Minh' || timezone === 'Asia/Hanoi') return 'vi';
+  if (timezone === 'Africa/Lagos' || timezone === 'Africa/Kano') return 'ha';
 
   return 'en';
 }

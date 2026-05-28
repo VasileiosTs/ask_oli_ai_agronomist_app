@@ -386,7 +386,7 @@ export default function Profile() {
                 <ChevronRight className={clsx('h-3 w-3 transition-transform', langDropOpen ? 'rotate-90' : '')} />
               </button>
               {langDropOpen && (
-                <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-border rounded-xl shadow-lg overflow-hidden min-w-[150px]">
+                <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-border rounded-xl shadow-lg min-w-[150px] max-h-72 overflow-y-auto">
                   {LANG_OPTIONS.map(({ code, label, flag }) => (
                     <button
                       key={code}

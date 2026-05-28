@@ -873,7 +873,7 @@ export default function Landing() {
                 <span className="uppercase">{lang}</span>
               </button>
               {langOpen && (
-                <div className="absolute right-0 top-full mt-1 flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg overflow-hidden z-50 min-w-[130px]">
+                <div className="absolute right-0 top-full mt-1 flex flex-col bg-white border border-[#e8e8e3] rounded-xl shadow-lg z-50 min-w-[150px] max-h-72 overflow-y-auto">
                   {LANG_OPTIONS.map(({ code, label, flag }) => (
                     <button
                       key={code}
