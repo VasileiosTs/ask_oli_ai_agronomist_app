@@ -339,6 +339,7 @@ serve(async (req) => {
 
       const authUsers = await listAllAuthUsers(supabase);
 
+      const MAX_EMAILS_PER_RUN = 80; // reserve 20/day for transactional (VIO, welcome, trial)
       let sentPush = 0;
       let sentEmail = 0;
 
@@ -375,6 +376,7 @@ serve(async (req) => {
         }
 
         // Fall back to email
+        if (sentEmail >= MAX_EMAILS_PER_RUN) continue;
         const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
 
@@ -385,7 +387,12 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ sent_push: sentPush, sent_email: sentEmail, total_active: uniqueIds.length }),
+        JSON.stringify({
+          sent_push: sentPush,
+          sent_email: sentEmail,
+          total_active: uniqueIds.length,
+          email_cap_reached: sentEmail >= MAX_EMAILS_PER_RUN,
+        }),
         { headers },
       );
     }
