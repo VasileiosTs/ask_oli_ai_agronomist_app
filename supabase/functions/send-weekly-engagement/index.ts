@@ -303,11 +303,10 @@ serve(async (req) => {
     const headers = { "Content-Type": "application/json" };
 
     if (body.mode === "engagement_cron") {
-      // Auth: service role key or CRON_SECRET
-      const authHeader = req.headers.get("authorization") || "";
-      const validSR = SUPABASE_SERVICE_ROLE_KEY && authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
-      const validCS = CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`;
-      if (!validSR && !validCS) {
+      // Supabase gateway requires a valid JWT in Authorization (anon or service role).
+      // CRON_SECRET is passed separately in x-cron-secret to verify the caller is the cron.
+      const cronHeader = req.headers.get("x-cron-secret") || "";
+      if (!CRON_SECRET || cronHeader !== CRON_SECRET) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
       }
 
