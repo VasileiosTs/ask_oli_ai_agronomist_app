@@ -154,6 +154,8 @@ export default function Chat() {
   const greetingFetchedRef = useRef(false);
   // ── Guest mode state ──
   const guestQuery = searchParams.get('q');
+  // ── Engagement deep-link ?prompt= ──
+  const promptParam = searchParams.get('prompt');
   // oli_guest_used persists across reloads so the same browser can't get unlimited free messages
   const guestAlreadyUsed = !user && !!localStorage.getItem('oli_guest_used');
   const [isGuestMode, setIsGuestMode] = useState(!user && !!guestQuery && !guestAlreadyUsed);
@@ -280,6 +282,7 @@ export default function Chat() {
   const loadGenerationRef = useRef(0);
   const lastSendAttemptRef = useRef(0);
   const queryMessageSentRef = useRef(false);
+  const promptSentRef = useRef(false);
 
   // Only use explicitly selected field, never auto-select.
   // Field context is inferred per-message via extraction, not forced globally.
@@ -924,6 +927,23 @@ export default function Chat() {
     sendGuestMessage(text);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guestQuery, isGuestMode, appUserId, user?.id]);
+
+  // Auto-send ?prompt= deep-link (weekly engagement emails, agronomist client links, etc.)
+  // Only fires for authenticated users — guests use the ?q= flow instead.
+  useEffect(() => {
+    if (!promptParam || promptSentRef.current) return;
+    if (!user || !appUserId) return;
+    promptSentRef.current = true;
+    const text = decodeURIComponent(promptParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('prompt');
+    setSearchParams(next, { replace: true });
+    sessionStorage.removeItem('oli_draft_input');
+    setInput('');
+    // Defer one tick so handleSend has the latest closure
+    setTimeout(() => { void handleSend(text); }, 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promptParam, user?.id, appUserId]);
 
   // Migrate guest messages after login + onboarding
   useEffect(() => {
