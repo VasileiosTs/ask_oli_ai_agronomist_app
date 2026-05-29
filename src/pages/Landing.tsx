@@ -875,6 +875,13 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <OliLogo size={32} bg="#ffffff" />
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Noto Serif', serif", color: '#194121' }}>Oli</span>
+            {/* Brand + category lockup — pairs "Oli" with the category we want to own.
+                Derived from heroBadge (already localised) minus the "· 24/7" suffix.
+                Hidden < sm to keep the nav single-line on phones; the hero badge carries it there. */}
+            <span className="hidden sm:inline-flex items-center text-base font-bold tracking-tight" style={{ color: '#194121' }}>
+              <span className="mr-2" aria-hidden="true" style={{ color: '#c9c6bd' }}>·</span>
+              {lt.heroBadge.split('·')[0].trim()}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <div

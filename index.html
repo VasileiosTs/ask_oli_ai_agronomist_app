@@ -248,6 +248,9 @@
       .shell-en{display:none}
       html[data-shell-lang=en] .shell-el{display:none}
       html[data-shell-lang=en] .shell-en{display:inline}
+      /* Brand + category lockup in the nav — hidden < sm to keep one line on phones. */
+      .nav-tag{display:none}
+      @media(min-width:640px){.nav-tag{display:inline-flex;align-items:center}}
     </style>
   </head>
   <body>
@@ -265,6 +268,7 @@
             <div style="display:flex;align-items:center;gap:8px;">
               <img src="/favicon.svg" alt="" width="32" height="32" style="display:block;" aria-hidden="true" />
               <span style="font-family:'Noto Serif',Georgia,serif;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:#194121;">Oli</span>
+              <span class="nav-tag" style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.01em;color:#194121;"><span aria-hidden="true" style="color:#c9c6bd;margin-right:8px;">·</span><span class="shell-el">Ο AI Γεωπόνος σου</span><span class="shell-en">Your AI Agronomist</span></span>
             </div>
             <a href="/auth" style="display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:9999px;font-weight:600;font-size:14px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#194121 0%,#305936 100%);"><span class="shell-el">Δοκίμασε δωρεάν</span><span class="shell-en">Try for free</span></a>
           </div>
