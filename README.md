@@ -1,63 +1,94 @@
-# Oli — AI Agronomist for the World's Smallholder Farmers
+# Oli: The AI Agronomist That Knows Your Field
 
-> **"Every farmer who uses Oli builds the dataset that makes every future farmer's advice better."**
+> **Diagnosis in seconds. A treatment plan you can act on. And Oli follows up to confirm it worked.**
 
-**App:** https://ask-oli.com  
-**Stage:** Live · Starting in Greece · Mission: Global smallholder farmers  
+**App:** https://ask-oli.com
+**Stage:** Live and growing
 **Stack:** React 19 + TypeScript · Supabase (Postgres + Edge Functions + Auth) · Google Gemini 2.5 · Vercel
 
 ---
 
 ## The Problem
 
-There are **500 million smallholder farmers** worldwide. They grow 70% of the world's food. They have no access to affordable agronomic expertise.
+There are **500 million smallholder growers** worldwide. They grow 70% of the world's food. They have no access to affordable agronomic expertise.
 
-A certified agronomist costs €50–150/visit in Southern Europe. In sub-Saharan Africa, India, and Latin America there may be one agronomist per 1,000 farmers. A crop disease left undiagnosed for 48 hours can destroy an entire season's income.
+A certified agronomist costs EUR 50-150 per visit in Southern Europe. In sub-Saharan Africa, India, and Latin America there may be one agronomist per 1,000 growers. A crop disease left undiagnosed for 48 hours can destroy an entire season's income.
 
-Today's "solution": show a sick leaf to a neighbor and hope they've seen it before. Post a photo on a Facebook farming group and wait for conflicting opinions. Google the symptoms and land on a generic gardening blog.
+Today's "solution": show a sick leaf to a neighbor and hope they've seen it before. Post a photo in a farming group and wait for conflicting opinions. Search the symptoms and land on a generic gardening blog.
 
-Enterprise agtech (Trimble, John Deere Ops Center, Climate Corp) costs $10,000+/year and requires farm machinery integration. It is built for the 1% of large commercial farms. The other 500 million farmers are invisible to Silicon Valley.
+Enterprise agtech (Trimble, John Deere Ops Center, Climate Corp) costs $10,000+/year and requires machinery integration. It is built for the 1% of large commercial farms. The other 500 million growers are invisible to it.
 
-**No one has built ChatGPT for farming. Until now.**
+**No one has built ChatGPT for growing. Until now.**
 
 ---
 
 ## Mission
 
-Make expert agronomic guidance as accessible as a text message — for every farmer, on every crop, in every language, on any device.
+Make expert agronomic guidance as accessible as a text message: for every grower, on every crop, in any language, on any device.
 
 ---
 
 ## Vision
 
-Oli becomes the agricultural intelligence layer for the world's smallholder farms. The consumer app is the acquisition engine. The outcome data it generates is the durable, defensible asset: a corpus of verified treatment outcomes across every crop, every disease, every climate — that no one else will ever have.
+Oli becomes the agronomist every grower can afford, anywhere. Not a search box you ask once and forget, but a working relationship: it learns your field, remembers every problem and treatment, and gets sharper on your land every season.
 
 ---
 
 ## What Oli Does
 
-Oli is a **chat-first AI agronomist** — instant, expert-level crop guidance through a simple conversation, in the farmer's language, on any crop, on any device.
+Oli is a **chat-first AI agronomist**: instant, expert-level crop guidance through a simple conversation, in your language, on any crop, on any device.
 
 **Core loop:**
-Photo or description of a problem → diagnosis in seconds → treatment protocol with exact dosages → follow-up 7 days later to record whether it worked → data moat grows.
+Photo or description of a problem, then a diagnosis in seconds, then a treatment protocol with exact dosages, then a follow-up to confirm whether it worked.
 
-### What a farmer can do today
+### What a grower can do today
 
 | Task | How |
 |------|-----|
-| Diagnose crop disease from a photo | Attach photo, describe symptoms — Oli identifies the problem and cause |
+| Diagnose crop disease from a photo | Attach photo, describe symptoms, Oli identifies the problem and cause |
 | Get treatment plans | Organic and chemical options, exact product names, dosages, application method |
 | Log what they applied | One-tap intervention logging directly in the chat thread |
-| Track field history | Fields, crops, seasons, past problems — remembered across every conversation |
-| Get follow-up care | Oli checks back in 7 days: "Did you apply? How is it looking?" |
-| Share a diagnosis | Public shareable link with OG card for cooperatives, agronomists, forums |
-| Talk in any language | Greek, English, Italian, Spanish, French, Arabic — auto-detected from message |
+| Track field history | Fields, crops, seasons, past problems, remembered across every conversation |
+| Get follow-up care | Oli checks back: "Did you apply? How is it looking?" |
+| Share a diagnosis | Public shareable link with an OG card for co-ops, agronomists, forums |
+| Talk in any language | Greek, English, Italian, Spanish, French, Arabic, auto-detected from message |
 | Send voice or audio | Audio files processed as messages |
-| Upload any file type | Photos, PDFs, audio — same interface, no separate app |
+| Upload any file type | Photos, PDFs, audio, same interface, no separate app |
 | Generate field reports | Agronomist-ready PDF reports of field history and interventions |
-| Manage multiple clients | Agronomist tier: manage multiple farmer profiles under one account |
-| Set chat reminders | Ask Oli to remind you about a future task — "remind me in 10 days to spray copper" — Oli creates a timed reminder with push notification |
-| Get smart field alerts (Pro+) | Daily AI-powered weather analysis per field — if rain is coming and your lemons need protection, Oli alerts you before it's too late |
+| Manage multiple clients | Agronomist tier: manage multiple grower profiles under one account |
+| Set chat reminders | "Remind me in 10 days to spray copper" creates a timed reminder with push notification |
+| Get smart field alerts (Pro+) | Daily AI weather analysis per field: if rain is coming and your lemons need protection, Oli alerts you before it's too late |
+
+---
+
+## What Makes Oli Different
+
+**It knows your field.** Every field, crop, past problem, and treatment outcome is stored and injected into every future conversation as context. Generic AI forgets you the moment you close it. Oli remembers, so the advice gets more specific to your land the longer you use it.
+
+**It follows through.** After a diagnosis, Oli checks back to record whether the treatment worked (better / same / worse / not applied). It also watches the weather and warns you before problems happen, proactively, not reactively. Every other tool answers once and disappears.
+
+**It's a real agent, not a chatbot.** Image pre-extraction, modular intent routing, structured JSON output with confidence scoring, field memory snapshots, automated follow-up scheduling. The pipeline is what makes the advice reliable.
+
+**It works on a EUR 40 phone.** No app install, no subscription required to try. PWA, instant-loading shell, SSE streaming so responses appear as they are generated.
+
+**Built for how growers actually communicate.** Every diagnosis has a public shareable link with an OG card. Growers share results with neighbors in the field; agronomists share treatment plans with clients.
+
+---
+
+## Follow-Through: the VIO Loop
+
+The product behavior that sets Oli apart. After a diagnosis, Oli does not vanish:
+
+```
+Diagnosis made
+    -> grower applies treatment
+"Did you apply?"      (a few days later, push + email)
+    -> confirmed
+"Any improvement?"    (~a week later, push + email)
+    -> outcome recorded against the field's history
+```
+
+Each recorded outcome makes Oli's future advice for that field, crop, and region sharper. The follow-up is what turns one-off answers into a record you can act on across seasons.
 
 ---
 
@@ -68,42 +99,42 @@ Oli is not a simple chatbot. Every message flows through a multi-stage AI agent 
 ### Authenticated request pipeline
 
 ```
-1.  JWT verification → Supabase user identity
+1.  JWT verification -> Supabase user identity
 2.  Monthly message count check vs FREE_LIMIT (atomic RPC, no race conditions)
-3.  Attachment resolution: storage paths → signed URLs → base64 inline
+3.  Attachment resolution: storage paths -> signed URLs -> base64 inline
 4.  Field context assembly: active field name, crop, soil type, GPS, last problem,
-    past interventions, recent memory log — injected as structured context
+    past interventions, recent memory log, injected as structured context
 5.  Image pre-extraction (if photo attached):
-      → dedicated Gemini call extracts structured observations first
+      -> dedicated Gemini call extracts structured observations first
         (affected area %, symptom description, pest signs, visible damage)
-      → these observations feed the main diagnosis call as structured input
+      -> these observations feed the main diagnosis call as structured input
         rather than forcing the main model to "see" and "reason" simultaneously
 6.  Intent classification (hybrid rule + LLM):
       diagnosis / calculation / planning / followup / indoor / general
-      → routes to the correct system prompt module
+      -> routes to the correct system prompt module
 7.  System prompt assembly (modular, token-optimised):
       language instruction + dosage units + growth stage + weather rules +
-      seasonal advisory + intent module (TYPE A–F) + universal rules + field context
+      seasonal advisory + intent module (TYPE A-F) + universal rules + field context
 8.  Gemini 2.5 Flash call with JSON responseSchema (structured output enforced at API level)
-      → response_text (user-visible prose, paragraph-structured)
-      → diagnosis_data (problem, cause, severity, confidence_score, missing_pillars,
+      -> response_text (user-visible prose, paragraph-structured)
+      -> diagnosis_data (problem, cause, severity, confidence_score, missing_pillars,
          organic_treatments[], chemical_treatments[], product_applied, dosage,
          application_method, action_type)
-      → intent, field_scope, crop_mentioned, action_detected
+      -> intent, field_scope, crop_mentioned, action_detected
 9.  Response validation:
-      → banned opener check (strips AI-sounding greetings)
-      → JSON repair on malformed structured output
-      → word limit enforcement per intent type
-10. SSE streaming: meta event (structured data) → token chunks → done event
+      -> banned opener check (strips AI-sounding greetings)
+      -> JSON repair on malformed structured output
+      -> word limit enforcement per intent type
+10. SSE streaming: meta event (structured data) -> token chunks -> done event
 11. DB writes (async, non-blocking):
-      → save assistant message with full metadata
-      → update monthly message count
-      → if diagnosis with intervention detected: schedule follow_up_at = now + 7 days
-      → set vio_step = 1 (VIO loop opened)
-      → if schedule_reminder detected: create entry in scheduled_treatments table
+      -> save assistant message with full metadata
+      -> update monthly message count
+      -> if diagnosis with intervention detected: schedule follow-up
+      -> set vio_step = 1 (follow-up loop opened)
+      -> if schedule_reminder detected: create entry in scheduled_treatments table
 12. Post-save tasks (fire-and-forget):
-      → field memory snapshot update (rolling log of problems + outcomes per field)
-      → conversation title generation
+      -> field memory snapshot update (rolling log of problems + outcomes per field)
+      -> conversation title generation
 ```
 
 ### Guest pipeline (no auth)
@@ -112,14 +143,14 @@ Oli is not a simple chatbot. Every message flows through a multi-stage AI agent 
 1. IP-based rate limit: 1 question/IP/24h (DB-backed, survives edge function cold starts)
 2. Message and attachment validation
 3. Simplified Gemini call (no field context, no DB writes)
-4. Full JSON response (no SSE streaming — guests get complete response)
+4. Full JSON response (no SSE streaming, guests get complete response)
 ```
 
-### Intent modules (TYPE A–F)
+### Intent modules (TYPE A-F)
 
 | Type | Intent | Behaviour |
 |------|--------|-----------|
-| **A** | Diagnosis | Five-Pillar confidence scoring (0–100). Tiered diagnosis: <40 = no disease named, 40–65 = suspected, 65–85 = primary + uncertainty, >85 = full + treatment |
+| **A** | Diagnosis | Five-Pillar confidence scoring (0-100). Tiered diagnosis: <40 = no disease named, 40-65 = suspected, 65-85 = primary + uncertainty, >85 = full + treatment |
 | **B** | Calculation | Step-by-step formula: ETc, NPK, spray volume, area conversion, gross margin |
 | **C** | Planning | Full seasonal plan, numbered steps, actions + timings + quantities |
 | **D** | General | Direct answer, active ingredient first, paragraph-structured prose |
@@ -128,125 +159,51 @@ Oli is not a simple chatbot. Every message flows through a multi-stage AI agent 
 
 ### Five-Pillar Diagnostic (TYPE A)
 
-Confidence is scored 0–100 across five pillars: THE VICTIM (crop/variety) · THE SYMPTOMS (color, texture, pattern) · THE TIMELINE (when, growth stage) · THE ENVIRONMENT (soil, weather, irrigation) · THE EVIDENCE (photo quality).
+Confidence is scored 0-100 across five pillars: THE VICTIM (crop/variety) · THE SYMPTOMS (color, texture, pattern) · THE TIMELINE (when, growth stage) · THE ENVIRONMENT (soil, weather, irrigation) · THE EVIDENCE (photo quality).
 
 Confidence thresholds determine what Oli can say:
 - `< 40` — hard block: describe symptoms only, do not name disease, ask for missing pillars
-- `40–65` — "possible/suspected", 2-3 candidates, one safe interim action
-- `65–85` — primary diagnosis with uncertainty language, one follow-up question
+- `40-65` — "possible/suspected", 2-3 candidates, one safe interim action
+- `65-85` — primary diagnosis with uncertainty language, one follow-up question
 - `> 85` — full diagnosis, complete treatment protocol, prevention, follow-up commitment
 - Quarantine diseases (HLB, Xylella, Fire Blight, Plum Pox, ToBRFV, Fusarium TR4) — require >85 to name; below: "consult your local plant protection service"
 
 ---
 
-## The Data Moat — VIO Loop (Verified Intervention Outcomes)
-
-This is the core thesis and the long-term defensibility of the business.
-
-Every time Oli recommends a treatment and a farmer follows up with the result (better / same / worse / not_applied), we record a **Verified Intervention Outcome**: crop × disease × product × dosage × region × climate × outcome.
-
-```
-Diagnosis made
-    ↓ farmer applies treatment
-vio_step 1: "Did you apply?" (7 days later, push + email)
-    ↓ confirmed
-vio_step 2: "Any improvement?" (7 days later, push + email)
-    ↓ outcome recorded
-vio_step 3: loop closed — outcome stored with full context
-```
-
-No one in agriculture has this data at scale. Extension services have fragments. Agrochemical companies pay millions for field trials to get approximations. We will have it across every crop, every country, indexed by GPS region and season — contributed for free by the farmers themselves.
-
-**What VIO unlocks:**
-- *"This product works for 87% of olive growers in Peloponnese with this disease"* — no one can say this today with real data
-- Training a proprietary agricultural model that outperforms generic LLMs on crop problems
-- Selling efficacy analytics back to input manufacturers (they spend €50M+ per year on field trials globally)
-- Powering agronomist recommendations with outcome evidence instead of manufacturer marketing claims
-
----
-
-## Business Model
-
-| Tier | Price | Who |
-|------|-------|-----|
-| **Free** | €0 · 20 messages/month | Farmers trying the product |
-| **Pro** | €4.99/month · €49/year | Individual farmers, unlimited advice |
-| **Master** | €49/month · €490/year | Certified agronomists managing multiple farmer clients |
-| **Enterprise** | Custom | Cooperatives, agri-input distributors, extension services |
-
-The Master tier turns agronomists into a distribution channel — each agronomist who joins brings their network of farmers with them. Cooperatives are not a revenue target; they are a go-to-market engine that onboards hundreds of farmers at once under a trusted institution they already work with.
-
-**Growth flywheel:** Consumer app acquires farmers at near-zero CAC → cooperatives and agronomists distribute to their networks → outcome data compounds → better recommendations → more farmers. Revenue comes from farmers converting to Pro, not from B2B contracts.
-
-**Future — B2B API:** Sell agricultural AI inference to cooperatives, input distributors (ADAMA, Yara, Bayer), and agtech platforms. High-margin, high-scale. Built after product-market fit is proven.
-
-Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscriber at €4.99/month covers 1,000–5,000 conversations. Gross margin at scale exceeds 85%.
-
----
-
-## Market Opportunity
-
-| Segment | Size |
-|---------|------|
-| Global agricultural market | $5T/year |
-| Crop protection (pesticides, fungicides, biocontrol) | $84B/year |
-| Precision agriculture software | $12B → $25B by 2030 |
-| Addressable: 500M smallholder farms worldwide | ~$50B/year in inputs + advisory spend |
-
-**Starting market:** Greece — 700,000 registered farm holdings, high smartphone penetration, tight farming community networks. Greece is the test lab where we prove the model before expanding. The product is built for every smallholder farmer on earth from day one — 6 languages, any crop, any device.
-
-**Expansion path:** Mediterranean (Italy, Spain, Morocco, Egypt) → India → sub-Saharan Africa → Latin America.
-
----
-
-## What Makes This Different
-
-**It remembers.** Every field, crop, past problem, and treatment outcome is stored and injected into every future conversation as context. The AI knows your farm.
-
-**It follows up.** Oli records whether treatments worked. It also watches the weather and warns you before problems happen — proactively, not reactively. This is the data no one else has.
-
-**It's a real agent, not a chatbot.** Image pre-extraction, modular intent routing, structured JSON output with confidence scoring, field memory snapshots, automated follow-up scheduling — the pipeline is what makes the advice reliable.
-
-**It works on a €40 phone.** No app install, no subscription required to try. PWA, instant-loading shell, SSE streaming so responses appear as they're generated.
-
-**Bottom-up distribution.** Farmers share diagnoses with neighbors in the field. They post results in Facebook farming groups. Agronomists share treatment plans with clients. Every diagnosis has a public shareable link with an OG card — built for how farmers actually communicate.
-
----
-
 ## Product Status
 
-**Built and working (pre-launch):**
+**Built and working:**
 
-- ✅ Full chat — diagnosis, treatment plans, field memory, SSE streaming
-- ✅ Multi-language — Greek, English, Italian, Spanish, French, Arabic
-- ✅ Photo + audio + PDF upload and AI analysis
-- ✅ Image pre-extraction agent — dedicated Gemini call before main diagnosis
-- ✅ Modular intent routing — TYPE A–F system prompt modules loaded per query
-- ✅ Five-Pillar confidence scoring — structured JSON confidence_score + missing_pillars
-- ✅ VIO follow-up loop — push + email reminders, vio_step 1–3, outcome recording
-- ✅ Chat-triggered reminders — "remind me in 10 days" creates a timed reminder with push notification on due date
-- ✅ Proactive weather alerts (Pro+) — daily Gemini-powered field scan: crop + GPS + 7-day forecast → alert if action needed within 48h
-- ✅ Field management — named fields, crop type, soil, GPS, historical context
-- ✅ Field memory snapshots — rolling log of problems and outcomes per field
-- ✅ Intervention logging — inline in chat or modal, public shareable links + OG cards
-- ✅ Field reports — PDF report generation for agronomist-grade field history
-- ✅ Guest mode — 1 free question/IP/24h, no account required
-- ✅ Auth — magic link + Google OAuth + Facebook OAuth (in-chat modal)
-- ✅ Freemium paywall — 20 messages/month free, Pro tier gated
-- ✅ GDPR-compliant (EU Frankfurt hosting, no PII in analytics)
-- ✅ Daily KPI snapshot pipeline (automated Supabase cron)
-- ✅ Admin dashboard — KPI metrics, promo codes, ops event feed
-- ✅ Onboarding — name, location with geocoding, primary crop
-- ✅ Push notifications (VAPID) + email reminders (Resend)
-- ✅ Multi-grower accounts — agronomist manages multiple farmer profiles
-- ✅ Stripe payment integration — checkout, webhooks, Pro/Agronomist tier gating
-- ✅ Promo codes — named codes + bulk generation, tier-granting with expiry
-- ✅ Automatic Gemini fallback — primary → gemini-2.0-flash-lite on quota or 5xx
-- ✅ Weather integration — Open-Meteo API, gated by intent (skipped for calculations)
+- Full chat: diagnosis, treatment plans, field memory, SSE streaming
+- Multi-language: Greek, English, Italian, Spanish, French, Arabic
+- Photo + audio + PDF upload and AI analysis
+- Image pre-extraction agent: dedicated Gemini call before main diagnosis
+- Modular intent routing: TYPE A-F system prompt modules loaded per query
+- Five-Pillar confidence scoring: structured JSON confidence_score + missing_pillars
+- Follow-up loop: push + email reminders, vio_step 1-3, outcome recording
+- Chat-triggered reminders: "remind me in 10 days" creates a timed reminder with push
+- Proactive weather alerts (Pro+): daily field scan, crop + GPS + 7-day forecast -> alert if action needed within 48h
+- Field management: named fields, crop type, soil, GPS, historical context
+- Field memory snapshots: rolling log of problems and outcomes per field
+- Intervention logging: inline in chat or modal, public shareable links + OG cards
+- Field reports: PDF generation for agronomist-grade field history
+- Guest mode: 1 free question/IP/24h, no account required
+- Auth: magic link + Google OAuth + Facebook OAuth (in-chat modal)
+- Freemium paywall: 20 messages/month free, Pro tier gated
+- GDPR-compliant (EU Frankfurt hosting, no PII in analytics)
+- Daily KPI snapshot pipeline (automated Supabase cron)
+- Admin dashboard: KPI metrics, promo codes, ops event feed
+- Onboarding: name, location with geocoding, primary crop
+- Push notifications (VAPID) + email reminders (Resend)
+- Multi-grower accounts: agronomist manages multiple grower profiles
+- Stripe payment integration: checkout, webhooks, tier gating
+- Promo codes: named codes + bulk generation, tier-granting with expiry
+- Automatic Gemini fallback: primary -> gemini-2.0-flash-lite on quota or 5xx
+- Weather integration: Open-Meteo API, gated by intent
 
 **Not live yet:**
-- 🔲 App Store / Play Store listing (PWA in the interim)
-- 🔲 Public B2B API
+- App Store / Play Store listing (PWA in the interim)
+- Public B2B API
 
 ---
 
@@ -257,7 +214,7 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 │  Browser / Mobile PWA (Vercel CDN, global edge)          │
 │  React 19 + TypeScript + Vite 6 + Tailwind CSS v4        │
 │                                                          │
-│  Chat.tsx → chatFunction.ts → SSE stream                 │
+│  Chat.tsx -> chatFunction.ts -> SSE stream               │
 │                                                          │
 │  Key client modules:                                     │
 │  ├── chatFunction.ts      SSE streaming client           │
@@ -267,7 +224,7 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 └────────────────────┬─────────────────────────────────────┘
                      │ HTTPS / SSE
 ┌────────────────────▼─────────────────────────────────────┐
-│  Supabase (EU Frankfurt — GDPR compliant)                │
+│  Supabase (EU Frankfurt, GDPR compliant)                 │
 │  ├── PostgreSQL   users, fields, conversations,          │
 │  │                chat_messages, interventions,          │
 │  │                growers, kpi_snapshots, promo_codes,   │
@@ -276,15 +233,15 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 │  ├── Storage      chat_uploads (photos, audio, PDFs)     │
 │  ├── RLS          row-level security on all tables       │
 │  └── Edge Functions (Deno runtime)                       │
-│      ├── chat/index.ts   ← core AI agent (~3,200 lines)  │
-│      │   auth → rate limit → image pre-extraction →      │
-│      │   intent classify → system prompt assembly →       │
-│      │   Gemini → validate → SSE stream → DB write →     │
-│      │   field memory update → conversation title        │
+│      ├── chat/index.ts   <- core AI agent (~3,200 lines) │
+│      │   auth -> rate limit -> image pre-extraction ->   │
+│      │   intent classify -> system prompt assembly ->    │
+│      │   Gemini -> validate -> SSE stream -> DB write -> │
+│      │   field memory update -> conversation title       │
 │      ├── og-image        OG card generation              │
 │      ├── send-email      drip + VIO emails (Resend)      │
 │      ├── send-push       web push (VAPID)                │
-│      ├── proactive-alerts  daily AI field scan: weather + crop → smart push alerts (Pro+) │
+│      ├── proactive-alerts  daily AI field scan (Pro+)    │
 │      ├── kpi-snapshot    daily analytics pipeline        │
 │      ├── greeting        personalised chat greeting      │
 │      ├── delete-account  GDPR account deletion           │
@@ -294,9 +251,9 @@ Unit economics: Gemini API cost per conversation ~€0.001–0.005. A Pro subscr
 ┌────────────────────▼─────────────────────────────────────┐
 │  Google Gemini                                           │
 │  ├── gemini-2.5-flash (primary)                          │
-│  │   — structured JSON output via responseSchema         │
-│  │   — native multimodal photo analysis                  │
-│  │   — modular system prompt, intent-routed              │
+│  │   structured JSON output via responseSchema           │
+│  │   native multimodal photo analysis                    │
+│  │   modular system prompt, intent-routed                │
 │  ├── gemini-2.0-flash (image pre-extraction agent)       │
 │  └── gemini-2.0-flash-lite (automatic fallback)          │
 └──────────────────────────────────────────────────────────┘
@@ -316,14 +273,14 @@ chat_messages     — role, content, metadata (JSON: intent, diagnosis_data,
                     action_detected, crop_mentioned), starred, image_urls[]
 interventions     — field, crop, diagnosis, product_applied, dosage, severity,
                     organic_treatments[], chemical_treatments[], confidence_score,
-                    follow_up_at, vio_step (0–3), outcome (better/same/worse/not_applied),
+                    follow_up_at, vio_step (0-3), outcome (better/same/worse/not_applied),
                     outcome_note, share_id (UUID for public links), location_lat/lon
-growers           — advisor_id → user_id mapping (agronomist manages farmer)
+growers           — advisor_id -> user_id mapping (agronomist manages grower)
 guest_rate_limits — ip, request_count, window_start (DB-backed, cold-start safe)
 kpi_snapshots     — daily metrics: DAU/WAU/MAU, retention D1/D7/D30, VIO funnel, MRR
 promo_codes       — code, grants_tier, duration_days, max_redemptions, redemptions_count
 promo_redemptions — user_id, code, granted_tier, granted_until, redeemed_at
-scheduled_treatments — task, due_at, push_sent_at, status, field_id, conversation_id (chat-triggered reminders)
+scheduled_treatments — task, due_at, push_sent_at, status, field_id, conversation_id
 field_alerts        — message, severity, field_id, read_at (proactive AI-generated alerts)
 operational_events— source, event_type, severity, message, metadata (AI monitoring)
 admin_users       — auth_id whitelist for admin dashboard access
@@ -336,8 +293,8 @@ admin_users       — auth_id whitelist for admin dashboard access
 ```
 src/
 ├── pages/
-│   ├── Chat.tsx               ⭐ core product — full conversation experience
-│   ├── Landing.tsx            public marketing page (Greek + English)
+│   ├── Chat.tsx               core product, full conversation experience
+│   ├── Landing.tsx            public marketing page
 │   ├── Auth.tsx               magic link + Google OAuth + Facebook OAuth
 │   ├── Onboarding.tsx         3-step first-run (name, location, crop)
 │   ├── Profile.tsx            settings, subscription, data export
@@ -366,10 +323,10 @@ src/
     └── i18n.ts                 typed 6-language string dictionary
 
 supabase/functions/
-├── chat/index.ts              ⭐ core AI agent function (~3,200 lines)
+├── chat/index.ts              core AI agent function (~3,200 lines)
 │   ├── lib/fieldContext.ts    server-side field context assembly
 │   ├── lib/imageExtraction.ts image pre-extraction agent
-│   └── lib/systemPrompt.ts   modular prompt assembly (TYPE A–F)
+│   └── lib/systemPrompt.ts    modular prompt assembly (TYPE A-F)
 ├── og-image/index.ts
 ├── send-email/index.ts
 ├── send-push/index.ts
@@ -385,8 +342,8 @@ supabase/functions/
 ## Local Development
 
 ```bash
-git clone https://github.com/VasileiosTs/codex_ask_oli_app.git
-cd codex_ask_oli_app_review
+git clone https://github.com/VasileiosTs/ask_oli_ai_agronomist_app.git
+cd ask_oli_ai_agronomist_app
 npm install
 cp .env.example .env.local   # fill in Supabase + Gemini credentials
 npm run dev                  # http://localhost:5173
@@ -420,38 +377,20 @@ SUPPORT_EMAIL=hello@ask-oli.com
 
 ## Deployment
 
-**Frontend:** Vercel — auto-deploy on push to `main`.  
-**Edge Functions:** GitHub Actions deploys on any change to `supabase/functions/**`.  
+**Frontend:** Vercel, auto-deploy on push to `main`.
+**Edge Functions:** GitHub Actions deploys on any change to `supabase/functions/**`.
 **Database:** Supabase managed Postgres, EU Frankfurt region.
 
 ---
 
-## Why This Wins
+## Pricing
 
-**Founder-market fit — the real kind.** Vasileios isn't a software person who discovered farming. He is a licensed agronomist who ran phytosanitary assessments, managed 80–110 seasonal staff, grew a €1.5M/year export operation, consulted for EU DG Agri in Brussels and China, and founded a startup that exported to 27 countries. He built Oli because the tool he needed didn't exist. Every buyer in the value chain — cooperative, distributor, input manufacturer — is a warm call. The product's first user is its builder.
-
-**Timing.** Gemini 2.5's multimodal capability makes photo-based crop diagnosis reliable at scale. The agent architecture — image pre-extraction, modular intent routing, structured JSON output enforced at the API level, rolling field memory — is what turns a capable model into a reliable agronomist. This wasn't possible 18 months ago.
-
-**The flywheel.** Every VIO outcome recorded makes the next recommendation more accurate. Every farmer who joins makes the dataset denser. Competitors cannot fast-follow — they need years of real-world outcome data that only comes from farmers using the product in the field.
-
-**No incumbent owns this space.** Enterprise agtech ignores smallholders. Consumer agtech is mostly photo-ID apps with no memory, no follow-up, no data loop. Oli is the first product to close the full cycle: diagnosis → treatment → outcome → learning → better diagnosis.
-
----
-
-## Phase 2 Roadmap (not yet implemented)
-
-The current Gemini setup is Phase 1. Post product-market fit:
-
-- **Vision router:** Fine-tuned ViT on our own VIO outcome data for plant disease from photo
-- **OCR layer:** Qwen-VL for reading product labels / spray schedules from photos
-- **Reasoning layer:** Keep Gemini Flash for conversation; route image-only queries to fine-tuned model
-- **API product:** Sell fine-tuned crop disease API to agrochemical companies
-- **Data moat:** Every VIO outcome (treatment X → outcome Y on crop Z in climate C) trains the next model version
-
-Phase 2 prep already in place:
-- `confidence_score` stored on every intervention (filters training data by quality)
-- VIO outcomes stored with full context: crop, location_lat/lon, climate, treatment, dosage
-- `operational_events` table tracks AI model performance per query
+| Tier | Price | Who |
+|------|-------|-----|
+| Free | EUR 0 · 20 messages/month | Growers trying the product |
+| Pro | EUR 4.99/month · EUR 49/year | Individual growers, unlimited advice |
+| Master | EUR 49/month · EUR 490/year | Agronomists managing multiple grower clients |
+| Enterprise | Custom | Co-ops, input distributors, extension services |
 
 ---
 
@@ -459,77 +398,49 @@ Phase 2 prep already in place:
 
 **Vasileios Tsipas** — Solo founder. Xylokastro, Corinthia, Greece.
 
-Not a software person who discovered farming. A licensed agronomist who ran EU-level agricultural trade negotiations, built a €1.5M export operation, founded a multi-award-winning agri-startup, managed greenhouse production for nine years, and then built Oli — because the tool he needed in the field didn't exist.
+Not a software person who discovered farming. A licensed agronomist who ran EU-level agricultural trade negotiations, built a EUR 1.5M export operation, founded a multi-award-winning agri-startup, managed greenhouse production for nine years, and then built Oli because the tool he needed in the field did not exist.
 
-**BSc Agricultural Sciences** — School of Agriculture, Food, and Nutrition, Thessaloniki  
-**Certified:** Green Economy & Environmental Friendly Entrepreneurship  
+**BSc Agricultural Sciences** — School of Agriculture, Food, and Nutrition, Thessaloniki
+**Certified:** Green Economy & Environmental Friendly Entrepreneurship
 **Languages:** Greek (native) · English (advanced)
-
----
 
 ### Career
 
-**Business Development & Operations Manager**  
-*Bravo Stimaga Grapes S.A. — Stimaga, Greece · Dec 2021 – Present*
-
-- Secured distributor partnerships in Netherlands and Belgium generating **€1.5M+ ARR**
-- Negotiated **5 long-term multi-country contracts** each valued at €250k–€500k/year, commencing 2025
-- Managed key accounts across Greece, UK, Netherlands, Poland, Belgium, Germany, and Sweden
-- Directed packing-season operations for **80–110 staff**; achieved **35% productivity increase** and **45% harvest efficiency improvement** through KPI-led process design
+**Business Development & Operations Manager** — Bravo Stimaga Grapes S.A., Greece · Dec 2021 to Present
+- Secured distributor partnerships in Netherlands and Belgium generating **EUR 1.5M+ ARR**
+- Negotiated **5 long-term multi-country contracts**, each EUR 250k-500k/year
+- Managed key accounts across Greece, UK, Netherlands, Poland, Belgium, Germany, Sweden
+- Directed packing-season operations for **80-110 staff**; **35% productivity increase**, **45% harvest efficiency improvement**
 - Digitalized all certification pipelines (GlobalG.A.P., BRC, IFS, Sedex) to 100% audit compliance
-- Built institutional partnerships with: Greek Ministry of Agriculture, Enterprise Greece, Export Gate (EFG Bank), German Embassy in Greece, Agriculture University of Athens, Greek Ministry of Economy, Greek Ministry of Environment and Energy, American-Hellenic Chamber of Commerce, Piraeus Bank, Greek Supermarket Association
 
-**Plant Nurseries Production Consultant**  
-*Freelance Advisory — Corinthia, Greece · Jan 2019 – Present*
-
+**Plant Nurseries Production Consultant** — Freelance Advisory, Corinthia · Jan 2019 to Present
 - Conducts phytosanitary inspections for plant health and regulatory compliance
-- Develops seasonal plant care programmes, optimising growth cycles and sustainability
-- Designs and delivers training programmes for nursery staff on propagation, disease prevention, and efficient handling
-- Advises on cost-reduction strategies and connects nurseries with international export opportunities
+- Develops seasonal plant care programmes; trains nursery staff on propagation and disease prevention
 
-**Founder**  
-*PlantBox — Corinthia, Greece · Jan 2018 – Present*
-
+**Founder** — PlantBox, Corinthia · Jan 2018 to Present
 - Founded a multi-award-winning agri-startup producing pre-packaged trees with extended shelf life
 - Exported to **27 countries** including USA, China, and across the EU
-- Served **50+ large corporate and government clients** — Samsung, Deloitte, H&M, STIHL, OECD, Ministry of Economy
-- Designed production and shipping systems adhering to IATA and global phytosanitary regulations
+- Served **50+ large corporate and government clients** including Samsung, Deloitte, H&M, STIHL, OECD
 
-**Agribusiness Consultant**  
-*European Union DG Agri & Ministry of Agriculture — Brussels · China · Nov 2017 – Dec 2018*
+**Agribusiness Consultant** — EU DG Agri & Ministry of Agriculture, Brussels and China · Nov 2017 to Dec 2018
+- Contributed to the **EU-China Agricultural Trade Agreement of 2019**
+- Conducted nationwide farm visits across China advising on production and export standards
 
-- Facilitated agricultural trade discussions that contributed to the **EU-China Agricultural Trade Agreement of 2019**
-- Conducted nationwide farm visits across China advising farmers on plant production and export standards
-- Collaborated with EU and Chinese officials to strengthen Geographical Indication (GI) protections for EU agricultural products
+**Production Manager** — Plant Nurseries Tsipas Christos, Greece · Sep 2007 to Sep 2016
+- Managed production, operations, and distribution across a **7-hectare greenhouse facility**
+- Led a team of **25 workers**; **25% annual production growth** at a **55% average profit margin**
 
-**Production Manager**  
-*Plant Nurseries Tsipas Christos — Kamari, Greece · Sep 2007 – Sep 2016*
-
-- Managed all production, operations, and distribution across a **7-hectare greenhouse facility**
-- Led and trained a team of **25 workers**
-- Achieved **25% annual production growth** over five years at a sustained **55% average profit margin**
-- Reduced production costs by **20%** through supplier negotiations and production planning
-- Expanded product range by 15% to match shifting market demand
-
----
-
-### Awards & Recognition
+### Awards
 
 | Year | Award | Body |
 |------|-------|------|
-| 2020 | **2nd Best Young Agriculture Professional in Greece** | Greek Young Farmers Association |
-| 2017–18 | **Most Promising Young Agriculture Professional in the EU** | European Commission, DG Agriculture |
-| 2017–19 | **Startup Innovation Award** | National Bank of Greece |
-| 2017–19 | **Startup Innovation Award** | American-Hellenic Chamber of Commerce |
-| 2017–19 | **Startup Innovation Award** | Ministry of Digital Transformation, Greece |
-| 2017–19 | **Startup Innovation Award** | Athens Chamber of Commerce and Industry |
+| 2020 | 2nd Best Young Agriculture Professional in Greece | Greek Young Farmers Association |
+| 2017-18 | Most Promising Young Agriculture Professional in the EU | European Commission, DG Agriculture |
+| 2017-19 | Startup Innovation Award | National Bank of Greece |
+| 2017-19 | Startup Innovation Award | American-Hellenic Chamber of Commerce |
+| 2017-19 | Startup Innovation Award | Ministry of Digital Transformation, Greece |
+| 2017-19 | Startup Innovation Award | Athens Chamber of Commerce and Industry |
 
 ---
-
-### The relationships that close B2B
-
-Direct senior contacts at **ADAMA** (top-5 global crop protection) and **Yara** (world's largest fertilizer company). Active institutional relationships with Greek Ministry of Agriculture, Enterprise Greece, Agriculture University of Athens, American-Hellenic Chamber of Commerce, and German Embassy Greece.
-
-Every Oli B2B conversation — a cooperative, an input distributor, a Yara or ADAMA data partnership — is a warm call, not a cold one.
 
 **Contact:** hello@ask-oli.com · [LinkedIn](https://www.linkedin.com/in/vasileios-tsipas/)
