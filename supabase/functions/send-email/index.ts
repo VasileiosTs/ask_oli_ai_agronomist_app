@@ -213,8 +213,8 @@ function vioReminderEmail(
       preheader: subject,
       body: [
         ep(isApply
-          ? (isEl ? `Πριν από λίγες μέρες κατέγραψες παρέμβαση για <b>${problem}</b>. Εφάρμοσες τη συνιστώμενη θεραπεία;` : `A few days ago you logged an intervention for <b>${problem}</b>. Did you apply the recommended treatment?`)
-          : (isEl ? `Εφάρμοσες θεραπεία για <b>${problem}</b>. Τώρα ο Oli θέλει να ξέρει αν υπάρχει βελτίωση.` : `You applied treatment for <b>${problem}</b>. Oli wants to know if there's been any improvement.`)),
+          ? (isEl ? `Πριν από 3 μέρες κατέγραψες παρέμβαση για <b>${problem}</b>. Εφάρμοσες τη συνιστώμενη θεραπεία;` : `3 days ago you logged an intervention for <b>${problem}</b>. Did you apply the recommended treatment?`)
+          : (isEl ? `Πριν από περίπου μια εβδομάδα εφάρμοσες θεραπεία για <b>${problem}</b>. Βλέπεις βελτίωση;` : `About a week ago you applied treatment for <b>${problem}</b>. Are you seeing any improvement?`)),
         ep(isEl ? "Ανοίξε τον Oli για να καταγράψεις το αποτέλεσμα." : "Open Oli to record the outcome."),
       ].join(""),
       ctaText: isEl ? "Καταγραφή αποτελέσματος →" : "Log your result →",
@@ -336,28 +336,31 @@ function trialExpiryWarningEmail(
   name: string,
   tier: string,
   daysLeft: number,
-  isFinal: boolean,
+  isToday: boolean,
   lang: string,
 ): { subject: string; html: string } {
   const isEl = lang === "el";
   const tierLabel = tier === "master" ? "Master" : "Pro";
-  const daysStr = daysLeft === 1 ? (isEl ? "1 μέρα" : "1 day") : (isEl ? `${daysLeft} μέρες` : `${daysLeft} days`);
+  const daysStr = daysLeft <= 1
+    ? (isEl ? "1 μέρα" : "1 day")
+    : (isEl ? `${daysLeft} μέρες` : `${daysLeft} days`);
+  const todayLabel = isEl ? "ΣΗΜΕΡΑ ΛΗΓΕΙ" : "EXPIRES TODAY";
   return {
-    subject: isFinal
-      ? (isEl ? `Oli: Η δοκιμή σου λήγει σε ${daysStr} ⏳` : `Oli: Your trial ends in ${daysStr} ⏳`)
+    subject: isToday
+      ? (isEl ? `Oli: Η δοκιμή σου λήγει σήμερα ⏳` : `Oli: Your trial expires today ⏳`)
       : (isEl ? `Oli: ${daysStr} ακόμα στο ${tierLabel}` : `Oli: ${daysStr} left on ${tierLabel}`),
     html: base(lang, {
-      label: isFinal ? (isEl ? "ΤΕΛΕΥΤΑΙΑ ΕΥΚΑΙΡΙΑ" : "LAST CHANCE") : (isEl ? `${daysStr.toUpperCase()} ΑΠΟΜΕΝΟΥΝ` : `${daysStr.toUpperCase()} LEFT`),
-      headline: isFinal
-        ? (isEl ? `${daysStr} ακόμα — μετά επιστρέφεις στο Free.` : `${daysStr} left — then back to Free.`)
-        : (isEl ? `Η δοκιμή ${tierLabel} τελειώνει σύντομα.` : `Your ${tierLabel} trial is ending soon.`),
+      label: isToday ? todayLabel : (isEl ? `${daysStr.toUpperCase()} ΑΠΟΜΕΝΟΥΝ` : `${daysStr.toUpperCase()} LEFT`),
+      headline: isToday
+        ? (isEl ? "Σήμερα λήγει η δοκιμή σου." : "Your trial ends today.")
+        : (isEl ? `Η δοκιμή ${tierLabel} τελειώνει σε ${daysStr}.` : `Your ${tierLabel} trial ends in ${daysStr}.`),
       preheader: isEl ? "Αναβάθμισε πριν λήξει η δοκιμή σου." : "Upgrade before your trial expires.",
       body: [
         ep(isEl ? `<b>${name}</b>,` : `<b>${name}</b>,`),
-        ep(isFinal
+        ep(isToday
           ? (isEl
-              ? `Η δωρεάν δοκιμή σου στο <b>${tierLabel}</b> λήγει σε <b>${daysStr}</b>. Αναβάθμισε τώρα για να κρατήσεις τα χωράφια σου, το ιστορικό σου και τις απεριόριστες ερωτήσεις.`
-              : `Your free <b>${tierLabel}</b> trial ends in <b>${daysStr}</b>. Upgrade now to keep your fields, history, and unlimited questions.`)
+              ? `Η δωρεάν δοκιμή σου στο <b>${tierLabel}</b> λήγει <b>σήμερα</b>. Αναβάθμισε τώρα για να κρατήσεις τα χωράφια σου, το ιστορικό σου και τις απεριόριστες ερωτήσεις.`
+              : `Your free <b>${tierLabel}</b> trial ends <b>today</b>. Upgrade now to keep your fields, history, and unlimited questions.`)
           : (isEl
               ? `Απολαμβάνεις το <b>${tierLabel}</b> δωρεάν! Η δοκιμή σου λήγει σε <b>${daysStr}</b>. Αναβάθμισε πριν λήξει.`
               : `You've been enjoying <b>${tierLabel}</b> for free! Your trial ends in <b>${daysStr}</b>. Upgrade before it expires.`)),
@@ -366,6 +369,33 @@ function trialExpiryWarningEmail(
           : "If you don't upgrade, your account moves to the Free plan. Your data stays safe."),
       ].join(""),
       ctaText: isEl ? `Αναβάθμιση σε ${tierLabel} →` : `Upgrade to ${tierLabel} →`,
+      ctaUrl: `${APP_URL}/profile`,
+    }),
+  };
+}
+
+function subscriptionExpiredEmail(name: string, tier: string, lang: string): { subject: string; html: string } {
+  const isEl = lang === "el";
+  const tierLabel = tier === "master" ? "Master" : "Pro";
+  return {
+    subject: isEl ? `Oli: Η δοκιμή ${tierLabel} έληξε` : `Oli: Your ${tierLabel} trial has ended`,
+    html: base(lang, {
+      label: isEl ? "ΕΛΗΞΕ Η ΔΟΚΙΜΗ" : "TRIAL ENDED",
+      headline: isEl ? "Είσαι πίσω στο Free." : "You're back on Free.",
+      preheader: isEl ? "Τα δεδομένα σου είναι ασφαλή." : "Your data is safe.",
+      body: [
+        ep(isEl ? `<b>${name}</b>,` : `<b>${name}</b>,`),
+        ep(isEl
+          ? `Η δωρεάν δοκιμή σου στο <b>${tierLabel}</b> έληξε και ο λογαριασμός σου επέστρεψε στο Free πλάνο. Τα χωράφια σου, οι διαγνώσεις σου και το ιστορικό παρεμβάσεών σου παραμένουν ασφαλή.`
+          : `Your free <b>${tierLabel}</b> trial has ended and your account is back on the Free plan. Your fields, diagnoses, and intervention history are all safe.`),
+        ep(isEl
+          ? "Αν θέλεις να συνεχίσεις με απεριόριστες ερωτήσεις και πλήρη πρόσβαση, αναβάθμισε οποιαδήποτε στιγμή."
+          : "If you'd like to continue with unlimited questions and full access, you can upgrade anytime."),
+        esmall(isEl
+          ? "Στο Free πλάνο έχεις 20 δωρεάν ερωτήσεις κάθε μήνα."
+          : "On the Free plan you have 20 free questions every month."),
+      ].join(""),
+      ctaText: isEl ? "Αναβάθμιση →" : "Upgrade →",
       ctaUrl: `${APP_URL}/profile`,
     }),
   };
@@ -419,7 +449,7 @@ serve(async (req) => {
     const headers = { ...getCorsHeaders(req), "Content-Type": "application/json" };
 
     // Cron modes + vio_reminder: accept service role key OR CRON_SECRET (set in edge function secrets)
-    const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "onboarding_drip_cron", "reengagement_cron", "vio_reminder", "expiry_warning_cron"];
+    const serviceOnlyModes = ["vio_email_cron", "weekly_digest_cron", "reengagement_cron", "vio_reminder", "expiry_warning_cron"];
     if (serviceOnlyModes.includes(body.mode)) {
       const authHeader = req.headers.get("authorization") || "";
       const validSecret = SUPABASE_SERVICE_ROLE_KEY && authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
@@ -550,9 +580,10 @@ serve(async (req) => {
         // This prevents the same intervention from being picked up on the next cron run
         // (every 6h), which would spam users. If delivery failed, the in-app VIO banner
         // shows the pending action when the user next opens the app.
+        // Step 1→2 gap is 7 days (results check at ~day 10 from intervention log).
         const nextStep = (iv.vio_step ?? 1) + 1;
         const nextFollowUpAt = nextStep < 3
-          ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+          ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
           : null;
         await supabase
           .from("interventions")
@@ -619,59 +650,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ sent }), { headers });
     }
 
-    // Mode: onboarding_drip_cron — Day 3 & Day 7 emails for new users
-    if (body.mode === "onboarding_drip_cron") {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-      // Day 3: users created 3 days ago (±12h window)
-      const day3Start = new Date(Date.now() - 3.5 * 86400000).toISOString();
-      const day3End = new Date(Date.now() - 2.5 * 86400000).toISOString();
-      // Day 7: users created 7 days ago (±12h window)
-      const day7Start = new Date(Date.now() - 7.5 * 86400000).toISOString();
-      const day7End = new Date(Date.now() - 6.5 * 86400000).toISOString();
-
-      const { data: day3Users } = await supabase
-        .from("users")
-        .select("id, name, auth_id, language")
-        .gte("created_at", day3Start)
-        .lte("created_at", day3End);
-
-      const { data: day7Users } = await supabase
-        .from("users")
-        .select("id, name, auth_id, language")
-        .gte("created_at", day7Start)
-        .lte("created_at", day7End);
-
-      const allUsers = [
-        ...((day3Users || []).map(u => ({ ...u, day: 3 }))),
-        ...((day7Users || []).map(u => ({ ...u, day: 7 }))),
-      ];
-
-      if (allUsers.length === 0) {
-        return new Response(JSON.stringify({ sent: 0 }), { headers });
-      }
-
-      const authUsers = await listAllAuthUsers(supabase);
-
-      let sent = 0;
-      for (const u of allUsers) {
-        const authUser = authUsers.find((a) => a.id === u.auth_id);
-        if (!authUser?.email) continue;
-        const tpl = onboardingDripEmail(u.name || "Farmer", u.day, u.language || "en");
-        const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
-        if (ok) sent++;
-      }
-
-      return new Response(JSON.stringify({ sent, total: allUsers.length }), { headers });
-    }
-
-    // Mode: reengagement_cron — email users inactive for 14+ days
+    // Mode: reengagement_cron — email users inactive 30–37 days
+    // Window starts at 30d so it never overlaps with weekly engagement (active last 30d).
     if (body.mode === "reengagement_cron") {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
-      const twentyOneDaysAgo = new Date(Date.now() - 21 * 86400000).toISOString();
+      const thirtyDaysAgo  = new Date(Date.now() - 30 * 86400000).toISOString();
+      const thirtySevenDaysAgo = new Date(Date.now() - 37 * 86400000).toISOString();
 
-      // Users whose last message is between 14-21 days ago (send once)
       const { data: users } = await supabase
         .from("users")
         .select("id, name, auth_id, language");
@@ -687,7 +672,6 @@ serve(async (req) => {
         const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
 
-        // Check last message date
         const { data: lastMsg } = await supabase
           .from("chat_messages")
           .select("created_at")
@@ -699,8 +683,8 @@ serve(async (req) => {
         if (!lastMsg) continue;
         const lastActive = lastMsg.created_at;
 
-        // Only send if last activity is 14-21 days ago
-        if (lastActive > fourteenDaysAgo || lastActive < twentyOneDaysAgo) continue;
+        // Only send if last activity is 30–37 days ago
+        if (lastActive > thirtyDaysAgo || lastActive < thirtySevenDaysAgo) continue;
 
         const tpl = reEngagementEmail(u.name || "Farmer", u.language || "en");
         const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
@@ -710,75 +694,98 @@ serve(async (req) => {
       return new Response(JSON.stringify({ sent }), { headers });
     }
 
-    // Mode: expiry_warning_cron — batch send trial/promo expiry warnings
+    // Mode: expiry_warning_cron — 3-touch expiry sequence
+    // Touch 1: 3 days before (expiry_warned_at)
+    // Touch 2: same day morning (expiry_final_warned_at)
+    // Touch 3: 2 days after — "you're off, renew?" (expiry_post_warned_at, set by new column)
     if (body.mode === "expiry_warning_cron") {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const day = 86400000;
       const now = Date.now();
+      const halfDay = day / 2;
 
-      // First warning window: tier expires 4–6 days from now, not yet warned
-      const firstStart = new Date(now + 4 * day).toISOString();
-      const firstEnd   = new Date(now + 6 * day).toISOString();
-      // Final warning window: tier expires 1–3 days from now, not yet final-warned
-      const finalStart = new Date(now + 1 * day).toISOString();
-      const finalEnd   = new Date(now + 3 * day).toISOString();
+      // Touch 1: expires 2.5–3.5 days from now, not yet warned
+      const t1Start = new Date(now + 2.5 * day).toISOString();
+      const t1End   = new Date(now + 3.5 * day).toISOString();
+      // Touch 2: expires within ±12h of now (same day), not yet day-warned
+      const t2Start = new Date(now - halfDay).toISOString();
+      const t2End   = new Date(now + halfDay).toISOString();
+      // Touch 3: expired 1.5–2.5 days ago, not yet post-warned
+      const t3Start = new Date(now - 2.5 * day).toISOString();
+      const t3End   = new Date(now - 1.5 * day).toISOString();
 
-      const [{ data: firstWarn }, { data: finalWarn }] = await Promise.all([
+      const [{ data: t1Users }, { data: t2Users }, { data: t3Users }] = await Promise.all([
         supabase
           .from("users")
-          .select("id, name, lang, auth_id, tier, tier_expires_at")
+          .select("id, name, language, auth_id, tier, tier_expires_at")
           .in("tier_source", ["promo", "trial"])
           .not("tier_expires_at", "is", null)
-          .gte("tier_expires_at", firstStart)
-          .lte("tier_expires_at", firstEnd)
+          .gte("tier_expires_at", t1Start)
+          .lte("tier_expires_at", t1End)
           .is("expiry_warned_at", null),
         supabase
           .from("users")
-          .select("id, name, lang, auth_id, tier, tier_expires_at")
+          .select("id, name, language, auth_id, tier, tier_expires_at")
           .in("tier_source", ["promo", "trial"])
           .not("tier_expires_at", "is", null)
-          .gte("tier_expires_at", finalStart)
-          .lte("tier_expires_at", finalEnd)
+          .gte("tier_expires_at", t2Start)
+          .lte("tier_expires_at", t2End)
           .is("expiry_final_warned_at", null),
+        supabase
+          .from("users")
+          .select("id, name, language, auth_id, tier, tier_expired_at")
+          .not("tier_expired_at", "is", null)
+          .gte("tier_expired_at", t3Start)
+          .lte("tier_expired_at", t3End)
+          .is("expiry_post_warned_at", null),
       ]);
-
-      const allTargets = [
-        ...((firstWarn || []).map(u => ({ ...u, isFinal: false }))),
-        ...((finalWarn || []).map(u => ({ ...u, isFinal: true }))),
-      ];
-
-      if (allTargets.length === 0) {
-        return new Response(JSON.stringify({ sent: 0, total: 0 }), { headers });
-      }
 
       const authUsers = await listAllAuthUsers(supabase);
       let sent = 0;
+      let total = 0;
 
-      for (const u of allTargets) {
+      // Touch 1 — 3 days before
+      for (const u of (t1Users || [])) {
+        total++;
         const authUser = authUsers.find((a) => a.id === u.auth_id);
         if (!authUser?.email) continue;
-
         const expiresAt = new Date(u.tier_expires_at as string).getTime();
-        const daysLeft = Math.max(1, Math.ceil((expiresAt - now) / day));
-        const tpl = trialExpiryWarningEmail(
-          u.name || "Farmer",
-          u.tier || "pro",
-          daysLeft,
-          u.isFinal,
-          u.lang || "en",
-        );
-
+        const daysLeft = Math.max(2, Math.round((expiresAt - now) / day));
+        const tpl = trialExpiryWarningEmail(u.name || "Farmer", u.tier || "pro", daysLeft, false, u.language || "en");
         const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
         if (ok) {
           sent++;
-          // Mark notification sent
-          const updateCol = u.isFinal ? { expiry_final_warned_at: new Date().toISOString() }
-                                      : { expiry_warned_at: new Date().toISOString() };
-          await supabase.from("users").update(updateCol).eq("id", u.id);
+          await supabase.from("users").update({ expiry_warned_at: new Date().toISOString() }).eq("id", u.id);
         }
       }
 
-      return new Response(JSON.stringify({ sent, total: allTargets.length }), { headers });
+      // Touch 2 — same day morning
+      for (const u of (t2Users || [])) {
+        total++;
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
+        if (!authUser?.email) continue;
+        const tpl = trialExpiryWarningEmail(u.name || "Farmer", u.tier || "pro", 0, true, u.language || "en");
+        const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
+        if (ok) {
+          sent++;
+          await supabase.from("users").update({ expiry_final_warned_at: new Date().toISOString() }).eq("id", u.id);
+        }
+      }
+
+      // Touch 3 — 2 days after (you're back on free, renew?)
+      for (const u of (t3Users || [])) {
+        total++;
+        const authUser = authUsers.find((a) => a.id === u.auth_id);
+        if (!authUser?.email) continue;
+        const tpl = subscriptionExpiredEmail(u.name || "Farmer", u.tier || "pro", u.language || "en");
+        const ok = await sendEmail(authUser.email, tpl.subject, tpl.html);
+        if (ok) {
+          sent++;
+          await supabase.from("users").update({ expiry_post_warned_at: new Date().toISOString() }).eq("id", u.id);
+        }
+      }
+
+      return new Response(JSON.stringify({ sent, total }), { headers });
     }
 
     // Mode: weekly_plan_cron — Monday motivational plan for opted-in users
@@ -853,7 +860,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, onboarding_drip_cron, reengagement_cron, expiry_warning_cron, weekly_plan_cron, subscription_confirmation" }),
+      JSON.stringify({ error: "Invalid mode. Use: welcome, vio_reminder, vio_email_cron, weekly_digest_cron, reengagement_cron, expiry_warning_cron, weekly_plan_cron, subscription_confirmation, upgrade_interest" }),
       { status: 400, headers }
     );
   } catch (e) {

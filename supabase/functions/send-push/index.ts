@@ -312,10 +312,11 @@ serve(async (req) => {
         // Advance VIO step only if we actually delivered a push notification.
         // If user has no push subscriptions, the email cron (30min offset) picks it up.
         // This prevents double-notification while also avoiding infinite cron loops.
+        // Step 1→2 gap is 7 days (results visible ~10 days after intervention log).
         if (notificationSent > 0) {
           const nextStep = step + 1;
           const nextFollowUpAt = nextStep < 3
-            ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+            ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
             : null;
           await supabase
             .from("interventions")
