@@ -953,6 +953,7 @@ export default function Landing() {
   const [demoTab, setDemoTab]             = useState<'disease' | 'planning'>('disease');
   const [suggestionIdx, setSuggestionIdx] = useState(0);
   const [suggestionVisible, setSuggestionVisible] = useState(true);
+  const [heroInputFocused, setHeroInputFocused] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('annual');
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
@@ -1005,6 +1006,8 @@ export default function Landing() {
   const recognitionRef = useRef<any>(null);
 
   const rotatingQuestions = useMemo(() => ROTATING_QUESTIONS(lang, imperial), [lang, imperial]);
+  // Rotating hero placeholder shows only while the field is empty, unfocused, and not voice-dictating
+  const showHeroPlaceholder = !chatInput && !heroInputFocused && !isListening;
   const demoDisease       = DEMO_DISEASE(lang);
   const demoPlanning      = DEMO_PLANNING(lang, imperial);
   const breadth           = BREADTH(lang);
@@ -1057,14 +1060,16 @@ export default function Landing() {
     setHeroPhoto(null);
   };
 
-  // Rotate suggestion every 3.5s
+  // Rotate hero placeholder every 3.5s — pauses while the input is focused or has text
   useEffect(() => {
+    if (!showHeroPlaceholder) return;
+    setSuggestionVisible(true);
     const t = setInterval(() => {
       setSuggestionVisible(false);
       setTimeout(() => { setSuggestionIdx(i => (i + 1) % rotatingQuestions.length); setSuggestionVisible(true); }, 350);
     }, 3500);
     return () => clearInterval(t);
-  }, [rotatingQuestions.length]);
+  }, [rotatingQuestions.length, showHeroPlaceholder]);
 
   // SEO meta
   useEffect(() => {
@@ -1270,22 +1275,36 @@ export default function Landing() {
                     </button>
                   )}
 
-                  {/* Text area */}
-                  <textarea
-                    rows={2}
-                    value={isListening ? lt.listening : chatInput}
-                    onChange={e => !isListening && setChatInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        if (chatInput.trim() || heroPhoto) heroFormRef.current?.requestSubmit();
-                      }
-                    }}
-                    aria-label={lt.send}
-                    placeholder={`${lt.heroPlaceholder}\n${lt.heroPlaceholderHint}`}
-                    className="flex-1 min-w-0 bg-transparent text-[15px] text-[#1b1c19] placeholder:text-[#9a9b93] focus:outline-none focus-visible:ring-0 py-2.5 resize-none leading-snug"
-                    readOnly={isListening}
-                  />
+                  {/* Text area + rotating placeholder overlay */}
+                  <div className="relative flex-1 min-w-0">
+                    {/* Rotating example questions fade through the empty field. An overlay element is used
+                        instead of the native placeholder attribute because native placeholders can't animate. */}
+                    {showHeroPlaceholder && (
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 py-2.5 text-[15px] leading-snug text-[#9a9b93] line-clamp-2"
+                        style={{ opacity: suggestionVisible ? 1 : 0, transition: 'opacity 0.35s ease' }}>
+                        {rotatingQuestions[suggestionIdx]}
+                      </div>
+                    )}
+                    <textarea
+                      rows={2}
+                      value={isListening ? lt.listening : chatInput}
+                      onChange={e => !isListening && setChatInput(e.target.value)}
+                      onFocus={() => setHeroInputFocused(true)}
+                      onBlur={() => setHeroInputFocused(false)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (chatInput.trim() || heroPhoto) heroFormRef.current?.requestSubmit();
+                        }
+                      }}
+                      aria-label={lt.send}
+                      placeholder=""
+                      className="w-full bg-transparent text-[15px] text-[#1b1c19] focus:outline-none focus-visible:ring-0 py-2.5 resize-none leading-snug"
+                      readOnly={isListening}
+                    />
+                  </div>
 
                   {/* Send button */}
                   <button
@@ -1309,16 +1328,8 @@ export default function Landing() {
                 />
               </form>
 
-              {/* Rotating suggestion chip + hero CTA */}
+              {/* Hero CTA */}
               <div className="flex flex-col items-center lg:items-start gap-3">
-                <button
-                  onClick={() => sendQuestion(rotatingQuestions[suggestionIdx])}
-                  style={{ opacity: suggestionVisible ? 1 : 0, transition: 'opacity 0.35s ease' }}
-                  className="inline-flex items-center gap-1.5 text-xs text-[#194121] bg-[#194121]/8 hover:bg-[#194121]/15 rounded-full px-3 py-1.5 transition-colors max-w-xs sm:max-w-sm text-left"
-                  aria-hidden={!suggestionVisible}>
-                  <span className="flex-shrink-0 text-[#194121]/60">→</span>
-                  <span className="truncate">{rotatingQuestions[suggestionIdx]}</span>
-                </button>
                 <Link
                   to={isLoggedIn ? '/chat' : '/auth'}
                   className="w-full sm:w-auto inline-flex flex-col items-center justify-center rounded-2xl bg-[#194121] px-8 py-4 text-center hover:opacity-90 transition-opacity"
