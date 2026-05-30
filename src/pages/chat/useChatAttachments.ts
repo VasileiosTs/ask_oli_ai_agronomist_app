@@ -129,11 +129,24 @@ export function useChatAttachments({
 }: {
   t: T;
 }) {
-  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [attachments, setAttachmentsState] = useState<PendingAttachment[]>([]);
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const attachmentsRef = useRef<PendingAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Single writer for attachment state. Every update flows through here so the ref
+  // (which handleFileSelect reads when appending newly-picked files) can never drift
+  // from React state. Before this, sending a message called setAttachments([]) which
+  // cleared the state but left the ref populated, so the next file the user picked
+  // silently re-attached the previous message's photos/files.
+  const setAttachments = (
+    next: PendingAttachment[] | ((current: PendingAttachment[]) => PendingAttachment[]),
+  ) => {
+    const resolved = typeof next === 'function' ? next(attachmentsRef.current) : next;
+    attachmentsRef.current = resolved;
+    setAttachmentsState(resolved);
+  };
 
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>, showToast: (message: string) => void) => {
     if (event.target.files) {
@@ -163,7 +176,6 @@ export function useChatAttachments({
         })),
       ];
 
-      attachmentsRef.current = nextAttachments;
       setAttachments(nextAttachments);
     }
 
@@ -183,7 +195,6 @@ export function useChatAttachments({
         URL.revokeObjectURL(removed.previewUrl);
       }
 
-      attachmentsRef.current = nextAttachments;
       return nextAttachments;
     });
   };
