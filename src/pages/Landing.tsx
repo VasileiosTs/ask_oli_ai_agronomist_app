@@ -1603,11 +1603,11 @@ export default function Landing() {
 
       {/* ── TESTIMONIALS, dark section to break uniform rhythm ── */}
       <section className="py-16 bg-[#0f2418]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <p className="text-center text-xs font-semibold uppercase tracking-widest text-[#6dbf7e] mb-10">
             {lt.testimonialsLabel}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {TESTIMONIALS(lang).map((t, i) => (
               <div key={i} className="rounded-2xl border border-white/10 p-6 bg-white/5">
                 <div className="flex gap-1 mb-4">
