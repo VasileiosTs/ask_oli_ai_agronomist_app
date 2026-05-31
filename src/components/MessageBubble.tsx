@@ -224,9 +224,21 @@ function InlineLogForm({
   const [notes, setNotes]     = useState('');
   const [saving, setSaving]   = useState(false);
   const [done, setDone]       = useState(false);
+  const [errMsg, setErrMsg]   = useState<string | null>(null);
 
   const handleSave = async () => {
+    // VIO is per-field. Logging here arms the 3-day follow-up loop, which is
+    // useless (and spammy) without a field to track. Refuse in general chat.
+    // The "Log treatment" button is already hidden when no field is active;
+    // this guard covers the case where the field is cleared while the form is open.
+    if (!activeFieldId) {
+      setErrMsg(lang === 'el'
+        ? 'Διάλεξε χωράφι για να καταγράψω και να παρακολουθήσω τη θεραπεία.'
+        : 'Open this in a field to log and track the treatment.');
+      return;
+    }
     setSaving(true);
+    setErrMsg(null);
     try {
       const confScore = typeof dd?.confidence_score === 'number' ? dd.confidence_score : null;
       const { data, error } = await supabase
@@ -335,6 +347,10 @@ function InlineLogForm({
           ? <Loader2 className="mx-auto h-4 w-4 animate-spin" />
           : (lang === 'el' ? 'Αποθήκευση ✓' : 'Save & Log ✓')}
       </button>
+
+      {errMsg && (
+        <p className="mt-2 text-xs text-amber-400">{errMsg}</p>
+      )}
     </div>
   );
 }
@@ -607,17 +623,21 @@ export default function MessageBubble({
                   ? (lang === 'el' ? 'Αντιγράφηκε' : 'Copied')
                   : (lang === 'el' ? 'Αντιγραφή' : 'Copy')}
               </button>
-              <button
-                onClick={() => onLogIntervention(msg)}
-                className={clsx(
-                  'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors',
-                  showInlineLogForm
-                    ? 'border-green-500/50 bg-green-500/10 text-green-400'
-                    : 'border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10',
-                )}
-              >
-                <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
-              </button>
+              {/* Log treatment starts the per-field VIO loop. Only offer it in
+                  field chat; in general chat there is no field to track. */}
+              {activeFieldId && (
+                <button
+                  onClick={() => onLogIntervention(msg)}
+                  className={clsx(
+                    'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors',
+                    showInlineLogForm
+                      ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                      : 'border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10',
+                  )}
+                >
+                  <ClipboardList className="h-3.5 w-3.5" />{t.logIntervention}
+                </button>
+              )}
               <button
                 onClick={() => onShare(msg)}
                 className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"

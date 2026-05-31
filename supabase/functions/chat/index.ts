@@ -539,13 +539,35 @@ ECONOMICS: Gross margin = (yield × price) - variable costs. Break-even = total 
 SOIL & WATER QUALITY: EC, pH adjustments, salinity impact on yield (FAO threshold + slope model). Leaching requirement = ECw / (5 × ECe_threshold - ECw).`;
 
   const TYPE_C_PLANNING = `BEHAVIOUR FOR PLANNING (TYPE C):
-1. ANSWER-FIRST: deliver the complete plan immediately — no preamble.
-2. Every action MUST include: active ingredient (prefixed with "Δραστική ουσία:" in Greek, "Active ingredient:" in English) + dose per ha or per 100 L + timing (month or growth stage). NEVER use commercial product names or brand names. No vague "apply fungicide" — name the active ingredient.
-3. For disease/pest management: always give DUAL treatment — (a) biological option (e.g. Bacillus subtilis, copper hydroxide, neem oil) AND (b) chemical option (e.g. azoxystrobin, tebuconazole). Both with dosages.
-4. For seasonal/spray calendars: include a PREVENTIVE schedule (pre-symptom applications) not just reactive treatment. State spray intervals in days.
-5. Broad questions: give FULL seasonal plan covering all major threats for that crop and climate.
-6. Structure: numbered steps → action | timing | active ingredient + dose | interval/repeat.
-7. ONE question at END only if it meaningfully changes the recommendation (e.g. organic certification status).`;
+Planning is the diagnosis of a whole program. Like TYPE A you deliver VALUE FIRST, then sharpen. NEVER a pure question-gate, NEVER a generic plan with no numbers.
+
+PLANNING CONTEXT CHECK (the 5 inputs a plan depends on, the planning parallel to the Five Pillars):
+1. THE CROP & STAGE: species/variety plus current growth stage / phenology.
+2. THE PLACE: field or user location plus climate. Localizes threats, products, timing, legal rates.
+3. THE SYSTEM: irrigated or rainfed, training system, soil, indoor/outdoor, organic vs conventional preference.
+4. THE OBJECTIVE: full seasonal program, one operation, a calendar, or fixing one constraint.
+5. THE EVIDENCE: photo, recent observations, treatment history. Refines the plan, never required to start.
+
+RESOLVE EACH UNKNOWN IN THIS ORDER (infer, then cover both, then ask LAST):
+a. INFER from field/location/season/crop context and agronomy. Default to the most likely case.
+b. If it materially changes the plan and you cannot infer, COVER BOTH BRANCHES in the plan (organic AND conventional, irrigated AND rainfed, two stages).
+c. Only ASK as the final step, and only for what you could neither infer nor cover. One question max (UNIVERSAL).
+
+VALUE FLOOR. Every plan covers all 5 agronomic pillars, each with timing:
+A. CANOPY & MECHANICAL: training, pruning, topping (κορυφολόγημα), leaf removal (ξεφύλλισμα), shoot thinning (βλαστολόγημα), cluster thinning (τσαμπολόγημα / πράσινος τρύγος). State the tradeoff (leaf removal raises airflow but exposes light-skinned fruit to sunburn).
+B. IRRIGATION & WATER: amount and interval by growth stage, method, deficit strategy. If water status is unknown, give the rainfed and the irrigated case.
+C. NUTRITION: fertilization by stage, N-P-K plus key micronutrients, with organic AND conventional sources.
+D. PROTECTION: cover ALL major threats for this crop and region this season (for seasonal programs override the "max 3 treatments" limit). PREVENTIVE schedule first, then curative. For each threat give organic AND conventional, each as: "Δραστική ουσία:" / "Active ingredient:" + FRAC or IRAC group + rate (per ha or per 100 L) + interval in days + PHI (χρόνος αναμονής). NEVER brand names.
+E. MONITORING: what to scout for, action thresholds, cadence, and when to report back.
+
+DOSE & LABEL: for TYPE C the plan itself is the deliverable, so put doses in the plan steps, not in cards. Always give the dose by active ingredient. Close the protection section with a standing notice that registered products and legal rates differ by country and crop, so the grower must confirm against the product label before applying. Greek: "Έλεγξε πάντα την ετικέτα, οι εγκεκριμένες δόσεις διαφέρουν ανά χώρα και καλλιέργεια."
+
+LOCALIZE: build the plan for the field/user location. Ask for location only if it is missing AND it materially changes the recommendation.
+
+OUTPUT:
+1. ASSUMPTIONS first, one line: the crop, location, stage, system, and preference the plan assumes, so the user can correct them. Start with "Plan assumes:" (Greek "Το πλάνο υποθέτει:").
+2. The 5-pillar program, numbered, each action with timing and (for protection and nutrition) the dose by active ingredient.
+3. End with the ONE most useful refinement: the single question or photo request that would sharpen the plan most (UNIVERSAL one-question rule). If visual symptoms were described without a photo, the photo request takes the slot.`;
 
   const TYPE_D_GENERAL = `BEHAVIOUR FOR GENERAL KNOWLEDGE (TYPE D):
 1. Answer directly and completely.
@@ -628,7 +650,7 @@ PHOTO REQUEST GUIDE:
 
 HARD LIMITS:
 - Max ONE question mark per response. The photo ask counts as that question — never ask a second question in the same response.
-- Under 150 words for care (TYPE A/B). Under 350 words for planning (TYPE C) — planning requires product names, dosages, and schedules. Under 200 for diagnosis. Be clinical and direct.
+- Under 150 words for care (TYPE A/B). Under 450 words for planning (TYPE C): a full program needs all five pillars with active ingredients, dosages, intervals, and PHI. Under 200 for diagnosis. Be clinical and direct.
 - No "it depends on many factors". Commit to most likely scenario.
 - Max 3 treatments. Pick best, mention 1 alternative.
 - No explaining WHY unless asked.
@@ -1846,6 +1868,10 @@ async function assembleServerFieldContext(
   activeFieldId?: string | null,
   fallbackFieldContext = '',
 ) {
+  // Read isolation boundary: no active field => general (or grower-only) chat.
+  // We return ZERO per-field memory here. The caller must only pass a
+  // server-derived fallback (grower-scoped) for this branch, never client-
+  // supplied field context, so general chat cannot see any field's history.
   if (!activeFieldId) {
     return {
       fieldContext: fallbackFieldContext || 'No field selected for this conversation.',
@@ -3093,7 +3119,12 @@ Return ONLY the greeting text, nothing else.`;
         appUser.id,
         fields,
         effectiveFieldId,
-        body.fieldContext ?? growerFieldsFallback,
+        // Read isolation: in general chat (no active field) NEVER inject
+        // client-supplied field memory (body.fieldContext) -- the backend stays
+        // authoritative. The only allowed no-field fallback is server-derived,
+        // grower-scoped context (growerFieldsFallback, B2B). With an active field,
+        // body.fieldContext is a safe fallback for that same field's context.
+        effectiveFieldId ? (body.fieldContext ?? growerFieldsFallback) : growerFieldsFallback,
       );
 
       effectiveFieldId = serverContext.activeFieldId;

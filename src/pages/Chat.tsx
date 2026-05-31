@@ -477,7 +477,17 @@ export default function Chat() {
 
   const handleAutoLogConfirm = async (action: ActionDetected) => {
     if (!appUserId) return;
-    const fieldId = activeFieldId || null;
+    // VIO is per-field. In general chat there is no field to track, so a logged
+    // intervention would be an orphan that still triggers the 3-day follow-up
+    // crons (push/email). Never create the VIO loop without a field.
+    if (!activeFieldId) {
+      showToast(lang === 'el'
+        ? 'Διάλεξε χωράφι για να καταγράψω και να παρακολουθήσω τη θεραπεία.'
+        : 'Open this in a field to log and track the treatment.');
+      setPendingAutoLog(null);
+      return;
+    }
+    const fieldId = activeFieldId;
     try {
       await supabase.from('interventions').insert({
         user_id: appUserId,
@@ -1157,9 +1167,12 @@ export default function Chat() {
         setActiveFieldId(completion.fieldId);
       }
 
-      // Auto-log detection: show banner if AI detected a past action
+      // Auto-log detection: only prompt in field chat. VIO is per-field, so in
+      // general chat there is nothing to track and the banner would create an
+      // orphan intervention. (completion.fieldId may have just set the field above.)
       const detected = completion.metadata?.action_detected;
-      if (detected && typeof detected === 'object' && 'action_type' in detected && 'confidence' in detected) {
+      const autoLogFieldId = completion.fieldId ?? activeFieldId;
+      if (autoLogFieldId && detected && typeof detected === 'object' && 'action_type' in detected && 'confidence' in detected) {
         setPendingAutoLog(detected as ActionDetected);
       }
 
