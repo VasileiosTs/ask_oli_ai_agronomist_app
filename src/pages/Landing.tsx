@@ -492,7 +492,7 @@ function StepPreviewFollowup({ lang }: { lang: string }) {
 const FEATURES = (lang: string): { icon: LucideIcon; title: string; body: string; accent: boolean }[] => {
   type F = { t1: string; b1: string; t2: string; b2: string; t3: string; b3: string };
   const f: Record<string, F> = {
-    el: { t1: 'Ρώτα ό,τι θα ρωτούσες έναν γεωπόνο', b1: 'Ασθένειες, πότισμα, λίπανση, κλάδεμα, σπορά. Αν το ξέρει ένας έμπειρος γεωπόνος, το ξέρει και ο Oli. Δεν είναι απλώς εφαρμογή αναγνώρισης. Ο ειδικός σου για ό,τι καλλιεργείς.', t2: 'Μιλά τη γλώσσα σου', b2: '20 γλώσσες: Ελληνικά, Αγγλικά, Ιταλικά, Ισπανικά, Γαλλικά, Αραβικά, Τούρκικα, Ινδικά, Ινδονησιακά, Βεγγαλικά και άλλες. Φτιαγμένο για όσους καλλιεργούν, παντού.', t3: 'Θυμάται και παρακολουθεί', b3: 'Ο Oli θυμάται κάθε καλλιέργεια και παρέμβαση. Παρακολουθεί σαν αληθινός γεωπόνος αν η θεραπεία πέτυχε και προσαρμόζεται ανάλογα.' },
+    el: { t1: 'Ρώτα ό,τι θα ρωτούσες έναν γεωπόνο', b1: 'Ασθένειες, πότισμα, λίπανση, κλάδεμα, σπορά. Αν το ξέρει ένας έμπειρος γεωπόνος, το ξέρει και ο Oli. Δεν είναι απλώς εφαρμογή αναγνώρισης. Ο ειδικός σου για ό,τι καλλιεργείς.', t2: 'Μιλά τη γλώσσα σου', b2: '20 γλώσσες: Ελληνικά, Αγγλικά, Ιταλικά, Ισπανικά, Γαλλικά, Αραβικά, Τούρκικα, Ινδικά, Ινδονησιακά, Μπενγκάλι και άλλες. Φτιαγμένο για όσους καλλιεργούν, παντού.', t3: 'Θυμάται και παρακολουθεί', b3: 'Ο Oli θυμάται κάθε καλλιέργεια και παρέμβαση. Παρακολουθεί σαν αληθινός γεωπόνος αν η θεραπεία πέτυχε και προσαρμόζεται ανάλογα.' },
     en: { t1: 'Ask anything you\'d ask an agronomist', b1: 'Diseases, irrigation, fertilisation, pruning, planting schedules. If an experienced agronomist knows it, Oli knows it. Not just an ID app. Your expert for anything that grows.', t2: 'Works in your language', b2: '20 languages: Greek, English, Italian, Spanish, French, Arabic, Turkish, Hindi, Indonesian, Bengali, Swahili, Vietnamese, and more. Built for growers everywhere. Set your language from your profile.', t3: 'Remembers and follows up', b3: 'Oli builds a memory of what you grow over time. Follows up like a real agronomist to confirm the treatment worked, and adjusts if it did not.' },
     it: { t1: 'Chiedi qualsiasi cosa chiederesti a un agronomo', b1: 'Malattie, irrigazione, concimazione, potatura, calendari di semina. Se lo sa un agronomo esperto, lo sa Oli. Non è solo un\'app di riconoscimento. Il tuo esperto per tutto ciò che coltivi.', t2: 'Parla la tua lingua', b2: '20 lingue: greco, inglese, italiano, spagnolo, francese, arabo, turco, hindi, indonesiano, bengalese, swahili, vietnamita e altre. Pensato per chi coltiva, ovunque. Imposta la lingua dal profilo.', t3: 'Ricorda e fa il follow-up', b3: 'Oli costruisce nel tempo una memoria di ciò che coltivi. Fa il follow-up come un vero agronomo per confermare che il trattamento ha funzionato, e si adatta se non è così.' },
     es: { t1: 'Pregunta lo que le preguntarías a un agrónomo', b1: 'Enfermedades, riego, fertilización, poda, calendarios de siembra. Si lo sabe un agrónomo con experiencia, lo sabe Oli. No es solo una app de identificación. Tu experto para todo lo que cultivas.', t2: 'Funciona en tu idioma', b2: '20 idiomas: griego, inglés, italiano, español, francés, árabe, turco, hindi, indonesio, bengalí, suajili, vietnamita y más. Hecho para quienes cultivan, en cualquier lugar. Elige tu idioma desde el perfil.', t3: 'Recuerda y hace seguimiento', b3: 'Oli construye con el tiempo una memoria de lo que cultivas. Hace seguimiento como un agrónomo real para confirmar que el tratamiento funcionó, y se ajusta si no fue así.' },
@@ -1617,7 +1617,7 @@ export default function Landing() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {TESTIMONIALS(lang).map((t, i) => (
-              <div key={i} className="rounded-2xl border border-white/10 p-6 bg-white/5">
+              <div key={i} className="rounded-2xl border border-white/10 p-6 bg-white/5 flex flex-col h-full">
                 <div className="flex gap-1 mb-4">
                   {[...Array(5)].map((_, j) => (
                     <svg key={j} className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
@@ -1626,7 +1626,7 @@ export default function Landing() {
                   ))}
                 </div>
                 <p className="text-sm text-white/80 leading-relaxed mb-5 italic">&ldquo;{t.quote}&rdquo;</p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mt-auto">
                   <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white/70">
                     {t.initial}
                   </div>
