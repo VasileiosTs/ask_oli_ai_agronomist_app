@@ -566,24 +566,32 @@ const TESTIMONIALS = (lang: string) => {
       { quote: 'Basta indovinare quale prodotto usare. Mi dice esattamente cosa comprare e a quale dose.', name: 'Lucia', crop: 'Viticoltrice, Sicilia', initial: 'L' },
       { quote: 'Ho chiesto quando potare i miei agrumi. In pochi secondi avevo un piano settimana per settimana. Il mio agronomo fa pagare €80 a visita per questo.', name: 'Antonio', crop: 'Agricoltore di agrumi, Calabria', initial: 'A' },
       { quote: 'Ho notato foglie sospette durante la mia mattinata nel vigneto. Ho scattato una foto, l\'ho inviata a Oli e avevo già diagnosi e piano di trattamento prima di tornare al furgone.', name: 'Sofia', crop: 'Viticoltrice, Toscana', initial: 'S' },
+      { quote: 'I miei peperoni avevano macchie che non avevo mai visto. Oli ha individuato la malattia, mi ha dato il trattamento biologico e la dose esatta, poi è tornato una settimana dopo per vedere i risultati. I miei peperoni si sono salvati.', name: 'Giulia', crop: 'Orticoltrice, Campania', initial: 'G' },
+      { quote: 'Uso Oli per gestire la mia area di coltivazione e migliorare sempre il vivaio. In più, risponde alle centinaia di domande sulle piante che mi portano i clienti, con il trattamento e la dose esatta sul momento. Come avere un agronomo in squadra.', name: 'Francesco', crop: 'Vivaio, Liguria', initial: 'F' },
     ],
     es: [
       { quote: 'Envié una foto a mi agrónomo y esperé 2 días. Oli me dio un diagnóstico en 10 segundos. Era exactamente correcto.', name: 'Carlos', crop: 'Olivicultor, Andalucía', initial: 'C' },
       { quote: 'Se acabó adivinar qué producto usar. Me dice exactamente qué comprar y a qué dosis.', name: 'María', crop: 'Viticultora, La Rioja', initial: 'M' },
       { quote: 'Pregunté cuándo podar mis cítricos. En segundos tenía un plan semana a semana. Mi agrónomo cobra €80 por visita exactamente por eso.', name: 'José', crop: 'Agricultor de cítricos, Valencia', initial: 'J' },
       { quote: 'Vi hojas sospechosas en mi ronda matutina por el viñedo. Hice una foto, la mandé a Oli y ya tenía diagnóstico y plan de tratamiento antes de volver al coche.', name: 'Ana', crop: 'Viticultora, Castilla', initial: 'A' },
+      { quote: 'Mis pimientos tenían manchas que nunca había visto. Oli identificó la enfermedad, me dio el tratamiento ecológico y la dosis exacta, y una semana después volvió para ver los resultados. Mis pimientos se salvaron.', name: 'Lucía', crop: 'Horticultora, Almería', initial: 'L' },
+      { quote: 'Uso Oli para gestionar mi zona de cultivo y mejorar continuamente el vivero. Además, responde a los cientos de preguntas sobre plantas que me traen los clientes, con el tratamiento y la dosis exacta al momento. Como tener un agrónomo en el equipo.', name: 'Pablo', crop: 'Vivero, Cataluña', initial: 'P' },
     ],
     fr: [
       { quote: "J'ai envoyé une photo à mon agronome et j'ai attendu 2 jours. Oli m'a donné un diagnostic en 10 secondes. C'était exactement juste.", name: 'Pierre', crop: 'Oléiculteur, Provence', initial: 'P' },
       { quote: 'Fini de deviner quel produit utiliser. Il me dit exactement quoi acheter et à quelle dose.', name: 'Claire', crop: 'Viticultrice, Bordeaux', initial: 'C' },
       { quote: "J'ai demandé quand tailler mes agrumes. En quelques secondes j'avais un plan semaine par semaine. Mon agronome facture €80 la visite pour ça.", name: 'Jean', crop: 'Agrumiculteur, Corse', initial: 'J' },
       { quote: "J'ai repéré des feuilles suspectes lors de ma tournée matinale dans le vignoble. J'ai pris une photo, l'ai envoyée à Oli et j'avais déjà un diagnostic et un plan de traitement avant de rentrer à la voiture.", name: 'Sophie', crop: 'Viticultrice, Languedoc', initial: 'S' },
+      { quote: "Mes poivrons avaient des taches que je n'avais jamais vues. Oli a identifié la maladie, m'a donné le traitement bio et la dose exacte, puis est revenu une semaine après pour voir les résultats. Mes poivrons ont été sauvés.", name: 'Manon', crop: 'Maraîchère, Pays basque', initial: 'M' },
+      { quote: "J'utilise Oli pour gérer ma zone de culture et améliorer sans cesse la pépinière. En plus, il répond aux centaines de questions sur les plantes que m'apportent les clients, avec le traitement et la dose exacte sur le moment. Comme avoir un agronome dans l'équipe.", name: 'Thomas', crop: 'Pépinière, Anjou', initial: 'T' },
     ],
     ar: [
       { quote: 'أرسلت صورة إلى زراعي وانتظرت يومين. أعطاني أولي تشخيصاً في 10 ثوانٍ. كان صحيحاً تماماً.', name: 'أحمد', crop: 'مزارع زيتون، المغرب', initial: 'أ' },
       { quote: 'لا مزيد من التخمين حول أي منتج أستخدم. يخبرني بالضبط ما يجب شراؤه وبأي جرعة.', name: 'فاطمة', crop: 'مزارعة كروم، تونس', initial: 'ف' },
       { quote: 'سألت متى أقلم أشجار الحمضيات. في ثوانٍ كان لدي خطة أسبوعية محددة. يتقاضى زراعي €80 للزيارة مقابل ذلك بالضبط.', name: 'محمد', crop: 'مزارع حمضيات، الجزائر', initial: 'م' },
       { quote: 'لاحظت أوراقاً مريبة خلال جولتي الصباحية في الكرم. التقطت صورة وأرسلتها لأولي، وقبل أن أعود للسيارة كان لديّ تشخيص كامل وخطة علاج.', name: 'ليلى', crop: 'مزارعة كروم، المغرب', initial: 'ل' },
+      { quote: 'كان في الفلفل عندي بقع لم أرها من قبل. حدّد أولي المرض، وأعطاني العلاج العضوي والجرعة الدقيقة، ثم عاد بعد أسبوع ليرى النتيجة. الفلفل عندي نجا.', name: 'سارة', crop: 'مزارعة خضروات، مصر', initial: 'س' },
+      { quote: 'أستخدم أولي لإدارة منطقة الزراعة عندي وتحسين المشتل باستمرار. كما يجيب على مئات أسئلة النباتات التي يأتي بها الزبائن، مع العلاج والجرعة الدقيقة في الحال. كأنّ لديّ مهندساً زراعياً في الفريق.', name: 'يوسف', crop: 'مشتل، لبنان', initial: 'ي' },
     ],
   };
   return map[lang] ?? map.en;
