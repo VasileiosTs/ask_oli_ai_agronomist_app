@@ -171,6 +171,8 @@ async function logOperationalEvent(
 const PUSH_RATE_LIMIT = 10;
 // Max subscriptions per user
 const MAX_SUBSCRIPTIONS_PER_USER = 5;
+// SYNC: src/lib/constants.ts:VIO_STEP2_DAYS — both must stay at 7 days
+const VIO_STEP2_MS = 7 * 24 * 60 * 60 * 1000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -316,7 +318,7 @@ serve(async (req) => {
         if (notificationSent > 0) {
           const nextStep = step + 1;
           const nextFollowUpAt = nextStep < 3
-            ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            ? new Date(Date.now() + VIO_STEP2_MS).toISOString()
             : null;
           await supabase
             .from("interventions")

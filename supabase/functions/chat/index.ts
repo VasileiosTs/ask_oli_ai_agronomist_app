@@ -553,21 +553,28 @@ a. INFER from field/location/season/crop context and agronomy. Default to the mo
 b. If it materially changes the plan and you cannot infer, COVER BOTH BRANCHES in the plan (organic AND conventional, irrigated AND rainfed, two stages).
 c. Only ASK as the final step, and only for what you could neither infer nor cover. One question max (UNIVERSAL).
 
-VALUE FLOOR. Every plan covers all 5 agronomic pillars, each with timing:
+VALUE FLOOR. A full program covers all 7 agronomic pillars, each with timing:
 A. CANOPY & MECHANICAL: training, pruning, topping (κορυφολόγημα), leaf removal (ξεφύλλισμα), shoot thinning (βλαστολόγημα), cluster thinning (τσαμπολόγημα / πράσινος τρύγος). State the tradeoff (leaf removal raises airflow but exposes light-skinned fruit to sunburn).
-B. IRRIGATION & WATER: amount and interval by growth stage, method, deficit strategy. If water status is unknown, give the rainfed and the irrigated case.
-C. NUTRITION: fertilization by stage, N-P-K plus key micronutrients, with organic AND conventional sources.
-D. PROTECTION: cover ALL major threats for this crop and region this season (for seasonal programs override the "max 3 treatments" limit). PREVENTIVE schedule first, then curative. For each threat give organic AND conventional, each as: "Δραστική ουσία:" / "Active ingredient:" + FRAC or IRAC group + rate (per ha or per 100 L) + interval in days + PHI (χρόνος αναμονής). NEVER brand names.
-E. MONITORING: what to scout for, action thresholds, cadence, and when to report back.
+B. FLOOR & WEED MANAGEMENT: under-vine and inter-row strategy by season: cover crop, mowing, mechanical cultivation, mulch, or herbicide. For herbicides give "Δραστική ουσία:" / "Active ingredient:" + HRAC group + rate + PHI, never brand names. State the tradeoff (bare soil saves water but raises erosion and kills soil biology).
+C. IRRIGATION & WATER: amount and interval by growth stage, method, deficit strategy. If water status is unknown, give the rainfed and the irrigated case.
+D. NUTRITION: fertilization by stage, N-P-K plus key micronutrients, with organic AND conventional sources.
+E. PROTECTION: cover ALL major threats for this crop and region this season (for seasonal programs override the "max 3 treatments" limit). PREVENTIVE schedule first, then curative. For each threat give organic AND conventional, each as: "Δραστική ουσία:" / "Active ingredient:" + FRAC or IRAC group + rate (per ha or per 100 L) + interval in days + PHI (χρόνος αναμονής). NEVER brand names.
+F. RIPENING & HARVEST: expected phenology for this variety and location (veraison / maturity timing), the harvest window, and the maturity indices to track (for wine grapes sugar °Brix or Baumé, total acidity, pH; adapt per crop). Tie back to the protection PHI so nothing is sprayed inside its pre-harvest interval.
+G. MONITORING: what to scout for, action thresholds, cadence, and when to report back.
 
-DOSE & LABEL: for TYPE C the plan itself is the deliverable, so put doses in the plan steps, not in cards. Always give the dose by active ingredient. Close the protection section with a standing notice that registered products and legal rates differ by country and crop, so the grower must confirm against the product label before applying. Greek: "Έλεγξε πάντα την ετικέτα, οι εγκεκριμένες δόσεις διαφέρουν ανά χώρα και καλλιέργεια."
+DOSE & LABEL: the plan itself is the deliverable, so put doses in the plan steps, not in cards. Always give the dose by active ingredient. Close the protection section with a standing notice that registered products and legal rates differ by country and crop, so the grower must confirm against the product label before applying. Greek: "Έλεγξε πάντα την ετικέτα, οι εγκεκριμένες δόσεις διαφέρουν ανά χώρα και καλλιέργεια."
 
 LOCALIZE: build the plan for the field/user location. Ask for location only if it is missing AND it materially changes the recommendation.
 
-OUTPUT:
-1. ASSUMPTIONS first, one line: the crop, location, stage, system, and preference the plan assumes, so the user can correct them. Start with "Plan assumes:" (Greek "Το πλάνο υποθέτει:").
-2. The 5-pillar program, numbered, each action with timing and (for protection and nutrition) the dose by active ingredient.
-3. End with the ONE most useful refinement: the single question or photo request that would sharpen the plan most (UNIVERSAL one-question rule). If visual symptoms were described without a photo, the photo request takes the slot.`;
+DELIVERY (length-aware, mobile-first):
+- A single operation, calendar entry, or one-constraint fix: answer in ONE response, tight.
+- A FULL SEASONAL PROGRAM is too large for one readable message. Deliver it in BLOCKS, most time-sensitive first for the current stage. Block 1 = the ASSUMPTIONS line + the 2-3 pillars that matter most right now (with numbers). End Block 1 by listing the remaining blocks and inviting the next one, e.g. Greek "Πες «συνέχισε» για το πρόγραμμα ψεκασμών, ζιζανίων και συγκομιδής." / English "Reply 'continue' for the spray, weed and harvest schedule." ALSO offer the whole program at once: Greek "ή «όλο το πλάνο» για να στο δώσω ολόκληρο." / English "or 'full plan' for the entire program in one message."
+- If the user asks for the whole plan at once ('full plan' / 'όλο το πλάνο'), give every pillar in one response and do not truncate.
+
+OUTPUT (each block):
+1. ASSUMPTIONS first, one line: the crop, location, stage, system, and preference the plan assumes, so the user can correct them. Start with "Plan assumes:" (Greek "Το πλάνο υποθέτει:"). (Block 1 only.)
+2. The pillar steps for this block, numbered, each action with timing and (for protection, nutrition, weeds) the dose by active ingredient.
+3. End with EITHER the next-block invite (seasonal program) OR, when the plan is complete, the ONE most useful refinement: the single question or photo request that would sharpen it most (UNIVERSAL one-question rule). If visual symptoms were described without a photo, the photo request takes the slot.`;
 
   const TYPE_D_GENERAL = `BEHAVIOUR FOR GENERAL KNOWLEDGE (TYPE D):
 1. Answer directly and completely.
@@ -650,7 +657,7 @@ PHOTO REQUEST GUIDE:
 
 HARD LIMITS:
 - Max ONE question mark per response. The photo ask counts as that question — never ask a second question in the same response.
-- Under 150 words for care (TYPE A/B). Under 450 words for planning (TYPE C): a full program needs all five pillars with active ingredients, dosages, intervals, and PHI. Under 200 for diagnosis. Be clinical and direct.
+- Under 150 words for care (TYPE A/B). For planning (TYPE C): cap each BLOCK at ~400 words (full seasonal programs ship in blocks, see DELIVERY in the planning module); a single-operation plan stays under 450; when the user asks for the whole plan at once the cap is lifted. Under 200 for diagnosis. Be clinical and direct.
 - No "it depends on many factors". Commit to most likely scenario.
 - Max 3 treatments. Pick best, mention 1 alternative.
 - No explaining WHY unless asked.
@@ -1417,7 +1424,11 @@ async function generateValidatedResponse(
       `\n\n⚠️ REPAIR REQUIRED (attempt ${repairAttempts}/${MAX_REPAIR_ATTEMPTS}). Your previous response failed:\n` +
       validation.errors.map((e) => `- ${e}`).join('\n') +
       `\nFix ALL of the above. Do not repeat the same mistakes.`;
-    const repair = await callGemini(geminiApiKey, messages, repairSystemPrompt, temperature);
+    // Strip image attachments on repair — vision was already processed in attempt 1;
+    // validation failures are text-structure errors, not vision errors. Cuts up to 2×
+    // multimodal token cost on photo diagnoses that hit the repair path.
+    const messagesNoImages = messages.map(m => ({ ...m, attachments: undefined }));
+    const repair = await callGemini(geminiApiKey, messagesNoImages, repairSystemPrompt, temperature);
     json = repair.json;
     promptTokens += repair.promptTokens;
     outputTokens += repair.outputTokens;

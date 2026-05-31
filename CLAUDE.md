@@ -1,7 +1,7 @@
 # Oli — AI Agronomist
 
 ## What this is
-Oli is an AI agronomist app for small farmers worldwide. Users photograph or describe crop problems; Oli diagnoses diseases, recommends organic & chemical treatments with exact dosages, logs interventions, and follows up 3 days later to confirm application and outcome (the VIO loop). Goal: become the de-facto agri-intelligence layer for every small farm on earth, then sell anonymised crop-disease data and a fine-tuned model API to agrochemical companies (Yara, ADAMA, Syngenta, etc.).
+Oli is an AI agronomist app for small farmers worldwide. Users photograph or describe crop problems; Oli diagnoses diseases, recommends organic & chemical treatments with exact dosages, logs interventions, and follows up 3 days later to confirm application, then 7 days later on outcome (the VIO loop). Goal: become the de-facto agri-intelligence layer for every small farm on earth, then sell anonymised crop-disease data and a fine-tuned model API to agrochemical companies (Yara, ADAMA, Syngenta, etc.).
 
 **Primary market**: Greece-first (olives, vines, citrus, vegetables), then MENA + LatAm + SE Asia — all regions dominated by small farms underserved by traditional agronomists.
 
@@ -10,7 +10,7 @@ Oli is an AI agronomist app for small farmers worldwide. Users photograph or des
 |---|---|
 | Frontend | React 19 + TypeScript + Vite 6, Tailwind CSS v4, React Router v6 |
 | Backend | Supabase Edge Functions (Deno), PostgreSQL + RLS, pg_cron |
-| AI | Google Gemini 2.5 Flash (primary), Gemini 1.5 Flash (5xx fallback) |
+| AI | Google Gemini 2.5 Flash (primary), gemini-2.0-flash-lite (5xx/429 fallback) |
 | Auth | Supabase Auth (email, Google OAuth, Facebook OAuth) |
 | Payments | Stripe (free 20 msg/month, Pro = unlimited) |
 | Email | Resend API (`send-email` Edge Function) |
@@ -21,14 +21,14 @@ Oli is an AI agronomist app for small farmers worldwide. Users photograph or des
 ## Critical architecture — read before editing
 
 ### VIO loop (Verify → Intervene → Outcome)
-The core data flywheel: diagnosis → user logs intervention → 3 days later "did you apply?" → 3 days later "any improvement?" → outcome chip recorded. This is the product moat.
+The core data flywheel: diagnosis → user logs intervention → 3 days later "did you apply?" → 7 days later "any improvement?" → outcome chip recorded. This is the product moat.
 
-- `vio_step 1` = waiting for apply confirmation (3d after log)
-- `vio_step 2` = waiting for outcome (3d after step 1)
+- `vio_step 1` = waiting for apply confirmation (3d after log — `VIO_STEP1_DAYS`)
+- `vio_step 2` = waiting for outcome (7d after step 1 — `VIO_STEP2_DAYS`)
 - `vio_step 3` = loop closed (no more cron)
 - `outcome` = 'better' | 'same' | 'worse' | 'not_applied' (+ `outcome_note` text)
 - Cron: `send-push` at `:00`, `send-email` at `:30` every 6h
-- **Critical**: crons must advance `vio_step` + reset `follow_up_at = NOW + 3 days` after notifying, or users get spammed every 6h
+- **Critical**: crons must advance `vio_step` + reset `follow_up_at` (+7 days at step 1→2, NULL at step 2→3) after notifying, or users get spammed every 6h
 
 ### Five-Pillar Diagnostic (chat AI)
 Confidence is scored 0–100 across five pillars: THE_VICTIM (what crop), THE_SYMPTOMS (what's wrong), THE_TIMELINE (when), THE_ENVIRONMENT (weather/soil/location), THE_EVIDENCE (photo).
@@ -93,7 +93,7 @@ Phase 2 prep work that CAN be done now:
 ## Known stable decisions
 - **20/month free** (not per-week) — maximises trial period for seasonal farmers who plant once
 - **Greek-first UX** — all copy bilingual el/en; Gemini responds in user's detected language
-- **No Stripe yet** — implement when first user asks to pay
+- **Stripe is live** — create-checkout, stripe-webhook, and customer portal are fully wired; pro/master × month/year pricing
 - **Accessibility** — need `<main>` landmark on all pages, fix contrast on `text-[#8a9280]` elements
 - **Guest question preservation (UX9)** — typed question lost when guest logs in mid-session; not yet fixed
 

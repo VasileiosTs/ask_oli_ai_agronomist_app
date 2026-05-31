@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
         }
         // Fallback: use period from checkout metadata if sub fetch failed
         if (!billingPeriod && session.metadata?.period) {
-          billingPeriod = session.metadata.period === 'yearly' ? 'yearly' : 'monthly';
+          billingPeriod = session.metadata.period === 'year' ? 'yearly' : 'monthly';
         }
 
         await db.from('users').update({

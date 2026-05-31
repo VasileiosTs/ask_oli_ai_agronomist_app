@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     );
     const { data: profile } = await serviceClient
       .from('users')
-      .select('stripe_customer_id, name, tier')
+      .select('stripe_customer_id, name, tier, tier_expired_at')
       .eq('id', user.id)
       .single();
 
@@ -82,7 +82,10 @@ Deno.serve(async (req) => {
 
     // Give a 30-day free trial only to first-time Pro subscribers (free tier → pro).
     // Master/Enterprise upgrades never get a trial; neither do pro → master upgrades.
-    const isFirstTimeUpgrade = !profile?.tier || profile.tier === 'free';
+    // Only grant a Stripe trial on the first-ever upgrade (free, never expired before).
+    // Users whose auto-trial has already run (tier_expired_at is set by expire_promo_tiers)
+    // are excluded so the same user cannot chain 30d auto-trial + 30d Stripe trial.
+    const isFirstTimeUpgrade = (!profile?.tier || profile.tier === 'free') && !profile?.tier_expired_at;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

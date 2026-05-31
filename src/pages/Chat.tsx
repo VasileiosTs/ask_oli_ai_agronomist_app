@@ -18,7 +18,7 @@ import clsx from 'clsx';
 import { trackEvent, Events } from '../lib/analytics';
 import { isUnlimitedTier } from '../../shared/subscription';
 
-import { FREE_MESSAGE_LIMIT as FREE_LIMIT, SIGNED_URL_EXPIRY, VIO_STEP2_DAYS, PAYWALL_WARNING_MESSAGES_REMAINING } from "../lib/constants";
+import { FREE_MESSAGE_LIMIT as FREE_LIMIT, SIGNED_URL_EXPIRY, VIO_STEP1_DAYS, VIO_STEP2_DAYS, PAYWALL_WARNING_MESSAGES_REMAINING } from "../lib/constants";
 
 import { LogInterventionModal } from '../components/LogInterventionModal';
 import AutoLogBanner, { ActionDetected } from '../components/AutoLogBanner';
@@ -496,9 +496,12 @@ export default function Chat() {
         product_applied: action.product || null,
         dosage: action.quantity || null,
         applied_at: new Date().toISOString(),
-        step: 1,
-        follow_up_at: new Date(Date.now() + VIO_STEP2_DAYS * 86400000).toISOString(),
-        source: 'auto_log',
+        // VIO step 1 = the "did you apply?" check the push/email crons fire
+        // VIO_STEP1_DAYS (3d) after logging. Column is vio_step (not step), and
+        // interventions has no `source` column; writing either made PostgREST
+        // reject the whole insert, which silently killed auto-log.
+        vio_step: 1,
+        follow_up_at: new Date(Date.now() + VIO_STEP1_DAYS * 86400000).toISOString(),
       });
       showToast(lang === 'el' ? 'Καταγράφηκε!' : 'Logged!');
     } catch {

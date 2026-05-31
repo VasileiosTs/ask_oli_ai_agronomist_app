@@ -14,9 +14,9 @@ describe('constants', () => {
     expect(FREE_MESSAGE_LIMIT_PERIOD).toBe('month');
   });
 
-  it('VIO step days are 3 each', () => {
+  it('VIO cadence: 3-day apply check, 7-day outcome check', () => {
     expect(VIO_STEP1_DAYS).toBe(3);
-    expect(VIO_STEP2_DAYS).toBe(3);
+    expect(VIO_STEP2_DAYS).toBe(7);
   });
 
   it('has sensible attachment and history limits', () => {

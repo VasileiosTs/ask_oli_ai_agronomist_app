@@ -113,8 +113,8 @@ const TIERS = (lang: string, currentTier?: string | null, period: Period = 'year
         ],
       },
       cta: {
-        en: (!currentTier || currentTier === 'free') ? 'Try free for 30 days' : 'Upgrade to Master',
-        el: (!currentTier || currentTier === 'free') ? 'Δοκίμασε δωρεάν για 30 μέρες' : 'Αναβάθμιση σε Master',
+        en: 'Upgrade to Master',
+        el: 'Αναβάθμιση σε Master',
       },
       contactOnly: false,
       isCurrent: isCurrent('master'),
@@ -157,7 +157,6 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
   const [period, setPeriod] = useState<Period>('year');
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -281,8 +280,6 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
           {displayedTiers.map((tier) => {
             const Icon = tier.icon;
             const isSelected = selected === tier.key;
-            const wasSent = sent === tier.key;
-
             return (
               <button
                 key={tier.key}
@@ -343,10 +340,6 @@ export default function PaywallModal({ isOpen, onClose }: Props) {
                         >
                           {tier.cta[l]}
                         </button>
-                      ) : wasSent ? (
-                        <p className="text-center text-sm font-medium text-primary py-2">
-                          {l === 'el' ? '✓ Το αίτημά σου στάλθηκε. Θα επικοινωνήσουμε σύντομα.' : '✓ Request sent. We\'ll be in touch shortly.'}
-                        </p>
                       ) : (
                         <button
                           onClick={(e) => { e.stopPropagation(); void handleUpgrade(tier.key); }}

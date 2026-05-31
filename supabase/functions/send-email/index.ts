@@ -35,6 +35,8 @@ function getCorsHeaders(req: Request) {
 
 // ── Email validation ──
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// SYNC: src/lib/constants.ts:VIO_STEP2_DAYS — both must stay at 7 days
+const VIO_STEP2_MS = 7 * 24 * 60 * 60 * 1000;
 function isValidEmail(email: string): boolean {
   return typeof email === "string" && EMAIL_REGEX.test(email) && email.length <= 254;
 }
@@ -583,7 +585,7 @@ serve(async (req) => {
         // Step 1→2 gap is 7 days (results check at ~day 10 from intervention log).
         const nextStep = (iv.vio_step ?? 1) + 1;
         const nextFollowUpAt = nextStep < 3
-          ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+          ? new Date(Date.now() + VIO_STEP2_MS).toISOString()
           : null;
         await supabase
           .from("interventions")

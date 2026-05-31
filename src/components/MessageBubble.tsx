@@ -2,12 +2,16 @@ import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Star, ClipboardList, Share2, ThumbsUp, ThumbsDown, FileText, AlertCircle, RotateCcw, Check, Loader2, Copy } from 'lucide-react';
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { T } from '../lib/i18n';
 import OliLogo from './OliLogo';
 import HistoryCard from './HistoryCard';
+import PaywallModal from './PaywallModal';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 import { trackEvent, Events } from '../lib/analytics';
+import { VIO_STEP1_DAYS } from '../lib/constants';
+import { openPlanFile, consumeReportQuota } from '../lib/planFile';
 
 interface MessageAttachment {
   url: string;
@@ -26,7 +30,7 @@ export interface MessageMetadata {
     organic_treatments?: string[];
     chemical_treatments?: string[];
     // ── New fields surfaced in UI ──
-    confidence_score?: number;       // 0-100 — was computed but never shown
+    confidence_score?: number;       // 0-100 — rendered via ConfidenceIndicator (~line 491)
     missing_pillars?: string[];      // e.g. ["THE_EVIDENCE", "TIMING"]
   };
   crop_mentioned?: string;
@@ -258,7 +262,7 @@ function InlineLogForm({
           notes:              notes,
           date:               new Date().toISOString().split('T')[0],
           applied_at:         new Date().toISOString(),
-          follow_up_at:       new Date(Date.now() + 7 * 86400000).toISOString(),
+          follow_up_at:       new Date(Date.now() + VIO_STEP1_DAYS * 86400000).toISOString(),
           vio_step:           1,
           ...(confScore !== null ? { confidence_score: confScore } : {}),
           ...(typeof userLat === 'number' ? { location_lat: userLat } : {}),
@@ -365,6 +369,19 @@ export default function MessageBubble({
   const isUser = msg.role === 'user';
   const dd = msg.metadata?.diagnosis_data;
   const [copiedMessage, setCopiedMessage] = useState(false);
+  const { appUserId, profile } = useAuth();
+  const planRef = useRef<HTMLDivElement>(null);
+  const [savingFile, setSavingFile] = useState(false);
+  const [showFilePaywall, setShowFilePaywall] = useState(false);
+
+  // A TYPE C plan (or any long assistant answer) can be saved as a branded,
+  // printable file. Plan output starts with the "Plan assumes:" assumptions
+  // line; long answers are caught by the length fallback.
+  const isPlanLike = !isUser && (
+    msg.content.length >= 600 ||
+    /plan assumes:/i.test(msg.content) ||
+    msg.content.includes('πλάνο υποθέτει')
+  );
 
   const handleCopyMessage = async () => {
     try {
@@ -373,6 +390,31 @@ export default function MessageBubble({
       setTimeout(() => setCopiedMessage(false), 2000);
     } catch (error) {
       console.error('Failed to copy message', error);
+    }
+  };
+
+  // Clone the already-rendered, rehype-sanitized plan HTML into an Oli-branded
+  // print shell. Free tier spends 1 unit of the monthly report budget; paid is
+  // unlimited (see planFile.ts / the field-report gate).
+  const handleSaveAsFile = async () => {
+    if (savingFile) return;
+    const bodyHtml = planRef.current?.innerHTML;
+    if (!bodyHtml) return;
+    setSavingFile(true);
+    try {
+      const isFree = !profile?.tier || profile.tier === 'free';
+      if (appUserId) {
+        const gate = await consumeReportQuota(appUserId, isFree);
+        if (gate === 'paywall') {
+          setShowFilePaywall(true);
+          return;
+        }
+      }
+      const name = typeof profile?.name === 'string' ? profile.name : '';
+      openPlanFile(bodyHtml, name, lang);
+      trackEvent('plan_file_generated', { tier: profile?.tier ?? 'free' });
+    } finally {
+      setSavingFile(false);
     }
   };
 
@@ -423,7 +465,7 @@ export default function MessageBubble({
 
             return (
             <div>
-              <div className="prose prose-sm prose-invert max-w-none">
+              <div ref={planRef} className="prose prose-sm prose-invert max-w-none">
                 <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{mainContent}</ReactMarkdown>
               </div>
 
@@ -661,6 +703,25 @@ export default function MessageBubble({
             )}
           </>
         )}
+
+        {/* Save the plan as a branded, printable file (TYPE C planning output,
+            or any long answer). Plan messages have no diagnosis_data, so this
+            is their own minimal action row. Free tier: 1 file/month shared with
+            the report budget; paid: unlimited. */}
+        {!isUser && isPlanLike && !msg.metadata?.diagnosis_data && !msg.metadata?.is_follow_up && !msg.metadata?.history_data && (
+          <div className="mt-1 flex flex-wrap gap-2">
+            <button
+              onClick={handleSaveAsFile}
+              disabled={savingFile}
+              className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50"
+            >
+              {savingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+              {lang === 'el' ? 'Αποθήκευση ως αρχείο' : 'Save as file'}
+            </button>
+          </div>
+        )}
+
+        <PaywallModal isOpen={showFilePaywall} onClose={() => setShowFilePaywall(false)} />
       </div>
     </div>
   );

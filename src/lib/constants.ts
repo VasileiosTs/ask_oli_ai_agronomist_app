@@ -23,11 +23,12 @@ export function getTierLimits(tier: string) {
 export { FREE_MESSAGE_LIMIT, FREE_MESSAGE_LIMIT_PERIOD };
 
 // ── VIO follow-up cadence ──
-// Step 1 (3 days after logging):  "Did you apply the treatment?"
-// Step 2 (3 days after applying): "Has there been any improvement?"
-// Both steps = 6 days total. The 13-day figure in old TODOS was stale — ignore it.
+// Step 1 (3 days after logging):   "Did you apply the treatment?"
+// Step 2 (7 days after applying):  "Has there been any improvement?"
+// ~10 days from log to outcome check. The +7d step-2 gap is also hardcoded in the
+// send-push and send-email VIO crons (Deno, no shared import). Keep them in sync.
 export const VIO_STEP1_DAYS = 3;
-export const VIO_STEP2_DAYS = 3;
+export const VIO_STEP2_DAYS = 7;
 
 // ── Paywall warning thresholds ──
 // Show a soft warning when the user has this many messages left.
