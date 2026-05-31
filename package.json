@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
+    "prebuild": "node scripts/generate-csp-hashes.mjs --check",
     "build": "vite build",
+    "csp:hashes": "node scripts/generate-csp-hashes.mjs",
+    "csp:check": "node scripts/generate-csp-hashes.mjs --check",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
