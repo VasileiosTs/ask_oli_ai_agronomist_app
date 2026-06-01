@@ -17,7 +17,6 @@ import { Leaf, X } from 'lucide-react';
 const Auth = lazy(() => import('./pages/Auth'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const Landing = lazy(() => import('./pages/Landing'));
-const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Profile = lazy(() => import('./pages/Profile'));
 const History = lazy(() => import('./pages/History'));

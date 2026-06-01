@@ -183,7 +183,6 @@ Confidence thresholds determine what Oli can say:
 - GDPR-compliant (EU Frankfurt hosting, no PII in analytics)
 - Daily KPI snapshot pipeline (automated Supabase cron)
 - Admin dashboard: KPI metrics, promo codes, ops event feed
-- Onboarding: name, location with geocoding, primary crop
 - Push notifications (VAPID) + email reminders (Resend)
 - Multi-grower accounts: agronomist manages multiple grower profiles
 - Stripe payment integration: checkout, webhooks, tier gating
@@ -286,7 +285,6 @@ src/
 │   ├── Chat.tsx               core product, full conversation experience
 │   ├── Landing.tsx            public marketing page
 │   ├── Auth.tsx               magic link + Google OAuth
-│   ├── Onboarding.tsx         3-step first-run (name, location, crop)
 │   ├── Profile.tsx            settings, subscription, data export
 │   ├── Fields.tsx             field management
 │   ├── FieldDetail.tsx        per-field history and interventions
