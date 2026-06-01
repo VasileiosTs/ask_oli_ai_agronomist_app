@@ -80,6 +80,9 @@ Deno.serve(async (req) => {
         // Determine new tier and billing period from price
         const priceId = sub.items.data[0]?.price.id;
         const newTier = priceId ? PRICE_TO_TIER[priceId] : undefined;
+        if (priceId && !newTier) {
+          console.warn('[webhook] Unknown price ID on subscription.updated:', priceId);
+        }
         const periodEnd = new Date(sub.current_period_end * 1000);
         const interval = sub.items.data[0]?.price.recurring?.interval;
         const billingPeriod = interval === 'year' ? 'yearly' : 'monthly';

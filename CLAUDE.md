@@ -11,7 +11,7 @@ Oli is an AI agronomist app for small farmers worldwide. Users photograph or des
 | Frontend | React 19 + TypeScript + Vite 6, Tailwind CSS v4, React Router v6 |
 | Backend | Supabase Edge Functions (Deno), PostgreSQL + RLS, pg_cron |
 | AI | Google Gemini 2.5 Flash (primary), gemini-2.0-flash-lite (5xx/429 fallback) |
-| Auth | Supabase Auth (email, Google OAuth, Facebook OAuth) |
+| Auth | Supabase Auth (email, Google OAuth) |
 | Payments | Stripe (free 20 msg/month, Pro = unlimited) |
 | Email | Resend API (`send-email` Edge Function) |
 | Push | Web Push / VAPID (`send-push` Edge Function + `public/sw.js`) |

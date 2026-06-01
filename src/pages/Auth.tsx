@@ -118,15 +118,6 @@ export default function Auth() {
   const inputStyle = {
     background: '#f5f4ef',
     color: '#1b1c19',
-    border: '1px solid #e3e3de',
-  };
-  const onFocusStyle = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = '#194121';
-    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(25,65,33,0.15)';
-  };
-  const onBlurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = '#e3e3de';
-    e.currentTarget.style.boxShadow = 'none';
   };
 
   const sentMessages: Record<AuthMode, { title: string; body: string }> = {
@@ -258,10 +249,8 @@ export default function Auth() {
                   value={email} onChange={e => setEmail(e.target.value)}
                   placeholder={t.emailPlaceholder}
                   aria-label={t.emailPlaceholder}
-                  className="w-full rounded-full px-5 py-3.5 text-sm focus:outline-none"
+                  className="w-full rounded-full px-5 py-3.5 text-sm border border-[#e3e3de] focus:outline-none focus-visible:border-[#194121] focus-visible:ring-2 focus-visible:ring-[#194121]/30"
                   style={inputStyle}
-                  onFocus={onFocusStyle}
-                  onBlur={onBlurStyle}
                 />
                 <div className="relative">
                   <input
@@ -270,10 +259,8 @@ export default function Auth() {
                     value={password} onChange={e => setPassword(e.target.value)}
                     placeholder={isEl ? 'Κωδικός πρόσβασης' : 'Password'}
                     aria-label={isEl ? 'Κωδικός πρόσβασης' : 'Password'}
-                    className="w-full rounded-full px-5 py-3.5 text-sm focus:outline-none pr-12"
+                    className="w-full rounded-full px-5 py-3.5 text-sm pr-12 border border-[#e3e3de] focus:outline-none focus-visible:border-[#194121] focus-visible:ring-2 focus-visible:ring-[#194121]/30"
                     style={inputStyle}
-                    onFocus={onFocusStyle}
-                    onBlur={onBlurStyle}
                   />
                   <button
                     type="button"
@@ -346,10 +333,8 @@ export default function Auth() {
                 type="email" required autoFocus
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
-                className="w-full rounded-full px-5 py-3.5 text-sm focus:outline-none"
+                className="w-full rounded-full px-5 py-3.5 text-sm border border-[#e3e3de] focus:outline-none focus-visible:border-[#194121] focus-visible:ring-2 focus-visible:ring-[#194121]/30"
                 style={inputStyle}
-                onFocus={onFocusStyle}
-                onBlur={onBlurStyle}
               />
               {error && <p className="px-2 text-xs" style={{ color: '#ba1a1a' }}>{error}</p>}
               <button
@@ -387,10 +372,8 @@ export default function Auth() {
                 type="email" required autoFocus
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
-                className="w-full rounded-full px-5 py-3.5 text-sm focus:outline-none"
+                className="w-full rounded-full px-5 py-3.5 text-sm border border-[#e3e3de] focus:outline-none focus-visible:border-[#194121] focus-visible:ring-2 focus-visible:ring-[#194121]/30"
                 style={inputStyle}
-                onFocus={onFocusStyle}
-                onBlur={onBlurStyle}
               />
               {error && <p className="px-2 text-xs" style={{ color: '#ba1a1a' }}>{error}</p>}
               <button

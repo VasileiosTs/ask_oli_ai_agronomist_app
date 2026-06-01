@@ -22,7 +22,7 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | Onboarding: mobile keyboard no longer hides Next button | P1 | Scrollable content + sticky CTA |
 | ✅ | RLS policies on all tables | P0 | Data isolation per user |
 | ✅ | FORCE ROW LEVEL SECURITY on all sensitive tables | P0 | migration 20260407000001 — prevents owner bypass |
-| ⬜ | Custom domain (e.g. askoli.app) | P1 | Before any real user acquisition |
+| ✅ | Custom domain | P1 | ask-oli.com — live |
 | ⬜ | Storage bucket RLS policy verified | P1 | chat_uploads bucket access |
 | ⬜ | Supabase backups enabled | P1 | Point-in-time recovery |
 | ⬜ | Rate limiting on edge function beyond free tier | P2 | Already has 20/month soft limit |
@@ -98,8 +98,8 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | Export data as JSON | P1 | Downloads profile + messages + interventions |
 | ✅ | Language toggle in Profile (Greek/English) | P1 | Persisted in localStorage |
 | ✅ | Notification preferences (follow-up, weekly plan) | P1 | Toggles saved to DB |
-| ⬜ | Google OAuth | P1 | Needs Google Cloud OAuth client setup |
-| ⬜ | Facebook OAuth | P2 | Needs Facebook App review |
+| ✅ | Google OAuth | P1 | Live in production Auth.tsx |
+| ⬜ | Facebook OAuth | P2 | Only in deprecated LoginModal.tsx — not wired in production Auth.tsx |
 | ⬜ | Email change flow | P2 | Currently not possible after signup |
 | ⬜ | Profile photo upload | P3 | Nice-to-have |
 
@@ -113,11 +113,11 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 | ✅ | PaywallModal: price corrected to €4.99/month (was €8.99) | P0 | Consistent with landing + i18n |
 | ✅ | Free tier enforced (20 msg/month) in edge function | P0 | 429 response + reset logic |
 | ✅ | Message count + progress bar in Profile | P0 | Visual usage indicator |
-| ⬜ | Stripe Checkout integration | P0 | €4.99/mo or €49/yr — Wave 2 blocker |
-| ⬜ | Stripe webhook → update users.tier to 'pro' | P0 | After payment confirmed |
-| ⬜ | Stripe Customer Portal (manage/cancel sub) | P1 | Self-serve cancellation |
+| ✅ | Stripe Checkout integration | P0 | Live — create-checkout function, pro/master × month/year |
+| ✅ | Stripe webhook → update users.tier | P0 | Live — stripe-webhook function |
+| ✅ | Stripe Customer Portal (manage/cancel sub) | P1 | Live — self-serve cancellation wired |
 | ⬜ | Founding Grower offer (€50/year, limited) | P1 | Early revenue signal for investors |
-| ⬜ | Pro tier: unlimited messages enforced | P1 | Edge function tier check |
+| ✅ | Pro tier: unlimited messages enforced | P1 | Live — tier check in chat edge function |
 | ⬜ | Payment failure handling (downgrade flow) | P2 | When Stripe payment fails |
 
 ---
@@ -165,7 +165,7 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Not started · 🚫 Blocked
 |--------|------|----------|-------|
 | ✅ | Production stress test (17 issues found + fixed) | P0 | March 2026 |
 | ✅ | Edge function: validation + repair retry | P0 | Bad Gemini response → retry once |
-| ✅ | Edge function: Gemini 5xx fallback to gemini-1.5-flash | P1 | Automatic retry with stable model |
+| ✅ | Edge function: Gemini 5xx fallback to gemini-2.0-flash-lite | P1 | Automatic retry with stable model |
 | ✅ | Edge function: skip Gemini extraction for single-field users | P1 | Saves API calls — no disambiguation needed |
 | ✅ | Edge function: Greek injection patterns in sanitizeUserInput() | P0 | αγνόησε / είσαι τώρα / νέα οδηγία etc. |
 | ✅ | Edge function: enforceConfidenceThreshold() post-Gemini safety layer | P0 | Clears diagnosis_data when confidence < 40 |
@@ -198,15 +198,15 @@ Core goal: 10 real farmers using the app weekly. One conversation saves them tim
 
 - [x] Fix favicon — ✅ Oli leaf SVG in public/
 - [x] Sentry error monitoring — ✅ @sentry/react integrated
-- [ ] Google OAuth working — needs Google Cloud OAuth client (external)
-- [ ] Stripe checkout live — needs Stripe account (external, Wave 2 blocker)
+- [x] Google OAuth working — ✅ live
+- [x] Stripe checkout live — ✅ live (create-checkout, stripe-webhook, customer portal)
 - [ ] Share diagnosis link — route + page done, needs E2E test with real data
 - [ ] 10 personal invites sent — go do this
 
 ### Wave 2 — Monetisation — Target: June 2026
 Core goal: First €500 MRR. First cooperative conversation.
 
-- [ ] Stripe fully integrated + webhooks
+- [x] Stripe fully integrated + webhooks — ✅ live
 - [ ] Founding Grower offer (€50/year, 100 slots)
 - [ ] Landing page live with Greek SEO content
 - [ ] Weekly plan message (Monday morning)
@@ -234,11 +234,11 @@ Core goal: 500+ VIOs collected. Collective intelligence live.
 | ~~outcome_note never written~~ | Low | ✅ Fixed — LogInterventionModal writes it |
 | No test suite (no safety net for future changes) | Medium | ⬜ Wave 1 |
 | ~~Favicon is default Vite icon~~ | Low | ✅ Fixed — Oli leaf SVG |
-| Stripe Checkout not integrated | High | ⬜ Wave 2 blocker |
+| ~~Stripe Checkout not integrated~~ | High | ✅ Fixed — Stripe live |
 | ~~Admin dashboard UI not implemented~~ | Medium | ✅ AdminMetrics.tsx — KPIs, retention, VIO, revenue table |
 | ~~Voice input not wired~~ | Low | ✅ SpeechRecognition API wired in Chat.tsx |
 
 ---
 
-*Last updated: April 2026*
+*Last updated: June 2026*
 *Built with Claude (Sonnet 4.6) + Codex*

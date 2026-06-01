@@ -137,15 +137,6 @@ Oli is not a simple chatbot. Every message flows through a multi-stage AI agent 
       -> conversation title generation
 ```
 
-### Guest pipeline (no auth)
-
-```
-1. IP-based rate limit: 1 question/IP/24h (DB-backed, survives edge function cold starts)
-2. Message and attachment validation
-3. Simplified Gemini call (no field context, no DB writes)
-4. Full JSON response (no SSE streaming, guests get complete response)
-```
-
 ### Intent modules (TYPE A-F)
 
 | Type | Intent | Behaviour |
@@ -187,8 +178,7 @@ Confidence thresholds determine what Oli can say:
 - Field memory snapshots: rolling log of problems and outcomes per field
 - Intervention logging: inline in chat or modal, public shareable links + OG cards
 - Field reports: PDF generation for agronomist-grade field history
-- Guest mode: 1 free question/IP/24h, no account required
-- Auth: magic link + Google OAuth + Facebook OAuth (in-chat modal)
+- Auth: magic link + Google OAuth
 - Freemium paywall: 20 messages/month free, Pro tier gated
 - GDPR-compliant (EU Frankfurt hosting, no PII in analytics)
 - Daily KPI snapshot pipeline (automated Supabase cron)
@@ -229,7 +219,7 @@ Confidence thresholds determine what Oli can say:
 │  │                chat_messages, interventions,          │
 │  │                growers, kpi_snapshots, promo_codes,   │
 │  │                guest_rate_limits, operational_events  │
-│  ├── Auth         magic link, Google OAuth, Facebook     │
+│  ├── Auth         magic link, Google OAuth                │
 │  ├── Storage      chat_uploads (photos, audio, PDFs)     │
 │  ├── RLS          row-level security on all tables       │
 │  └── Edge Functions (Deno runtime)                       │
@@ -295,7 +285,7 @@ src/
 ├── pages/
 │   ├── Chat.tsx               core product, full conversation experience
 │   ├── Landing.tsx            public marketing page
-│   ├── Auth.tsx               magic link + Google OAuth + Facebook OAuth
+│   ├── Auth.tsx               magic link + Google OAuth
 │   ├── Onboarding.tsx         3-step first-run (name, location, crop)
 │   ├── Profile.tsx            settings, subscription, data export
 │   ├── Fields.tsx             field management

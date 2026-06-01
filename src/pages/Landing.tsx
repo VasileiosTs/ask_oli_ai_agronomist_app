@@ -877,75 +877,103 @@ function PhoneMockup({ lang }: { lang: string }) {
   );
 }
 
+// ── Role card (shared between farmer hero and secondary roles) ────────────────
+type RoleItem = { emoji: string; label: string; tag: string; tagColor: string; question: string; answer: string };
+
+function RoleCard({ role, tryAs, onAsk }: {
+  role: RoleItem;
+  tryAs: (label: string) => string;
+  onAsk: (q: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e8e8e3] bg-white overflow-hidden" style={{ boxShadow: '0 4px 24px rgba(25,65,33,0.08)' }}>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[#f0efea] bg-[#fafaf8]">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{role.emoji}</span>
+          <span className="text-sm font-bold text-[#1b1c19]">{role.label}</span>
+        </div>
+        <span className={`text-xs font-semibold border rounded-full px-2.5 py-0.5 ${role.tagColor}`}>
+          {role.tag}
+        </span>
+      </div>
+      <div className="p-5 space-y-4">
+        <div className="flex justify-end">
+          <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-[#194121] px-4 py-3 text-sm text-white leading-relaxed">
+            {role.question}
+          </div>
+        </div>
+        <div className="flex gap-3 items-start">
+          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#194121]/10 flex items-center justify-center">
+            <span className="text-[#194121]" style={{ fontSize: '14px' }}>🌿</span>
+          </div>
+          <div className="flex-1 rounded-xl rounded-tl-sm border border-[#e8e8e3] bg-[#fafaf8] px-4 py-3">
+            <p className="text-sm text-[#1b1c19] leading-relaxed whitespace-pre-line">{role.answer}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAsk(role.question)}
+          className="w-full text-center text-sm font-semibold text-[#194121] border-2 border-[#194121] rounded-full py-2.5 hover:bg-[#194121] hover:text-white transition-all"
+        >
+          {tryAs(role.label)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Role Showcase component ───────────────────────────────────────────────────
 
 function RoleShowcase({ lang, onAsk }: { lang: string; onAsk: (q: string) => void }) {
   const lt = LANDING_DICT[lang as keyof typeof LANDING_DICT] ?? LANDING_DICT.en;
   const roles = useMemo(() => ROLES(lang), [lang]);
-  const [activeId, setActiveId] = useState(roles[0].id);
-  const active = roles.find(r => r.id === activeId) ?? roles[0];
+  const farmer = roles[0];
+  const otherRoles = roles.slice(1);
+  const [showOthers, setShowOthers] = useState(false);
+  const [activeId, setActiveId] = useState(otherRoles[0].id);
+  const activeOther = otherRoles.find(r => r.id === activeId) ?? otherRoles[0];
 
   return (
-    <div>
-      {/* Role tabs */}
-      <div className="flex flex-wrap justify-center gap-2 mb-8">
-        {roles.map(r => (
-          <button
-            type="button"
-            key={r.id}
-            onClick={() => setActiveId(r.id)}
-            className={[
-              'flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all min-h-[44px]',
-              activeId === r.id
-                ? 'bg-[#194121] border-[#194121] text-white shadow-md'
-                : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
-            ].join(' ')}
-          >
-            <span>{r.emoji}</span>
-            {r.label}
-          </button>
-        ))}
+    <div className="space-y-6">
+      {/* Farmer hero — primary audience, always visible */}
+      <RoleCard role={farmer} tryAs={lt.tryAs} onAsk={onAsk} />
+
+      {/* Secondary audiences toggle */}
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => setShowOthers(v => !v)}
+          aria-expanded={showOthers}
+          className="inline-flex items-center gap-2 text-sm text-[#5a6b55] hover:text-[#194121] transition-colors"
+        >
+          <span className="text-[10px]">{showOthers ? '▲' : '▼'}</span>
+          <span>{otherRoles.map(r => `${r.emoji} ${r.label}`).join('  ·  ')}</span>
+        </button>
       </div>
 
-      {/* Active role card */}
-      <div className="rounded-2xl border border-[#e8e8e3] bg-white overflow-hidden" style={{ boxShadow: '0 4px 24px rgba(25,65,33,0.08)' }}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#f0efea] bg-[#fafaf8]">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{active.emoji}</span>
-            <span className="text-sm font-bold text-[#1b1c19]">{active.label}</span>
+      {showOthers && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap justify-center gap-2">
+            {otherRoles.map(r => (
+              <button
+                type="button"
+                key={r.id}
+                onClick={() => setActiveId(r.id)}
+                className={[
+                  'flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all min-h-[44px]',
+                  activeId === r.id
+                    ? 'bg-[#194121] border-[#194121] text-white shadow-md'
+                    : 'bg-white border-[#e8e8e3] text-[#3a4035] hover:border-[#194121]/40 hover:text-[#194121]',
+                ].join(' ')}
+              >
+                <span>{r.emoji}</span>
+                {r.label}
+              </button>
+            ))}
           </div>
-          <span className={`text-xs font-semibold border rounded-full px-2.5 py-0.5 ${active.tagColor}`}>
-            {active.tag}
-          </span>
+          <RoleCard role={activeOther} tryAs={lt.tryAs} onAsk={onAsk} />
         </div>
-
-        <div className="p-5 space-y-4">
-          {/* Question bubble */}
-          <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-[#194121] px-4 py-3 text-sm text-white leading-relaxed">
-              {active.question}
-            </div>
-          </div>
-
-          {/* Oli answer bubble */}
-          <div className="flex gap-3 items-start">
-            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#194121]/10 flex items-center justify-center">
-              <span className="text-[#194121]" style={{ fontSize: '14px' }}>🌿</span>
-            </div>
-            <div className="flex-1 rounded-xl rounded-tl-sm border border-[#e8e8e3] bg-[#fafaf8] px-4 py-3">
-              <p className="text-sm text-[#1b1c19] leading-relaxed whitespace-pre-line">{active.answer}</p>
-            </div>
-          </div>
-
-          {/* CTA */}
-          <button
-            onClick={() => onAsk(active.question)}
-            className="w-full text-center text-sm font-semibold text-[#194121] border-2 border-[#194121] rounded-full py-2.5 hover:bg-[#194121] hover:text-white transition-all"
-          >
-            {lt.tryAs(active.label)}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1660,9 +1688,10 @@ export default function Landing() {
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center gap-1 bg-[#f0f0eb] rounded-full p-1">
               <button
+                type="button"
                 onClick={() => setBillingPeriod('monthly')}
                 className={[
-                  'px-4 py-1.5 rounded-full text-sm font-medium transition-all',
+                  'px-4 rounded-full text-sm font-medium transition-all min-h-[44px]',
                   billingPeriod === 'monthly'
                     ? 'bg-white text-[#1b1c19] shadow-sm'
                     : 'text-[#606659] hover:text-[#1b1c19]',
@@ -1671,9 +1700,10 @@ export default function Landing() {
                 {lt.billingMonthly}
               </button>
               <button
+                type="button"
                 onClick={() => setBillingPeriod('annual')}
                 className={[
-                  'px-4 py-1.5 rounded-full text-sm font-medium transition-all',
+                  'px-4 rounded-full text-sm font-medium transition-all min-h-[44px]',
                   billingPeriod === 'annual'
                     ? 'bg-white text-[#1b1c19] shadow-sm'
                     : 'text-[#606659] hover:text-[#1b1c19]',
