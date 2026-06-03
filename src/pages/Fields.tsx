@@ -10,7 +10,7 @@ import { isAdvisorTier } from '../../shared/subscription';
 import { downloadFieldReport } from '../lib/generateReport';
 import PaywallModal from '../components/PaywallModal';
 import LocationAutocomplete from '../components/LocationAutocomplete';
-import { formatArea, unitLabel, displayToHa, haToDisplay, type AreaUnit } from '../lib/areaUnits';
+import { formatArea, unitLabel, displayToHa, haToDisplay, defaultUnitForLocale, type AreaUnit } from '../lib/areaUnits';
 import clsx from 'clsx';
 
 interface Field {
@@ -43,7 +43,7 @@ export default function Fields() {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const areaUnit: AreaUnit = (profile?.area_unit as AreaUnit | undefined) ?? (lang === 'el' ? 'stremma' : 'ha');
+  const areaUnit: AreaUnit = (profile?.area_unit as AreaUnit | undefined) ?? defaultUnitForLocale(lang);
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);

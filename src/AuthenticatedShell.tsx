@@ -5,6 +5,7 @@ import { useAuth } from './hooks/useAuth';
 import { supabase } from './lib/supabase';
 import { usePushSubscription } from './hooks/usePushSubscription';
 import { useLanguage } from './lib/LanguageContext';
+import { defaultUnitForLocale } from './lib/areaUnits';
 import AppLayout from './components/AppLayout';
 import BottomNav from './components/BottomNav';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -184,15 +185,18 @@ function AppRoutes() {
     setAutoCreatingProfile(true);
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
     const name = ((meta.full_name ?? meta.name ?? '') as string).trim();
-    const detectedLang = localStorage.getItem('oli_lang_manual') ?? 'en';
+    // Use the language the UI actually resolved to (browser + timezone aware),
+    // NOT the manual-override key alone: a Greek grower whose UI auto-detected
+    // Greek never taps the toggle, so oli_lang_manual is empty and the old
+    // `?? 'en'` mis-persisted language='en' + area_unit='ha'.
     void (async () => {
       try {
         await supabase.from('users').upsert(
           {
             auth_id: user.id,
             name,
-            language: detectedLang,
-            area_unit: detectedLang === 'el' ? 'stremma' : 'ha',
+            language: lang,
+            area_unit: defaultUnitForLocale(lang),
             onboarding_complete: true,
             notification_followup: true,
           },
@@ -203,7 +207,7 @@ function AppRoutes() {
         setAutoCreatingProfile(false);
       }
     })();
-  }, [user, profile, loading, autoCreatingProfile, refreshProfile]);
+  }, [user, profile, loading, autoCreatingProfile, refreshProfile, lang]);
 
   // Auto-request push permission once the user is authenticated and hasn't been asked yet
   useEffect(() => {

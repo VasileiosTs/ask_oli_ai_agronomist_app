@@ -6,6 +6,9 @@ All notable user-facing changes to Ask Oli. Format follows [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Fixed
+- **Default area unit by locale, not language toggle**: Greek and Cypriot growers were defaulted to hectares instead of stremma. The signup write derived the unit from the manual language-toggle key (`oli_lang_manual`), which is empty for users whose UI auto-detected Greek, so it fell back to English and persisted `ha`. The default now resolves from the country signal (timezone, then navigator region) before UI language, so a Greek grower gets stremma even on an English-language phone, and a US grower gets acres. A one-time migration backfills existing `ha` rows for the Greek/Cypriot cohort (matched by `language = 'el'` or GPS inside a Greece/Cyprus bounding box).
+
 ---
 
 ## [0.9.0] — 2026-06-01

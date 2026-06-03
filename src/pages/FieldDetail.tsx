@@ -9,7 +9,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
-import { formatArea, type AreaUnit } from '../lib/areaUnits';
+import { formatArea, defaultUnitForLocale, type AreaUnit } from '../lib/areaUnits';
 import { getGrowthStage, STAGE_LABELS, STAGE_COLORS } from '../lib/growthStages';
 import WeatherWidget from '../components/WeatherWidget';
 import ReportGenerator from '../components/ReportGenerator';
@@ -34,7 +34,7 @@ export default function FieldDetail() {
   const [searchParams] = useSearchParams();
   const { appUserId, profile } = useAuth();
   const { t, lang } = useLanguage();
-  const areaUnit: AreaUnit = (profile?.area_unit as AreaUnit | undefined) ?? (lang === 'el' ? 'stremma' : 'ha');
+  const areaUnit: AreaUnit = (profile?.area_unit as AreaUnit | undefined) ?? defaultUnitForLocale(lang);
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
 
   // ── Fetch field ──

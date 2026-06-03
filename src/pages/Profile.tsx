@@ -13,7 +13,7 @@ import PromoCodeRedeem from '../components/PromoCodeRedeem';
 import { formatTierLabel, isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
-import { unitLabel, defaultUnitForLang, type AreaUnit } from '../lib/areaUnits';
+import { unitLabel, defaultUnitForLocale, type AreaUnit } from '../lib/areaUnits';
 
 export default function Profile() {
   const { user, profile, appUserId, logout, refreshProfile } = useAuth();
@@ -111,7 +111,7 @@ export default function Profile() {
   const currentProfile = profile;
   const currentTier = typeof currentProfile.tier === 'string' ? currentProfile.tier : null;
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
-  const areaUnit: AreaUnit = (currentProfile.area_unit as AreaUnit | undefined) ?? defaultUnitForLang(lang);
+  const areaUnit: AreaUnit = (currentProfile.area_unit as AreaUnit | undefined) ?? defaultUnitForLocale(lang);
 
   const saveAreaUnit = async (unit: AreaUnit) => {
     if (!appUserId) return;

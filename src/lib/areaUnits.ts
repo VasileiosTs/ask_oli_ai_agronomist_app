@@ -38,3 +38,32 @@ export function defaultUnitForLang(lang: string): AreaUnit {
   if (lang === 'el') return 'stremma';
   return 'ha';
 }
+
+/** Countries that measure land in stremma (0.1 ha): Greece, Cyprus */
+const STREMMA_TIMEZONES = new Set(['Europe/Athens', 'Asia/Nicosia']);
+
+/** US timezones where land is measured in acres (Canada is metric → ha) */
+const ACRE_TIMEZONES = new Set([
+  'America/New_York', 'America/Detroit', 'America/Chicago', 'America/Denver',
+  'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'America/Boise',
+  'America/Indiana/Indianapolis', 'America/Kentucky/Louisville', 'Pacific/Honolulu',
+]);
+
+/**
+ * Detect a sensible default unit from the user's locale, preferring the country
+ * signal (timezone, then navigator region) over UI language. This is why a Greek
+ * grower running an English-language phone still defaults to stremma, and a US
+ * grower defaults to acre. Falls back to the language-based default, then ha.
+ * Browser-only (Intl/navigator); pass `lang` so server-rendered/no-DOM paths still resolve.
+ */
+export function defaultUnitForLocale(lang?: string): AreaUnit {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && STREMMA_TIMEZONES.has(tz)) return 'stremma';
+    if (tz && ACRE_TIMEZONES.has(tz)) return 'acre';
+  } catch { /* ignore */ }
+  const nav = typeof navigator !== 'undefined' ? (navigator.language?.toLowerCase() ?? '') : '';
+  if (nav.startsWith('el')) return 'stremma';
+  if (nav.startsWith('en-us')) return 'acre';
+  return defaultUnitForLang(lang ?? '');
+}
