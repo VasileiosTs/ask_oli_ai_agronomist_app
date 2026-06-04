@@ -5,6 +5,7 @@ import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { SquarePen, Send, Menu } from 'lucide-react';
 import OliLogo from '../components/OliLogo';
 import OliHomeLink from '../components/OliHomeLink';
+import VioFollowUpCard, { type VioFollowUp } from '../components/VioFollowUpCard';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
@@ -252,14 +253,7 @@ export default function Chat() {
   const [pendingAutoLog, setPendingAutoLog] = useState<ActionDetected | null>(null);
   const [reminderChip, setReminderChip] = useState<{ task: string; due_days: number } | null>(null);
   const [inlineLogMsgId, setInlineLogMsgId] = useState<string | null>(null);
-  const [pendingVioFollowUp, setPendingVioFollowUp] = useState<{
-    id: string;
-    cropLabel: string;
-    diagnosis: string | null;
-    productApplied: string | null;
-    vioStep: number;
-    vioStepType: 'apply_check' | 'outcome_check';
-  } | null>(null);
+  const [pendingVioFollowUps, setPendingVioFollowUps] = useState<VioFollowUp[]>([]);
 
   const {
     attachments,
@@ -646,48 +640,40 @@ export default function Chat() {
         if (data) setFields(data as Field[]);
       });
 
-      // Check for pending follow-ups, VIO multi-step loop
+      // Check for pending follow-ups, VIO multi-step loop (stack all that are due)
       supabase
         .from('interventions')
-        .select('id, crop_type, diagnosis, follow_up_at, field_id, vio_step, product_applied')
+        .select('id, crop_type, diagnosis, problem, applied_at, follow_up_at, field_id, vio_step, product_applied, fields(name, crop_type)')
         .eq('user_id', appUserId)
         .lte('follow_up_at', new Date().toISOString())
         .is('outcome', null)
         .not('follow_up_at', 'is', null)
         .order('follow_up_at', { ascending: true })
-        .limit(1)
+        .limit(5)
         .then(({ data: due }) => {
           if (!due || due.length === 0) return;
-          const item = due[0] as { id: string; crop_type: string | null; diagnosis: string | null; follow_up_at: string | null; field_id: string | null; vio_step: number | null; product_applied: string | null };
-          const cropLabel = item.crop_type || item.diagnosis || (lang === 'el' ? 'τη φυτεία σου' : 'your crop');
-          const step = item.vio_step ?? 1;
-
-          let followUpContent: string;
-          let vioStepType: 'apply_check' | 'outcome_check';
-
-          if (step <= 1) {
-            // Step 1: Did you apply the treatment?
-            followUpContent = lang === 'el'
-              ? `Πριν λίγες μέρες μιλήσαμε για **${item.diagnosis || 'πρόβλημα'}** στο **${cropLabel}**. Εφάρμοσες κάποια θεραπεία;`
-              : `A few days ago we discussed **${item.diagnosis || 'a problem'}** in **${cropLabel}**. Did you apply any treatment?`;
-            vioStepType = 'apply_check';
-          } else {
-            // Step 2: Any improvements?
-            followUpContent = lang === 'el'
-              ? `Πώς πάει το **${cropLabel}** μετά τη θεραπεία${item.product_applied ? ` με ${item.product_applied}` : ''}; Βλέπεις βελτίωση;`
-              : `How is **${cropLabel}** doing after the treatment${item.product_applied ? ` with ${item.product_applied}` : ''}? Any improvement?`;
-            vioStepType = 'outcome_check';
-          }
-
-          // Show as a persistent banner (not injected into chat thread)
-          setPendingVioFollowUp({
-            id: item.id,
-            cropLabel,
-            diagnosis: item.diagnosis,
-            productApplied: item.product_applied,
-            vioStep: step,
-            vioStepType,
+          const fallbackCrop = lang === 'el' ? 'τη φυτεία σου' : 'your crop';
+          const followUps: VioFollowUp[] = (due as Record<string, unknown>[]).map((row) => {
+            const field = row.fields as { name?: string | null; crop_type?: string | null } | null;
+            const cropLabel = (row.crop_type as string | null) || field?.crop_type || (row.diagnosis as string | null) || fallbackCrop;
+            const problemLabel = (row.diagnosis as string | null) || (row.problem as string | null) || null;
+            const step = (row.vio_step as number | null) ?? 1;
+            const appliedAt = row.applied_at as string | null;
+            const daysAgo = appliedAt
+              ? Math.max(0, Math.floor((Date.now() - new Date(appliedAt).getTime()) / 86400000))
+              : null;
+            return {
+              id: row.id as string,
+              fieldId: (row.field_id as string | null) ?? null,
+              fieldName: field?.name ?? null,
+              cropLabel,
+              problemLabel,
+              productApplied: (row.product_applied as string | null) ?? null,
+              daysAgo,
+              vioStepType: step <= 1 ? 'apply_check' : 'outcome_check',
+            };
           });
+          setPendingVioFollowUps(followUps);
         });
 
       // No API call for greeting, the empty state UI already serves as the welcome.
@@ -1709,6 +1695,31 @@ export default function Chat() {
     }
   };
 
+  const removeVioFollowUp = (id: string) =>
+    setPendingVioFollowUps(prev => prev.filter(x => x.id !== id));
+
+  // Open the conversation a VIO follow-up refers to: the field's most recent
+  // thread, or the field detail page if no conversation exists yet.
+  const openFollowUpContext = async (fieldId: string) => {
+    setSidebarOpen(false);
+    try {
+      const { data } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('field_id', fieldId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.id) {
+        await handleSidebarSelect(data.id);
+        return;
+      }
+    } catch {
+      // fall through to field page
+    }
+    navigate(`/fields/${fieldId}`);
+  };
+
   const messageListProps = {
     messages,
     isTyping,
@@ -1852,55 +1863,18 @@ export default function Chat() {
           </div>
         )}
 
-        {/* ── VIO FOLLOW-UP BANNER (always visible, any message state) ── */}
-        {!isGuestMode && pendingVioFollowUp && messages.length === 0 && (
-          <div className="mx-4 mt-3 rounded-2xl border border-primary/30 bg-primary/6 p-4 flex-shrink-0">
-            <div className="mb-2 flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-foreground">
-                {lang === 'el' ? '🌿 Ενημέρωση θεραπείας' : '🌿 Treatment update'}
-              </p>
-              <button
-                onClick={() => setPendingVioFollowUp(null)}
-                className="text-muted hover:text-foreground transition-colors text-lg leading-none"
-                aria-label="Dismiss"
-              >×</button>
-            </div>
-            <p className="text-xs text-muted mb-3">
-              {pendingVioFollowUp.vioStepType === 'apply_check'
-                ? (lang === 'el'
-                    ? `Εφάρμοσες θεραπεία για ${pendingVioFollowUp.diagnosis || pendingVioFollowUp.cropLabel};`
-                    : `Did you apply treatment for ${pendingVioFollowUp.diagnosis || pendingVioFollowUp.cropLabel}?`)
-                : (lang === 'el'
-                    ? `Βλέπεις βελτίωση στο ${pendingVioFollowUp.cropLabel}${pendingVioFollowUp.productApplied ? ` μετά το ${pendingVioFollowUp.productApplied}` : ''};`
-                    : `Any improvement in ${pendingVioFollowUp.cropLabel}${pendingVioFollowUp.productApplied ? ` after ${pendingVioFollowUp.productApplied}` : ''}?`)}
-            </p>
-            {pendingVioFollowUp.vioStepType === 'apply_check' ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { handleVioApplyConfirm(pendingVioFollowUp.id, true, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
-                  className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
-                >{lang === 'el' ? 'Ναι, εφάρμοσα' : 'Yes, I applied'}</button>
-                <button
-                  onClick={() => { handleVioApplyConfirm(pendingVioFollowUp.id, false, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
-                  className="rounded-full border border-border/50 px-4 py-1.5 text-xs font-medium text-foreground hover:bg-muted/10 transition-colors"
-                >{lang === 'el' ? 'Όχι ακόμα' : 'Not yet'}</button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {(['better', 'same', 'worse', 'not_applied'] as const).map(v => (
-                  <button key={v}
-                    onClick={() => { handleOutcome(pendingVioFollowUp.id, v, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
-                    className="rounded-full border border-border/50 px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                  >
-                    {lang === 'el'
-                      ? { better: 'Βελτίωση', same: 'Ίδια', worse: 'Χειρότερα', not_applied: 'Δεν εφάρμοσα' }[v]
-                      : { better: 'Better', same: 'No change', worse: 'Worse', not_applied: "Didn't apply" }[v]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* ── VIO FOLLOW-UP CARDS (empty-home state) ── */}
+        {!isGuestMode && messages.length === 0 && pendingVioFollowUps.map(item => (
+          <VioFollowUpCard
+            key={item.id}
+            item={item}
+            className="mx-4 mt-3"
+            onApply={(id, applied) => { handleVioApplyConfirm(id, applied, `vio-banner-${id}`); removeVioFollowUp(id); }}
+            onOutcome={(id, outcome) => { handleOutcome(id, outcome, `vio-banner-${id}`); removeVioFollowUp(id); }}
+            onOpen={openFollowUpContext}
+            onDismiss={removeVioFollowUp}
+          />
+        ))}
 
         {/* ── DESKTOP WELCOME (no messages) ── */}
         {messages.length === 0 && (
@@ -1991,54 +1965,17 @@ export default function Chat() {
             </div>
             <div className="flex-shrink-0">
               <div className={`mx-auto ${isGuestMode ? 'max-w-2xl md:max-w-3xl md:px-4 md:pb-4' : 'max-w-2xl md:px-2 md:pb-4'}`}>
-                {pendingVioFollowUp && (
-                  <div className="mx-4 mb-2 rounded-2xl border border-primary/30 bg-primary/6 p-4">
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-foreground">
-                        {lang === 'el' ? '🌿 Ενημέρωση θεραπείας' : '🌿 Treatment update'}
-                      </p>
-                      <button
-                        onClick={() => setPendingVioFollowUp(null)}
-                        className="text-muted hover:text-foreground transition-colors text-lg leading-none"
-                        aria-label="Dismiss"
-                      >×</button>
-                    </div>
-                    <p className="text-xs text-muted mb-3">
-                      {pendingVioFollowUp.vioStepType === 'apply_check'
-                        ? (lang === 'el'
-                            ? `Εφάρμοσες θεραπεία για ${pendingVioFollowUp.diagnosis || pendingVioFollowUp.cropLabel};`
-                            : `Did you apply treatment for ${pendingVioFollowUp.diagnosis || pendingVioFollowUp.cropLabel}?`)
-                        : (lang === 'el'
-                            ? `Βλέπεις βελτίωση στο ${pendingVioFollowUp.cropLabel}${pendingVioFollowUp.productApplied ? ` μετά το ${pendingVioFollowUp.productApplied}` : ''};`
-                            : `Any improvement in ${pendingVioFollowUp.cropLabel}${pendingVioFollowUp.productApplied ? ` after ${pendingVioFollowUp.productApplied}` : ''}?`)}
-                    </p>
-                    {pendingVioFollowUp.vioStepType === 'apply_check' ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { handleVioApplyConfirm(pendingVioFollowUp.id, true, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
-                          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
-                        >{lang === 'el' ? 'Ναι, εφάρμοσα' : 'Yes, I applied'}</button>
-                        <button
-                          onClick={() => { handleVioApplyConfirm(pendingVioFollowUp.id, false, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
-                          className="rounded-full border border-border/50 px-4 py-1.5 text-xs font-medium text-foreground hover:bg-muted/10 transition-colors"
-                        >{lang === 'el' ? 'Όχι ακόμα' : 'Not yet'}</button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {(['better', 'same', 'worse', 'not_applied'] as const).map(v => (
-                          <button key={v}
-                            onClick={() => { handleOutcome(pendingVioFollowUp.id, v, `vio-banner-${pendingVioFollowUp.id}`); setPendingVioFollowUp(null); }}
-                            className="rounded-full border border-border/50 px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                          >
-                            {lang === 'el'
-                              ? { better: 'Βελτίωση', same: 'Ίδια', worse: 'Χειρότερα', not_applied: 'Δεν εφάρμοσα' }[v]
-                              : { better: 'Better', same: 'No change', worse: 'Worse', not_applied: "Didn't apply" }[v]}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {pendingVioFollowUps.map(item => (
+                  <VioFollowUpCard
+                    key={item.id}
+                    item={item}
+                    className="mx-4 mb-2"
+                    onApply={(id, applied) => { handleVioApplyConfirm(id, applied, `vio-banner-${id}`); removeVioFollowUp(id); }}
+                    onOutcome={(id, outcome) => { handleOutcome(id, outcome, `vio-banner-${id}`); removeVioFollowUp(id); }}
+                    onOpen={openFollowUpContext}
+                    onDismiss={removeVioFollowUp}
+                  />
+                ))}
                 {/* Reminder set confirmation chip */}
                 {reminderChip && (
                   <div className="mx-4 mb-2 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-2.5 animate-fade-in">
