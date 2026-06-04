@@ -1225,6 +1225,21 @@ export default function Landing() {
               style={{ background: 'linear-gradient(135deg, #194121 0%, #305936 100%)' }}>
               {isLoggedIn ? lt.openApp : lt.tryFree}
             </Link>
+            {/* Product Hunt — pre-launch follower drive. Fixed nav so it stays visible at any scroll
+                position; desktop-only to keep the phone nav single-line (mobile keeps the stats-bar badge). */}
+            <a
+              href="https://www.producthunt.com/products/oli-3?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-oli-3"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Find Oli on Product Hunt"
+              className="hidden lg:inline-flex items-center flex-shrink-0">
+              <img
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1152894&theme=light&t=1780563944241"
+                alt="Oli - Stop guessing. Your AI Agronomist, Always ON | Product Hunt"
+                className="h-9 w-auto"
+                loading="lazy"
+              />
+            </a>
           </div>
         </div>
       </nav>
