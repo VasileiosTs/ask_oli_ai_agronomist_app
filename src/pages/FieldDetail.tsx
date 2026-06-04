@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
 import { formatArea, defaultUnitForLocale, type AreaUnit } from '../lib/areaUnits';
+import OliHomeLink from '../components/OliHomeLink';
 import { getGrowthStage, STAGE_LABELS, STAGE_COLORS } from '../lib/growthStages';
 import WeatherWidget from '../components/WeatherWidget';
 import ReportGenerator from '../components/ReportGenerator';
@@ -257,6 +258,7 @@ export default function FieldDetail() {
           <h1 className="truncate text-lg font-semibold text-foreground">{field.name}</h1>
           {field.crop_type && <p className="text-xs text-muted">{field.crop_type}</p>}
         </div>
+        <OliHomeLink size={18} />
         <button onClick={() => navigate('/fields', { state: { edit: fieldId } })}
           className="rounded-full p-2 text-muted hover:text-foreground transition-colors">
           <Pencil className="h-4 w-4" />

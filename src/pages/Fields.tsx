@@ -10,6 +10,7 @@ import { isAdvisorTier } from '../../shared/subscription';
 import { downloadFieldReport } from '../lib/generateReport';
 import PaywallModal from '../components/PaywallModal';
 import LocationAutocomplete from '../components/LocationAutocomplete';
+import OliHomeLink from '../components/OliHomeLink';
 import { formatArea, unitLabel, displayToHa, haToDisplay, defaultUnitForLocale, type AreaUnit } from '../lib/areaUnits';
 import clsx from 'clsx';
 
@@ -191,11 +192,12 @@ export default function Fields() {
               {fields.length}/{limits.fields} {lang === 'el' ? 'αγρ.' : 'fields'}
             </span>
           )}
+          <OliHomeLink size={18} className="ml-auto" />
           {fields.length > 0 && (
             <button
               onClick={handleDownloadReport}
               disabled={reportLoading}
-              className="ml-auto flex items-center gap-1.5 rounded-lg border border-border/50 bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground disabled:opacity-50"
             >
               <FileDown className="h-3.5 w-3.5" />
               {reportLoading

@@ -1,6 +1,7 @@
 import { Leaf, Menu, Send, SquarePen } from 'lucide-react';
 import clsx from 'clsx';
 import OliLogo from '../../components/OliLogo';
+import OliHomeLink from '../../components/OliHomeLink';
 import type { ReactNode } from 'react';
 import ConversationSidebar from '../../components/ConversationSidebar';
 import ChatInputBar, { type ChatInputBarProps } from '../../components/ChatInputBar';
@@ -79,8 +80,7 @@ export default function ChatLayout({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <Leaf className="h-[18px] w-[18px] text-primary" />
-            <span className="text-[16px] font-medium text-primary">Oli</span>
+            <OliHomeLink useLeaf size={18} />
           </div>
           {fields.length > 0 && (
             <FieldSelector

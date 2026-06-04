@@ -8,6 +8,7 @@ import { useLanguage } from '../lib/LanguageContext';
 import type { T } from '../lib/i18n';
 import clsx from 'clsx';
 import PaywallModal from '../components/PaywallModal';
+import OliHomeLink from '../components/OliHomeLink';
 
 interface Intervention {
   id: string;
@@ -145,13 +146,16 @@ export default function History() {
     <main className="flex h-[calc(100dvh-104px)] md:h-[calc(100dvh-48px)] flex-col bg-background">
       {/* Header */}
       <div className="border-b border-border/50 px-4 py-4">
-        <button
-          onClick={() => navigate('/chat')}
-          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors mb-3"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          {lang === 'el' ? 'Πίσω' : 'Back'}
-        </button>
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            onClick={() => navigate('/chat')}
+            className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {lang === 'el' ? 'Πίσω' : 'Back'}
+          </button>
+          <OliHomeLink size={18} />
+        </div>
         <div className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-semibold text-foreground">{t.interventionHistory}</h1>

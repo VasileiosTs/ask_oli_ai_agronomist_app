@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, MessageCircle, User, Search, Sprout, Users, ChevronDown, ChevronRight } from 'lucide-react';
-import OliLogo from './OliLogo';
+import OliHomeLink from './OliHomeLink';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -174,8 +174,11 @@ export default function ConversationSidebar({ isOpen, onClose, activeId, onSelec
     )}>
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-4 border-b border-border/50">
-        <OliLogo size={20} bg="#161C23" />
-        <span className="text-base font-semibold text-primary">Oli</span>
+        <OliHomeLink
+          size={20}
+          labelClassName="text-base font-semibold text-primary"
+          onNavigate={() => { if (!desktop) onClose(); }}
+        />
         {!desktop && (
           <button onClick={onClose} aria-label="Close sidebar" className="ml-auto rounded-full p-1 text-muted hover:text-foreground transition-colors">
             <X className="h-4 w-4" />

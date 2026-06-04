@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useReducer } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { SquarePen, Send, Menu } from 'lucide-react';
 import OliLogo from '../components/OliLogo';
+import OliHomeLink from '../components/OliHomeLink';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/PaywallModal';
@@ -1805,10 +1806,7 @@ export default function Chat() {
         {/* Desktop guest header, sign-in bar, only shown in guest mode on md+ */}
         {isGuestMode && (
           <header className="hidden md:flex h-12 flex-shrink-0 items-center justify-between border-b border-border/50 bg-surface px-6">
-            <div className="flex items-center gap-2">
-              <OliLogo size={18} bg="#161C23" />
-              <span className="text-[16px] font-medium text-primary">Oli</span>
-            </div>
+            <OliHomeLink size={18} />
             <button
               onClick={() => { if (input.trim()) sessionStorage.setItem('oli_pending_input', input.trim()); setShowLoginModal(true); }}
               className="text-sm font-semibold text-white px-4 py-1.5 rounded-full"
@@ -1827,8 +1825,7 @@ export default function Chat() {
                 <Menu className="h-5 w-5" />
               </button>
             )}
-            <OliLogo size={18} bg="#161C23" />
-            <span className="text-[16px] font-medium text-primary">Oli</span>
+            <OliHomeLink size={18} />
           </div>
           {isGuestMode ? (
             <button

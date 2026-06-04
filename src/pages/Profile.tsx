@@ -10,6 +10,7 @@ import { LANG_OPTIONS } from '../lib/i18n';
 import clsx from 'clsx';
 import PaywallModal from '../components/PaywallModal';
 import PromoCodeRedeem from '../components/PromoCodeRedeem';
+import OliHomeLink from '../components/OliHomeLink';
 import { formatTierLabel, isUnlimitedTier } from '../../shared/subscription';
 
 import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
@@ -282,7 +283,7 @@ export default function Profile() {
   return (
     <main className="h-[100dvh] overflow-y-auto bg-background pt-safe">
       {/* Back button */}
-      <div className="px-4 pt-4 pb-0">
+      <div className="px-4 pt-4 pb-0 flex items-center justify-between">
         <button
           onClick={() => navigate('/chat')}
           className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors"
@@ -290,6 +291,7 @@ export default function Profile() {
           <ChevronLeft className="h-4 w-4" />
           {lang === 'el' ? 'Πίσω' : 'Back'}
         </button>
+        <OliHomeLink size={18} />
       </div>
       {/* Header */}
       <div className="px-4 pt-12 pb-4">
