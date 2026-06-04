@@ -7,7 +7,11 @@ All notable user-facing changes to Ask Oli. Format follows [Keep a Changelog](ht
 ## [Unreleased]
 
 ### Fixed
+- **Tap the Oli logo to return home**: the Oli mark and wordmark were never a tap target, and secondary pages (Profile, Fields, History, Field detail) showed no logo at all, so there was no quick way back to the chat home from a deep page. A shared `OliHomeLink` button now renders the logo on every screen and routes to `/chat` on tap (closing the mobile drawer when used from the sidebar).
 - **Default area unit by locale, not language toggle**: Greek and Cypriot growers were defaulted to hectares instead of stremma. The signup write derived the unit from the manual language-toggle key (`oli_lang_manual`), which is empty for users whose UI auto-detected Greek, so it fell back to English and persisted `ha`. The default now resolves from the country signal (timezone, then navigator region) before UI language, so a Greek grower gets stremma even on an English-language phone, and a US grower gets acres. A one-time migration backfills existing `ha` rows for the Greek/Cypriot cohort (matched by `language = 'el'` or GPS inside a Greece/Cyprus bounding box).
+
+### Changed
+- **Photo diagnosis is more decisive and less repetitive**: the chat AI now identifies the plant species from the image itself as a correctable observation rather than waiting for the user to name it, gives an explicit healthy or physiological verdict (for example normal autumn leaf senescence) instead of hedging, and credits a clear well-lit photo for up to three diagnostic pillars so a strong image is no longer scored as low-confidence. Every plant is treated as in scope (trees, ornamentals, houseplants, wild and garden plants, not only field crops), responses lead with what Oli sees before asking at most one question, and an anti-repeat rule stops the model returning an identical answer across turns. Disease-naming safety is unchanged: a photo alone still never exceeds 85 confidence, so quarantine diseases (Xylella, HLB, Fire Blight, and similar) can never be named from an image without supporting history.
 
 ---
 
