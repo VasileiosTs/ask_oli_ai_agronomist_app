@@ -1402,6 +1402,23 @@ export default function Landing() {
               {lt.statsFree}
             </p>
           </div>
+          {/* Product Hunt — pre-launch follower drive */}
+          <div className="mt-6 flex justify-center">
+            <a
+              href="https://www.producthunt.com/products/oli-3?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-oli-3"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Find Oli on Product Hunt"
+            >
+              <img
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1152894&theme=light&t=1780563944241"
+                alt="Oli - Stop guessing. Your AI Agronomist, Always ON | Product Hunt"
+                width={250}
+                height={54}
+                loading="lazy"
+              />
+            </a>
+          </div>
         </div>
       </section>
 
