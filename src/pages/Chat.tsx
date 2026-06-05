@@ -1863,8 +1863,16 @@ export default function Chat() {
           </div>
         )}
 
+        {/* ── CONVERSATION LOADING ── sidebarLoading+messages=[] is the normal load state;
+             the spinner must live here, outside the messages.length>0 gate, or it never shows. */}
+        {sidebarLoading && (
+          <div className="flex flex-1 items-center justify-center">
+            <OliLogo size={32} bg="#161C23" animate="cascade" />
+          </div>
+        )}
+
         {/* ── VIO FOLLOW-UP CARDS (empty-home state) ── */}
-        {!isGuestMode && messages.length === 0 && pendingVioFollowUps.map(item => (
+        {!isGuestMode && messages.length === 0 && !sidebarLoading && pendingVioFollowUps.map(item => (
           <VioFollowUpCard
             key={item.id}
             item={item}
@@ -1877,7 +1885,7 @@ export default function Chat() {
         ))}
 
         {/* ── DESKTOP WELCOME (no messages) ── */}
-        {messages.length === 0 && (
+        {messages.length === 0 && !sidebarLoading && (
           <div className="hidden md:flex flex-1 flex-col items-center justify-center px-8 animate-fade-in">
             <div className="w-full max-w-2xl">
               <div className="mb-3 flex items-center justify-center gap-3">
@@ -1916,7 +1924,7 @@ export default function Chat() {
         )}
 
         {/* ── MOBILE EMPTY STATE ── */}
-        {messages.length === 0 && (
+        {messages.length === 0 && !sidebarLoading && (
           <div className="md:hidden flex flex-1 flex-col">
             <div className="flex flex-1 flex-col items-center justify-center text-center px-4 animate-fade-in">
               <OliLogo size={40} bg="#0D1117" />
