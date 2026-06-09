@@ -181,6 +181,7 @@ export async function detectLang(): Promise<Lang> {
 
   const browserLang = navigator.language?.toLowerCase() ?? '';
   if (browserLang.startsWith('el')) return 'el';
+  if (browserLang.startsWith('en')) return 'en';
   if (browserLang.startsWith('it')) return 'it';
   if (browserLang.startsWith('es')) return 'es';
   if (browserLang.startsWith('fr')) return 'fr';
