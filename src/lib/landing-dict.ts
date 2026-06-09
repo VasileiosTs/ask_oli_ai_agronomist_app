@@ -35,8 +35,8 @@ export interface LandingT {
 const el: LandingT = {
   tryFree: 'Δοκίμασε δωρεάν', openApp: 'Άνοιξε',
   heroBadge: 'Ο AI Γεωπόνος σου · 24/7',
-  heroH1: ['Μάθε τι έχουν τα φυτά σου,', 'και τι ακριβώς να κάνεις.'],
-  heroSubtitle: 'Βγάλε μια φωτογραφία ή απλώς ρώτα. Ο Oli κάνει διάγνωση, σου δίνει την ακριβή θεραπεία και μετά επανέρχεται για να επιβεβαιώσει ότι έπιασε, και μαθαίνει τι καλλιεργείς με τον καιρό.',
+  heroH1: ['Ο γεωπόνος', 'που οι περισσότεροι παραγωγοί δεν είχαν ποτέ.'],
+  heroSubtitle: 'Ρώτα ό,τι θέλεις. Εξειδικευμένες συμβουλές για ασθένειες, θεραπεία, άρδευση, κλάδεμα και σπορά, με ακριβείς δόσεις και παρακολούθηση. Ξεκίνα δωρεάν.',
   heroPlaceholder: 'Ρώτα ή ανέβασε φωτογραφία...',
   heroPlaceholderHint: '(Shift+Enter για νέα γραμμή)',
   removePhoto: 'Αφαίρεση φωτογραφίας', photoAttached: 'Φωτογραφία επισυνάφθηκε',
@@ -92,8 +92,8 @@ const el: LandingT = {
 const en: LandingT = {
   tryFree: 'Try free', openApp: 'Open app',
   heroBadge: 'Your AI Agronomist · 24/7',
-  heroH1: ["Know what's wrong with your plants,", 'and exactly what to do.'],
-  heroSubtitle: 'Snap a photo or just ask. Oli diagnoses the problem, gives you the exact treatment, then follows up to confirm it worked, and learns what you grow over time.',
+  heroH1: ['The agronomist', 'most growers never had.'],
+  heroSubtitle: 'Ask anything. Get expert advice on disease, treatment, irrigation, pruning and planting, with exact dosages and follow-ups. Free to start.',
   heroPlaceholder: 'Ask or upload a photo...',
   heroPlaceholderHint: '(Shift+Enter for new line)',
   removePhoto: 'Remove photo', photoAttached: 'Photo attached',
