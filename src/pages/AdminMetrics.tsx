@@ -153,10 +153,9 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Users; title: string
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminMetrics() {
-  const { user } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { lang } = useLanguage();
 
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [snapshots, setSnapshots] = useState<KpiSnapshot[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [recentRedemptions, setRecentRedemptions] = useState<PromoRedemption[]>([]);
@@ -299,15 +298,15 @@ export default function AdminMetrics() {
   }, [loadSnapshots, loadPromoCodes, loadRecentRedemptions, loadLiveActiveUsers, loadTierBreakdown]);
 
   useEffect(() => {
-    if (!user) { setIsAdmin(false); setLoading(false); return; }
-    Promise.resolve(supabase.from('admin_users').select('id').eq('auth_id', user.id).maybeSingle())
-      .then(({ data }) => {
-        setIsAdmin(!!data);
-        if (data) loadAll().finally(() => setLoading(false));
-        else setLoading(false);
-      })
-      .catch(() => { setIsAdmin(false); setLoading(false); });
-  }, [user, loadAll]);
+    if (!isAdmin) return;
+    setLoading(true);
+    loadAll().finally(() => setLoading(false));
+  }, [isAdmin, loadAll]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || !isAdmin) setLoading(false);
+  }, [authLoading, user, isAdmin]);
 
   // Refresh live counter every 60s while on metrics tab
   useEffect(() => {

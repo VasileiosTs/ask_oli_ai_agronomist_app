@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, ChevronLeft, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3, ArrowLeft } from 'lucide-react';
+import { Leaf, MapPin, Crown, Pencil, BellRing, Globe, LogOut, Trash2, Download, FileText, Shield, ChevronRight, Loader2, X, Users, Copy, Check, Key, Plus, BarChart3, ArrowLeft } from 'lucide-react';
 import { getAccessTokenWithFallback, supabase, supabasePublicKey, supabaseUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../lib/LanguageContext';
@@ -17,7 +17,7 @@ import { FREE_MESSAGE_LIMIT as FREE_LIMIT } from "../lib/constants";
 import { unitLabel, defaultUnitForLocale, type AreaUnit } from '../lib/areaUnits';
 
 export default function Profile() {
-  const { user, profile, appUserId, logout, refreshProfile } = useAuth();
+  const { user, profile, appUserId, logout, refreshProfile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { t, lang, setLang } = useLanguage();
 
@@ -43,16 +43,7 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const push = usePushSubscription(appUserId ?? null);
-
-  // Check admin access once
-  useEffect(() => {
-    if (!user) return;
-    Promise.resolve(supabase.from('admin_users').select('id').eq('auth_id', user.id).maybeSingle())
-      .then(({ data }) => setIsAdmin(!!data))
-      .catch(() => {});
-  }, [user]);
 
   // ── API keys state ──
   interface ApiKey { id: string; name: string; key_prefix: string; last_used_at: string | null; created_at: string; revoked_at: string | null }
@@ -282,19 +273,8 @@ export default function Profile() {
 
   return (
     <main className="h-[100dvh] overflow-y-auto bg-background pt-safe">
-      {/* Back button */}
-      <div className="px-4 pt-4 pb-0 flex items-center justify-between">
-        <button
-          onClick={() => navigate('/chat')}
-          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          {lang === 'el' ? 'Πίσω' : 'Back'}
-        </button>
-        <OliHomeLink size={18} />
-      </div>
       {/* Header */}
-      <div className="px-4 pt-12 pb-4">
+      <div className="px-4 pt-4 pb-4">
         <div className="mb-4 flex items-center justify-between">
           <button
             type="button"
@@ -307,7 +287,7 @@ export default function Profile() {
           <div className="text-sm font-semibold text-foreground">
             {lang === 'el' ? 'Προφίλ' : 'Profile'}
           </div>
-          <div className="h-10 w-10" aria-hidden="true" />
+          <OliHomeLink size={18} />
         </div>
         <div className="flex items-center gap-4">
           <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-full bg-primary/20 overflow-hidden">
