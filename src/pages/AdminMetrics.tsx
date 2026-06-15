@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Users, TrendingUp, Activity, BarChart3, Target, Zap,
   ArrowUp, ArrowDown, Minus, RefreshCw, Loader2, ShieldAlert,
@@ -155,6 +155,7 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Users; title: string
 export default function AdminMetrics() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const { lang } = useLanguage();
+  const navigate = useNavigate();
 
   const [snapshots, setSnapshots] = useState<KpiSnapshot[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -468,9 +469,9 @@ export default function AdminMetrics() {
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/30 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/profile" className="p-1">
+            <button onClick={() => navigate(-1)} className="p-1">
               <ArrowLeft className="h-5 w-5 text-foreground" />
-            </Link>
+            </button>
             <div>
               <h1 className="text-base font-bold text-foreground">Admin</h1>
               {liveActiveUsers !== null && (
